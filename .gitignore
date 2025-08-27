@@ -57,3 +57,4 @@ ngrok.exe
 # 其他
 *.tmp
 *.temp
+.vercel
