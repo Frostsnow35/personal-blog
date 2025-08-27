@@ -10,7 +10,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "http://localhost:5000/api/:splat"
+  to = "https://frostsnow35-blog.up.railway.app/api/:splat"
   status = 200
   force = true
 
