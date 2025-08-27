@@ -238,16 +238,27 @@ const editLink = (index: number) => {
   showEditDialog.value = true
 }
 
-const removeLink = (index: number) => {
+const removeLink = async (index: number) => {
   if (confirm('确定要删除这个链接吗？')) {
-    const newLinks = [...socialLinks.value]
-    newLinks.splice(index, 1)
-    profileStore.updateProfile({ socialLinks: newLinks })
-    showSuccess('链接已删除', '社交媒体链接已成功删除')
+    try {
+      const newLinks = [...socialLinks.value]
+      newLinks.splice(index, 1)
+      
+      // 更新本地状态
+      profileStore.updateProfile({ socialLinks: newLinks })
+      
+      // 保存到后端
+      await profileStore.saveProfile()
+      
+      showSuccess('链接已删除', '社交媒体链接已成功删除')
+    } catch (error) {
+      showError('删除失败', '删除链接时出现错误，请重试')
+      console.error('Remove link error:', error)
+    }
   }
 }
 
-const saveLink = () => {
+const saveLink = async () => {
   if (!isValidLink.value) return
 
   try {
@@ -256,14 +267,24 @@ const saveLink = () => {
     if (isEditing.value && editingIndex.value >= 0) {
       // 编辑现有链接
       newLinks[editingIndex.value] = { ...editingLink.value }
-      showSuccess('链接已更新', '社交媒体链接已成功更新')
     } else {
       // 添加新链接
       newLinks.push({ ...editingLink.value })
+    }
+    
+    // 更新本地状态
+    profileStore.updateProfile({ socialLinks: newLinks })
+    
+    // 保存到后端
+    await profileStore.saveProfile()
+    
+    // 显示成功消息
+    if (isEditing.value) {
+      showSuccess('链接已更新', '社交媒体链接已成功更新')
+    } else {
       showSuccess('链接已添加', '新的社交媒体链接已成功添加')
     }
     
-    profileStore.updateProfile({ socialLinks: newLinks })
     closeDialog()
     
   } catch (error) {

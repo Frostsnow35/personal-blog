@@ -27,9 +27,19 @@ export const showNotification = (
   message?: string,
   duration: number = 5000
 ): void => {
+  // 检查是否已有相同内容的通知，避免重复
+  const existingNotifications = document.querySelectorAll('.notification-item')
+  for (const existing of existingNotifications) {
+    const titleEl = existing.querySelector('h4')
+    const messageEl = existing.querySelector('p')
+    if (titleEl?.textContent === title && messageEl?.textContent === message) {
+      return // 如果已有相同通知，不重复显示
+    }
+  }
+
   // 创建通知元素
   const notification = document.createElement('div')
-  notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 translate-x-full`
+  notification.className = `notification-item fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 translate-x-full`
   
   // 设置样式
   const baseClasses = 'border-l-4 p-4'
@@ -81,7 +91,7 @@ export const showSuccess = (title: string, message?: string) =>
   showNotification(NotificationType.SUCCESS, title, message)
 
 export const showError = (title: string, message?: string) => 
-  showNotification(NotificationType.ERROR, title, message, 0) // 错误通知不自动消失
+  showNotification(NotificationType.ERROR, title, message, 8000) // 错误通知8秒后自动消失
 
 export const showWarning = (title: string, message?: string) => 
   showNotification(NotificationType.WARNING, title, message)

@@ -208,6 +208,9 @@ const applyAvatar = async () => {
       }
     })
 
+    // 保存到后端
+    await profileStore.saveProfile()
+
     showSuccess('头像更新成功', '你的头像已经成功更新')
     closeUploadDialog()
     resetSelection()

@@ -389,17 +389,27 @@ const isAuthenticated = computed(() => !!localStorage.getItem('access_token'))
 const newSkill = ref('')
 const newInterest = ref('')
 
-const addSkill = () => {
+const addSkill = async () => {
   if (newSkill.value.trim()) {
-    profileStore.addSkill(newSkill.value.trim())
-    newSkill.value = ''
+    try {
+      profileStore.addSkill(newSkill.value.trim())
+      await profileStore.saveProfile()
+      newSkill.value = ''
+    } catch (error) {
+      console.error('Add skill error:', error)
+    }
   }
 }
 
-const addInterest = () => {
+const addInterest = async () => {
   if (newInterest.value.trim()) {
-    profileStore.addInterest(newInterest.value.trim())
-    newInterest.value = ''
+    try {
+      profileStore.addInterest(newInterest.value.trim())
+      await profileStore.saveProfile()
+      newInterest.value = ''
+    } catch (error) {
+      console.error('Add interest error:', error)
+    }
   }
 }
 
