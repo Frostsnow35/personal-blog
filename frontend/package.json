@@ -8,7 +8,8 @@
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "vercel-build": "npm run build"
+    "vercel-build": "npm run build",
+    "netlify-build": "npm install --legacy-peer-deps && npm run build"
   },
   "dependencies": {
     "gsap": "^3.12.2",
