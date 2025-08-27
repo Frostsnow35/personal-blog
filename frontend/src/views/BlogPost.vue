@@ -202,8 +202,8 @@ const fetchPost = async (slug: string) => {
     loading.value = true
     error.value = null
     
-    const response = await fetch(`http://localhost:5000/api/posts/slug/${slug}`)
-    const result = await response.json()
+    const { http } = await import('../utils/http')
+    const result = await http.get<any>(`/posts/slug/${slug}`)
     
     if (result.success) {
       post.value = result.data

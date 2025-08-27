@@ -399,8 +399,8 @@ const fetchPublishedPosts = async () => {
     loading.value = true
     error.value = null
     
-    const response = await fetch('http://localhost:5000/api/posts/published')
-    const result = await response.json()
+    const { http } = await import('../utils/http')
+    const result = await http.get<any>('/posts/published')
     
     if (result.success) {
       posts.value = result.data.items
@@ -417,8 +417,8 @@ const fetchPublishedPosts = async () => {
 
 const fetchPublishedCategories = async () => {
   try {
-    const response = await fetch('http://localhost:5000/api/categories/published')
-    const result = await response.json()
+    const { http } = await import('../utils/http')
+    const result = await http.get<any>('/categories/published')
     
     if (result.success) {
       categories.value = result.data
@@ -430,8 +430,8 @@ const fetchPublishedCategories = async () => {
 
 const fetchPublishedTags = async () => {
   try {
-    const response = await fetch('http://localhost:5000/api/tags/published')
-    const result = await response.json()
+    const { http } = await import('../utils/http')
+    const result = await http.get<any>('/tags/published')
     
     if (result.success) {
       tags.value = result.data

@@ -116,8 +116,8 @@ const fetchPublishedCategories = async () => {
     loading.value = true
     error.value = null
     
-    const response = await fetch('http://localhost:5000/api/categories/published')
-    const result = await response.json()
+    const { http } = await import('../utils/http')
+    const result = await http.get<any>('/categories/published')
     
     if (result.success) {
       // 为每个分类添加描述

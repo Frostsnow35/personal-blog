@@ -118,8 +118,8 @@ const fetchPublishedTags = async () => {
     loading.value = true
     error.value = null
     
-    const response = await fetch('http://localhost:5000/api/tags/published')
-    const result = await response.json()
+    const { http } = await import('../utils/http')
+    const result = await http.get<any>('/tags/published')
     
     if (result.success) {
       tags.value = result.data
