@@ -25,14 +25,27 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
-  if (url.pathname.startsWith('/api/')) {
-    return // 跳过 API
+  
+  // 跳过 API 和外部域名
+  if (url.pathname.startsWith('/api/') || 
+      url.hostname !== self.location.hostname) {
+    return
   }
+  
   event.respondWith(
     fetch(request)
       .then((resp) => {
-        const cloned = resp.clone()
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned))
+        // 只缓存成功的完整响应
+        if (resp.ok && resp.status !== 206) {
+          const cloned = resp.clone()
+          caches.open(CACHE_NAME).then((cache) => {
+            try {
+              cache.put(request, cloned)
+            } catch (e) {
+              console.warn('Cache put failed:', e)
+            }
+          })
+        }
         return resp
       })
       .catch(() => caches.match(request))

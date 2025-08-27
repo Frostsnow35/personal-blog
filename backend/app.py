@@ -53,10 +53,11 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 # 允许前端携带 Authorization 头
 CORS(app, 
-     resources={r"/api/*": {"origins": ["http://localhost:3000", "https://frostsnow35-blog.netlify.app", "https://frostsnow35.dpdns.org"]}}, 
+     resources={r"/api/*": {"origins": ["http://localhost:3000", "https://frostsnow35-blog.netlify.app", "https://frostsnow35.dpdns.org", "https://*.trycloudflare.com"]}}, 
      allow_headers=["Content-Type", "Authorization"], 
      expose_headers=["Authorization"],
-     supports_credentials=True)
+     supports_credentials=True,
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
  
 
