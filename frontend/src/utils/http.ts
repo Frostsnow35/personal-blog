@@ -1,4 +1,7 @@
-const BASE_URL = 'http://localhost:5000/api'
+// Prefer environment variable in production builds (Netlify), fallback to localhost for dev
+const BASE_URL = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL)
+  || (typeof process !== 'undefined' && (process as any).env?.VITE_API_BASE_URL)
+  || 'http://localhost:5000/api'
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 

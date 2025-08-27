@@ -142,8 +142,8 @@ const fetchPublishedPosts = async () => {
     loading.value = true
     error.value = null
     
-    const response = await fetch('http://localhost:5000/api/posts/published')
-    const result = await response.json()
+    const { http } = await import('../utils/http')
+    const result = await http.get<any>('/posts/published')
     
     if (result.success) {
       posts.value = result.data.items
