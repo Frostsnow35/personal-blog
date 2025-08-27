@@ -1,6 +1,13 @@
-// Prefer environment variable in production builds (Netlify), fallback to localhost for dev
-const BASE_URL = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL)
+// Prefer environment variable in production builds (Netlify). If missing, fallback to relative /api
+// so Netlify can proxy via redirects, and finally to localhost in dev.
+const envBase = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL)
   || (typeof process !== 'undefined' && (process as any).env?.VITE_API_BASE_URL)
+  || ''
+
+const normalizedEnvBase = envBase ? String(envBase).replace(/\/$/, '') : ''
+
+const BASE_URL = normalizedEnvBase
+  || (typeof window !== 'undefined' ? `${window.location.origin}/api` : '')
   || 'http://localhost:5000/api'
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
