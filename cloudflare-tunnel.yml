@@ -1,0 +1,24 @@
+tunnel: frostsnow35-blog
+credentials-file: .cloudflare/frostsnow35-blog.json
+
+ingress:
+  # 前端静态文件
+  - hostname: frostsnow35.dpdns.org
+    service: http://localhost:3000
+    originRequest:
+      noTLSVerify: true
+  
+  # www子域名
+  - hostname: www.frostsnow35.dpdns.org
+    service: http://localhost:3000
+    originRequest:
+      noTLSVerify: true
+  
+  # API后端
+  - hostname: api.frostsnow35.dpdns.org
+    service: http://localhost:5000
+    originRequest:
+      noTLSVerify: true
+  
+  # 默认规则（捕获所有其他请求）
+  - service: http_status:404

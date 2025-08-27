@@ -1,0 +1,15 @@
+{
+	"files": [
+		{
+			"id": "music-1",
+			"name": "eikyuu hours.mp3",
+			"title": "eikyuu hours",
+			"artist": "",
+			"src": "/audio/music/eikyuu%20hours.mp3",
+			"type": "music",
+			"format": "mp3"
+		}
+	]
+}
+
+

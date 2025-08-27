@@ -1,0 +1,10 @@
+tunnel: 3971baeb-dbf5-451c-bf24-d869e96743a3
+credentials-file: .cloudflare/3971baeb-dbf5-451c-bf24-d869e96743a3.json
+
+ingress:
+  # 所有请求都转发到前端
+  - hostname: frostsnow35.dpdns.org
+    service: http://localhost:3000
+  
+  # 默认规则
+  - service: http_status:404

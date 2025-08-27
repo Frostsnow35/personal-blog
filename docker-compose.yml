@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: your_root_password
+      MYSQL_DATABASE: personal_blog
+      MYSQL_USER: blog_user
+      MYSQL_PASSWORD: N@deshiko0304
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init_mysql.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+    command: --default-authentication-plugin=mysql_native_password
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=mysql+pymysql://blog_user:N@deshiko0304@mysql:3306/personal_blog?charset=utf8mb4
+      - SECRET_KEY=5dfbea2b17b91dd1fce1d5b221bf081479a9e1dee11b1d0a23460c7276723e50
+      - JWT_SECRET=a346ba893711b29d29f2eab1544482825e1b0b35387da68a8f8ee44fe8c4c9ae
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./logs:/app/logs
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mysql
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+      - ./frontend/dist:/usr/share/nginx/html
+    depends_on:
+      - backend
+    restart: unless-stopped
+    environment:
+      - NGINX_HOST=frostsnow35.dpdns.org
+
+volumes:
+  mysql_data:
+
