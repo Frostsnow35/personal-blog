@@ -21,7 +21,7 @@ const initThree = () => {
     // 低性能设备直接禁用，提升流畅性
     const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const isLowEndDevice = (navigator.hardwareConcurrency && navigator.hardwareConcurrency < 4) ||
-      (navigator.deviceMemory && (navigator as any).deviceMemory <= 4) || prefersReducedMotion
+      ((navigator as any).deviceMemory && (navigator as any).deviceMemory <= 4) || prefersReducedMotion
     if (isLowEndDevice) {
       if (container.value) container.value.style.display = 'none'
       return

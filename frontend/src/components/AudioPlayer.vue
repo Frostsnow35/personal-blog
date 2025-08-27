@@ -100,7 +100,7 @@
     </div>
 
     <!-- 播放列表 -->
-    <div v-if="playlist.length > 0" class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+    <div v-if="playlist && playlist.length > 0" class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
       <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">播放列表</h4>
       <div class="space-y-1 max-h-32 overflow-y-auto">
         <div

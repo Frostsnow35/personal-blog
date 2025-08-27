@@ -106,24 +106,24 @@
               <div class="space-y-4">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">详细指标</h3>
                 
-                <div v-for="(metric, key) in testResults.metrics" :key="key" class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                <div v-for="[key, metric] in Object.entries(testResults.metrics)" :key="key" class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                   <div class="flex justify-between items-center mb-2">
                     <span class="font-medium text-gray-900 dark:text-gray-100">{{ getMetricName(key) }}</span>
-                    <span class="text-sm text-gray-500">{{ metric.samples }} 次测试</span>
+                    <span class="text-sm text-gray-500">{{ (metric as any).samples }} 次测试</span>
                   </div>
                   
                   <div class="grid grid-cols-3 gap-4 text-sm">
                     <div>
                       <span class="text-gray-500">平均值:</span>
-                      <span class="font-medium text-gray-900 dark:text-gray-100 ml-2">{{ metric.avg }}</span>
+                      <span class="font-medium text-gray-900 dark:text-gray-100 ml-2">{{ (metric as any).avg }}</span>
                     </div>
                     <div>
                       <span class="text-gray-500">最小值:</span>
-                      <span class="font-medium text-gray-900 dark:text-gray-100 ml-2">{{ metric.min }}</span>
+                      <span class="font-medium text-gray-900 dark:text-gray-100 ml-2">{{ (metric as any).min }}</span>
                     </div>
                     <div>
                       <span class="text-gray-500">最大值:</span>
-                      <span class="font-medium text-gray-900 dark:text-gray-100 ml-2">{{ metric.max }}</span>
+                      <span class="font-medium text-gray-900 dark:text-gray-100 ml-2">{{ (metric as any).max }}</span>
                     </div>
                   </div>
                 </div>

@@ -75,6 +75,30 @@ export const socialPlatforms = {
     icon: '🐦',
     pattern: /^https:\/\/twitter\.com\/[\w-]+$/,
     placeholder: 'https://twitter.com/username'
+  },
+  qq: {
+    name: 'QQ',
+    icon: '🐧',
+    pattern: /^https?:\/\/.+/,
+    placeholder: 'QQ链接'
+  },
+  wechat: {
+    name: '微信',
+    icon: '💬',
+    pattern: /^https?:\/\/.+/,
+    placeholder: '微信链接'
+  },
+  linkedin: {
+    name: 'LinkedIn',
+    icon: '💼',
+    pattern: /^https:\/\/www\.linkedin\.com\/in\/[\w-]+$/,
+    placeholder: 'https://www.linkedin.com/in/username'
+  },
+  youtube: {
+    name: 'YouTube',
+    icon: '📹',
+    pattern: /^https:\/\/www\.youtube\.com\/@[\w-]+$/,
+    placeholder: 'https://www.youtube.com/@username'
   }
 }
 

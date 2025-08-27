@@ -49,9 +49,9 @@
             <div class="space-y-4">
               <div v-for="post in group" :key="post.id" class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                 <!-- 封面（小图） -->
-                <div v-if="post.cover_url" class="mr-4 w-28 h-16 rounded overflow-hidden flex-shrink-0">
+                <div v-if="post.coverImage" class="mr-4 w-28 h-16 rounded overflow-hidden flex-shrink-0">
                   <img
-                    v-lazy-img="getCoverSrc(post.cover_url)"
+                    v-lazy-img="getCoverSrc(post.coverImage)"
                     :alt="post.title || '文章封面'"
                     class="w-full h-full object-cover bg-gray-200 dark:bg-gray-700"
                     @error="onCoverError($event)"
@@ -105,6 +105,7 @@ interface Post {
   published_at?: string
   created_at: string
   read_time: number
+  coverImage?: string
 }
 
 const posts = ref<Post[]>([])

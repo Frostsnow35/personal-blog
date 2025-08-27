@@ -121,7 +121,13 @@ export class PerformanceBenchmark {
   
   // 生成性能报告
   generateReport() {
-    const report = {
+    const report: {
+      timestamp: string
+      totalDuration: number
+      metrics: Record<string, any>
+      memory: any
+      recommendations: string[]
+    } = {
       timestamp: new Date().toISOString(),
       totalDuration: performance.now() - this.startTime,
       metrics: {},
