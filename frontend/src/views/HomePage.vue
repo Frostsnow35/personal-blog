@@ -103,6 +103,15 @@
             </div>
           </div>
 
+          <!-- 调试信息 -->
+          <div class="mb-4 p-4 bg-yellow-100 border border-yellow-400 rounded">
+            <p>调试信息:</p>
+            <p>文章数量: {{ posts.length }}</p>
+            <p>过滤后文章数量: {{ filteredPosts.length }}</p>
+            <p>加载状态: {{ loading }}</p>
+            <p>错误信息: {{ error }}</p>
+          </div>
+          
           <!-- 文章列表 -->
           <div class="space-y-6">
             <article 
@@ -402,8 +411,11 @@ const fetchPublishedPosts = async () => {
     const { http } = await import('../utils/http')
     const result = await http.get<any>('/posts/published')
     
+    console.log('API响应:', result) // 调试信息
+    
     if (result.success) {
       posts.value = result.data.items
+      console.log('设置的文章数据:', posts.value) // 调试信息
     } else {
       error.value = result.message || '获取文章失败'
     }
