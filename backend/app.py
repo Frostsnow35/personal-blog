@@ -15,10 +15,13 @@ load_dotenv()
 app = Flask(__name__)
 
 # 配置数据库
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
-    'DATABASE_URL', 
-    'sqlite:///personal_blog.db?check_same_thread=False'
-)
+# 在 Railway 等生产环境中使用绝对路径
+if os.getenv('DATABASE_URL'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+else:
+    # 本地开发使用相对路径，生产环境使用绝对路径
+    db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}?check_same_thread=False'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 添加数据库连接字符集配置
