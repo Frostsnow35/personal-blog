@@ -5,24 +5,14 @@
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "frontend/dist",
-        "buildCommand": "npm run build",
-        "installCommand": "npm install"
+        "distDir": "frontend/dist"
       }
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "https://frostsnow35.dpdns.org/api/$1"
-    },
-    {
       "src": "/(.*)",
       "dest": "/frontend/dist/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/frontend/dist/index.html"
     }
   ]
 }
