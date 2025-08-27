@@ -110,7 +110,6 @@
             <p>过滤后文章数量: {{ filteredPosts.length }}</p>
             <p>加载状态: {{ loading }}</p>
             <p>错误信息: {{ error }}</p>
-            <p>环境变量: VITE_API_BASE_URL = {{ import.meta.env.VITE_API_BASE_URL || '未设置' }}</p>
           </div>
           
           <!-- 文章列表 -->
@@ -297,6 +296,8 @@ const error = ref<string | null>(null)
 const posts = ref<PublishedPost[]>([])
 const categories = ref<Category[]>([])
 const tags = ref<Tag[]>([])
+
+
 
 // 计算属性
 const filteredPosts = computed(() => {
