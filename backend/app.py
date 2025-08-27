@@ -52,7 +52,11 @@ JWT_ALG = 'HS256'
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 # 允许前端携带 Authorization 头
-CORS(app, resources={r"/api/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization"], expose_headers=["Authorization"])
+CORS(app, 
+     resources={r"/api/*": {"origins": ["http://localhost:3000", "https://frostsnow35-blog.netlify.app", "https://frostsnow35.dpdns.org"]}}, 
+     allow_headers=["Content-Type", "Authorization"], 
+     expose_headers=["Authorization"],
+     supports_credentials=True)
 
  
 
@@ -1077,6 +1081,11 @@ def login():
 # 健康检查
 @app.route('/health', methods=['GET'])
 def health_check():
+    return jsonify({'status': 'healthy', 'timestamp': datetime.now(timezone.utc).isoformat()})
+
+# 兼容前端期望的 /api/health
+@app.route('/api/health', methods=['GET'])
+def health_check_api():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now(timezone.utc).isoformat()})
 
 # 错误处理

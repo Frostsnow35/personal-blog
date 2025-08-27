@@ -10,8 +10,9 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://frostsnow35.dpdns.org/api/:splat"
+  to = "http://localhost:5000/api/:splat"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/*"
