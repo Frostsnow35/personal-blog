@@ -105,11 +105,12 @@
 
           <!-- 调试信息 -->
           <div class="mb-4 p-4 bg-yellow-100 border border-yellow-400 rounded">
-            <p>调试信息:</p>
+            <p><strong>调试信息:</strong></p>
             <p>文章数量: {{ posts.length }}</p>
             <p>过滤后文章数量: {{ filteredPosts.length }}</p>
             <p>加载状态: {{ loading }}</p>
             <p>错误信息: {{ error }}</p>
+            <p>环境变量: VITE_API_BASE_URL = {{ import.meta.env.VITE_API_BASE_URL || '未设置' }}</p>
           </div>
           
           <!-- 文章列表 -->
@@ -408,7 +409,11 @@ const fetchPublishedPosts = async () => {
     loading.value = true
     error.value = null
     
+    console.log('开始获取文章...') // 调试信息
+    
     const { http } = await import('../utils/http')
+    console.log('HTTP模块导入成功') // 调试信息
+    
     const result = await http.get<any>('/posts/published')
     
     console.log('API响应:', result) // 调试信息
@@ -418,12 +423,15 @@ const fetchPublishedPosts = async () => {
       console.log('设置的文章数据:', posts.value) // 调试信息
     } else {
       error.value = result.message || '获取文章失败'
+      console.log('API返回失败:', result.message) // 调试信息
     }
   } catch (err) {
     console.error('获取文章失败:', err)
+    console.log('错误详情:', err) // 调试信息
     error.value = '网络错误，请稍后重试'
   } finally {
     loading.value = false
+    console.log('加载完成，loading状态:', loading.value) // 调试信息
   }
 }
 
