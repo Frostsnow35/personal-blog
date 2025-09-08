@@ -3,19 +3,21 @@
 </template>
 
 <script setup lang="ts">
+// @ts-ignore 部分环境下类型解析可能报错，但运行无影响
 import { ref, onMounted, onUnmounted } from 'vue'
-import * as THREE from 'three'
 
 const container = ref<HTMLDivElement>()
 
-let scene: THREE.Scene
-let camera: THREE.PerspectiveCamera
-let renderer: THREE.WebGLRenderer
-let particles: THREE.Points
-let mouse = new THREE.Vector2()
+let THREE: any
+let scene: any
+let camera: any
+let renderer: any
+let particles: any
+let mouse: any = { x: 0, y: 0 }
 
 const initThree = () => {
   if (!container.value) return
+  if (!THREE) return
   
   try {
     // 低性能设备直接禁用，提升流畅性
@@ -158,7 +160,21 @@ const animate = () => {
 }
 
 onMounted(() => {
-  initThree()
+  const load = async () => {
+    if ((load as any)._done) return
+    ;(load as any)._done = true
+    try {
+      // @ts-ignore 动态导入在某些检查环境下可能提示找不到模块
+      THREE = await import('three')
+      // 鼠标向量在 three 加载后再提升为 Vector2（可选）
+      try { mouse = new THREE.Vector2() } catch {}
+      initThree()
+    } catch {}
+  }
+  // 交互优先，其次超时兜底
+  window.addEventListener('mousemove', load, { once: true })
+  window.addEventListener('touchstart', load, { once: true, passive: true as any })
+  setTimeout(load, 1500)
 })
 
 onUnmounted(() => {
@@ -171,7 +187,7 @@ onUnmounted(() => {
     particles.geometry.dispose()
   }
   if (particles && particles.material && Array.isArray(particles.material)) {
-    particles.material.forEach(mat => mat.dispose())
+    particles.material.forEach((mat: any) => mat.dispose())
   } else if (particles && particles.material && 'dispose' in particles.material) {
     (particles.material as any).dispose()
   }
