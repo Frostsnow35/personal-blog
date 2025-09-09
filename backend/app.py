@@ -482,7 +482,6 @@ def ensure_default_admin():
     else:
         # 开发兜底（不推荐用于生产）
         password_hash = generate_password_hash('admin')
-        app.logger.warning('No ADMIN_PASSWORD(_HASH) provided. Using default admin/admin for development. Set env vars ASAP!')
 
     user = User(username=admin_username, password_hash=password_hash, role='admin')
     db.session.add(user)
@@ -510,13 +509,11 @@ def ensure_mysql_utf8mb4():
         for table in tables:
             try:
                 db.session.execute(f"ALTER TABLE `{table}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-            except Exception as table_err:
-                app.logger.warning(f'转换表 `{table}` 到 utf8mb4 失败: {table_err}')
+            except Exception:
+                pass
         db.session.commit()
-        app.logger.info('MySQL 字符集已确保为 utf8mb4')
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        app.logger.warning(f'ensure_mysql_utf8mb4 执行失败: {e}')
 
 
 def create_access_token(username: str, role: str = 'admin', expires_minutes: int = 120) -> str:
@@ -1103,17 +1100,7 @@ def internal_error(error):
 
 @app.errorhandler(Exception)
 def handle_exception(error):
-    app.logger.error(f'Unhandled exception: {error}')
     return jsonify({'error': 'Server error', 'message': '服务器错误'}), 500
-
-# 请求日志中间件
-@app.before_request
-def log_request():
-    app.logger.info(f'{request.method} {request.path} - {request.remote_addr}')
-    
-    # 设置请求编码
-    if request.is_json:
-        request.charset = 'utf-8'
 
 # 自定义JSON响应函数，确保编码正确
 def json_response(data, status_code=200):
@@ -1130,19 +1117,6 @@ def json_response(data, status_code=200):
     response.encoding = 'utf-8'
     
     return response, status_code
-
-# 响应日志中间件
-@app.after_request
-def log_response(response):
-    app.logger.info(f'{request.method} {request.path} - {response.status_code}')
-    
-    # 强制设置所有响应的编码
-    if response.mimetype == 'application/json':
-        response.headers['Content-Type'] = 'application/json; charset=utf-8'
-        response.charset = 'utf-8'
-        response.encoding = 'utf-8'
-    
-    return response
 
 if __name__ == '__main__':
     # 设置Python环境的编码
@@ -1167,4 +1141,4 @@ if __name__ == '__main__':
         ensure_mysql_utf8mb4()
         ensure_default_admin()
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)
