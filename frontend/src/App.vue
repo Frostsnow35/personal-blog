@@ -4,6 +4,7 @@
     <ThemeToggle />
     <CursorEffect />
     <MusicPlayer />
+    <PerformanceMonitor />
   </div>
 </template>
 
@@ -13,6 +14,7 @@ import { useThemeStore } from './stores/theme'
 import ThemeToggle from './components/ThemeToggle.vue'
 import CursorEffect from './components/CursorEffect.vue'
 import MusicPlayer from './components/MusicPlayer.vue'
+import PerformanceMonitor from './components/PerformanceMonitor.vue'
 
 const themeStore = useThemeStore()
 
