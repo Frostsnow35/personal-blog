@@ -23,8 +23,6 @@ export class PerformanceMonitor {
     this.isMonitoring = true
     this.initObservers()
     this.startMetricsCollection()
-    
-    // console.log('🚀 性能监控已启动')
   }
   
   // 停止性能监控
@@ -33,8 +31,6 @@ export class PerformanceMonitor {
     
     this.isMonitoring = false
     this.cleanupObservers()
-    
-    // console.log('⏹️ 性能监控已停止')
   }
   
   // 初始化性能观察器
@@ -45,7 +41,6 @@ export class PerformanceMonitor {
         const longTaskObserver = new PerformanceObserver((list) => {
           list.getEntries().forEach((entry) => {
             if (entry.duration > 50) {
-              // console.warn('⚠️ 检测到长任务:', entry)
               this.recordMetric('long_tasks', entry.duration)
             }
           })
@@ -54,7 +49,7 @@ export class PerformanceMonitor {
         longTaskObserver.observe({ entryTypes: ['longtask'] })
         this.observers.push(longTaskObserver)
       } catch (e) {
-        // console.warn('长任务监控不可用')
+        // 长任务监控不可用
       }
       
       // 监控导航时间
@@ -71,7 +66,7 @@ export class PerformanceMonitor {
         navigationObserver.observe({ entryTypes: ['navigation'] })
         this.observers.push(navigationObserver)
       } catch (e) {
-        // console.warn('导航时间监控不可用')
+        // 导航时间监控不可用
       }
     }
   }
@@ -299,9 +294,8 @@ export class PerformanceMonitor {
     try {
       const data = this.exportData()
       localStorage.setItem('performance-metrics', JSON.stringify(data))
-      // console.log('📊 性能数据已保存到本地存储')
     } catch (error) {
-      console.error('保存性能数据失败:', error)
+      // 静默处理错误
     }
   }
 }

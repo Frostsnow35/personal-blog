@@ -105,7 +105,6 @@ export const useProfileStore = defineStore('profile', () => {
         if (cached) {
           profile.value = cached
           lastUpdated.value = Date.now()
-          console.log('从缓存加载个人资料成功')
           return
         }
       }

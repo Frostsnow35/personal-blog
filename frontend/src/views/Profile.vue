@@ -396,7 +396,7 @@ const addSkill = async () => {
       await profileStore.saveProfile()
       newSkill.value = ''
     } catch (error) {
-      console.error('Add skill error:', error)
+      // 静默处理错误
     }
   }
 }
@@ -408,7 +408,7 @@ const addInterest = async () => {
       await profileStore.saveProfile()
       newInterest.value = ''
     } catch (error) {
-      console.error('Add interest error:', error)
+      // 静默处理错误
     }
   }
 }

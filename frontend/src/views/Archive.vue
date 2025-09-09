@@ -151,7 +151,6 @@ const fetchPublishedPosts = async () => {
       error.value = result.message || '获取文章失败'
     }
   } catch (err) {
-    console.error('获取文章失败:', err)
     error.value = '网络错误，请稍后重试'
   } finally {
     loading.value = false

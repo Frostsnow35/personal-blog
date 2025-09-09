@@ -103,14 +103,7 @@
             </div>
           </div>
 
-          <!-- 调试信息 -->
-          <div class="mb-4 p-4 bg-yellow-100 border border-yellow-400 rounded">
-            <p><strong>调试信息:</strong></p>
-            <p>文章数量: {{ posts.length }}</p>
-            <p>过滤后文章数量: {{ filteredPosts.length }}</p>
-            <p>加载状态: {{ loading }}</p>
-            <p>错误信息: {{ error }}</p>
-          </div>
+
           
           <!-- 文章列表 -->
           <div class="space-y-6">
@@ -194,6 +187,47 @@
 
         <!-- 右侧边栏 -->
         <div class="lg:col-span-1">
+          <!-- 管理员功能区域 -->
+          <div v-if="isAuthenticated" class="card mb-6">
+            <div class="p-6">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                管理员功能
+              </h3>
+              <div class="space-y-3">
+                <router-link
+                  to="/admin/posts/new"
+                  class="flex items-center justify-center w-full px-4 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 transition-colors"
+                >
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  新建文章
+                </router-link>
+                <router-link
+                  to="/admin/posts"
+                  class="flex items-center justify-center w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  管理文章
+                </router-link>
+                <router-link
+                  to="/admin/dashboard"
+                  class="flex items-center justify-center w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  数据统计
+                </router-link>
+              </div>
+            </div>
+          </div>
+
           <!-- 分类 -->
           <div class="card mb-6">
             <div class="p-6">
@@ -410,29 +444,18 @@ const fetchPublishedPosts = async () => {
     loading.value = true
     error.value = null
     
-    console.log('开始获取文章...') // 调试信息
-    
     const { http } = await import('../utils/http')
-    console.log('HTTP模块导入成功') // 调试信息
-    
     const result = await http.get<any>('/posts/published')
-    
-    console.log('API响应:', result) // 调试信息
     
     if (result.success) {
       posts.value = result.data.items
-      console.log('设置的文章数据:', posts.value) // 调试信息
     } else {
       error.value = result.message || '获取文章失败'
-      console.log('API返回失败:', result.message) // 调试信息
     }
   } catch (err) {
-    console.error('获取文章失败:', err)
-    console.log('错误详情:', err) // 调试信息
     error.value = '网络错误，请稍后重试'
   } finally {
     loading.value = false
-    console.log('加载完成，loading状态:', loading.value) // 调试信息
   }
 }
 
@@ -445,7 +468,7 @@ const fetchPublishedCategories = async () => {
       categories.value = result.data
     }
   } catch (err) {
-    console.error('获取分类失败:', err)
+    // 静默处理错误
   }
 }
 
@@ -458,16 +481,20 @@ const fetchPublishedTags = async () => {
       tags.value = result.data
     }
   } catch (err) {
-    console.error('获取标签失败:', err)
+    // 静默处理错误
   }
 }
 
 onMounted(async () => {
-  await Promise.all([
+  // 并行加载数据，优化性能
+  const promises = [
     fetchPublishedPosts(),
     fetchPublishedCategories(),
     fetchPublishedTags()
-  ])
+  ]
+  
+  // 使用 Promise.allSettled 确保即使某个请求失败也不影响其他请求
+  await Promise.allSettled(promises)
   
   // 检查 URL 查询参数
   const urlParams = new URLSearchParams(window.location.search)

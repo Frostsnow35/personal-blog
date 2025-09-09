@@ -127,7 +127,6 @@ const fetchPublishedTags = async () => {
       error.value = result.message || '获取标签失败'
     }
   } catch (err) {
-    console.error('获取标签失败:', err)
     error.value = '网络错误，请稍后重试'
   } finally {
     loading.value = false

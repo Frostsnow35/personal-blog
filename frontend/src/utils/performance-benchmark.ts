@@ -41,7 +41,6 @@ export class PerformanceBenchmark {
       const response = await fetch('/api/posts/published')
       await response.json()
     } catch (error) {
-      console.error('数据加载测试失败:', error)
       return 0
     }
     
@@ -169,43 +168,32 @@ export class PerformanceBenchmark {
   saveReport(report: any) {
     try {
       localStorage.setItem('performance-benchmark', JSON.stringify(report))
-      // console.log('性能报告已保存到本地存储')
     } catch (error) {
-      console.error('保存性能报告失败:', error)
+      // 静默处理错误
     }
   }
 }
 
 // 使用示例
 export const runBenchmark = async () => {
-  // console.log('🚀 开始性能基准测试...')
   
   const benchmark = new PerformanceBenchmark()
   
   try {
     // 测试 Three.js 性能
-    // console.log('📊 测试 Three.js 渲染性能...')
     const threeJS = benchmark.measureThreeJS()
-    // console.log(`Three.js 渲染耗时: ${threeJS.toFixed(2)}ms`)
     
     // 测试数据加载性能
-    // console.log('📊 测试数据加载性能...')
     const dataLoading = await benchmark.measureDataLoading()
-    // console.log(`数据加载耗时: ${dataLoading.toFixed(2)}ms`)
     
     // 测试组件渲染性能
-    // console.log('📊 测试组件渲染性能...')
     const componentRender = benchmark.measureComponentRender('PostCard')
-    // console.log(`组件渲染耗时: ${componentRender.toFixed(2)}ms`)
     
     // 测试帧率
-    // console.log('📊 测试帧率...')
     const fps = await benchmark.measureFrameRate(2000) // 测试2秒
-    // console.log(`平均帧率: ${fps} FPS`)
     
     // 生成报告
     const report = benchmark.generateReport()
-    // console.log('📋 性能测试报告:', report)
     
     // 保存报告
     benchmark.saveReport(report)
@@ -213,13 +201,11 @@ export const runBenchmark = async () => {
     return report
     
   } catch (error) {
-    console.error('性能测试失败:', error)
     return null
   }
 }
 
 // 导出便捷函数
 export const quickBenchmark = () => {
-  console.log('⚡ 快速性能测试...')
   return runBenchmark()
 }

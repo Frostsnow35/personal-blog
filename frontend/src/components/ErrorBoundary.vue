@@ -18,7 +18,6 @@ const error = ref<Error | null>(null)
 
 onErrorCaptured((err: Error) => {
   error.value = err
-  console.error('Error captured:', err)
   return false
 })
 

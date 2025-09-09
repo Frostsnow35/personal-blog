@@ -52,7 +52,7 @@ export class LoadingManager {
       try {
         listener(key, loading)
       } catch (error) {
-        console.error('Loading listener error:', error)
+        // 静默处理错误
       }
     })
   }

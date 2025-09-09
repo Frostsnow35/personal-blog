@@ -214,16 +214,8 @@ export const logError = (error: AppError, context?: string): void => {
     url: window.location.href
   }
 
-  // 开发环境：控制台输出
-  if (import.meta.env.DEV) {
-    console.error('🚨 Application Error:', logData)
-  }
-
   // 生产环境：可以发送到错误监控服务
   // 这里可以集成 Sentry、LogRocket 等服务
-  if (import.meta.env.PROD) {
-    // 避免在控制台暴露敏感信息
-    console.error('An error occurred. Please check the console for details.')
     
     // 可以在这里发送错误到监控服务
     // sendErrorToMonitoring(logData)

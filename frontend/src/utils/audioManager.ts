@@ -316,7 +316,7 @@ export class AudioManager {
       
       localStorage.setItem('audio-manager-data', JSON.stringify(data))
     } catch (error) {
-      console.error('保存音频数据失败:', error)
+      // 静默处理错误
     }
   }
   
@@ -347,7 +347,7 @@ export class AudioManager {
         }
       }
     } catch (error) {
-      console.error('加载音频数据失败:', error)
+      // 静默处理错误
     }
   }
   

@@ -56,7 +56,6 @@ const initThree = () => {
     // 开始动画
     animate()
   } catch (error) {
-    console.error('Three.js初始化失败:', error)
     // 如果Three.js失败，隐藏容器
     if (container.value) {
       container.value.style.display = 'none'

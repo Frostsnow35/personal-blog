@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-// 使用动态导入实现真正的懒加载
+// 使用动态导入实现真正的懒加载，并添加预加载优化
 const LandingPage = () => import('../views/LandingPage.vue')
 const HomePage = () => import('../views/HomePage.vue')
 const About = () => import('../views/About.vue')
@@ -112,6 +112,19 @@ const router = createRouter({
       return { top: 0 }
     }
   }
+})
+
+// 路由预加载优化
+router.beforeEach((to, from, next) => {
+  // 预加载下一个可能访问的页面
+  if (to.name === 'Landing' && to.path === '/') {
+    // 预加载首页
+    import('../views/HomePage.vue')
+  } else if (to.name === 'Home') {
+    // 预加载关于页面
+    import('../views/About.vue')
+  }
+  next()
 })
 
 // 统一路由守卫：需要登录的页面或 /admin/* 需持有 access_token

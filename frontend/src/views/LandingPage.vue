@@ -93,7 +93,6 @@ const router = useRouter()
 // 添加图片加载错误处理
 const handleImageError = () => {
   // 如果图片加载失败，使用默认背景色
-  console.warn('个人背景图片加载失败，使用默认背景')
 }
 
 const enterBlog = () => {

@@ -62,7 +62,7 @@ const updateCacheMeta = (meta: Partial<CacheMeta>): void => {
     const newMeta = { ...currentMeta, ...meta }
     localStorage.setItem(CACHE_META_KEY, JSON.stringify(newMeta))
   } catch (error) {
-    console.warn('无法更新缓存元数据:', error)
+    // 静默处理错误
   }
 }
 
@@ -105,7 +105,6 @@ export const setCache = <T>(
       // 再次检查大小
       const newMeta = getCacheMeta()
       if (newMeta.totalSize + dataSize > finalConfig.maxSize) {
-        console.warn('缓存空间不足，无法存储数据')
         return false
       }
     }
@@ -120,7 +119,6 @@ export const setCache = <T>(
     
     return true
   } catch (error) {
-    console.warn('设置缓存失败:', error)
     return false
   }
 }
@@ -156,7 +154,6 @@ export const getCache = <T>(
     
     return cacheItem.data
   } catch (error) {
-    console.warn('获取缓存失败:', error)
     removeCache(key)
     return null
   }
@@ -182,7 +179,6 @@ export const removeCache = (key: string): boolean => {
     
     return true
   } catch (error) {
-    console.warn('移除缓存失败:', error)
     return false
   }
 }
@@ -234,7 +230,7 @@ export const cleanupCache = (config: Partial<CacheConfig> = {}): void => {
       lastCleanup: now
     })
   } catch (error) {
-    console.warn('清理缓存失败:', error)
+    // 静默处理错误
   }
 }
 
@@ -261,7 +257,7 @@ export const clearAllCache = (): void => {
       lastCleanup: Date.now()
     })
   } catch (error) {
-    console.warn('清空缓存失败:', error)
+    // 静默处理错误
   }
 }
 
@@ -337,9 +333,7 @@ export const initCache = (): void => {
     setInterval(() => {
       cleanupCache()
     }, 60 * 60 * 1000)
-    
-    console.log('缓存系统初始化完成')
   } catch (error) {
-    console.warn('缓存系统初始化失败:', error)
+    // 静默处理错误
   }
 }

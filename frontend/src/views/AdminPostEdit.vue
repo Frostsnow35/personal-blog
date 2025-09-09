@@ -195,7 +195,6 @@ onMounted(async () => {
       mdeReady.value = true
     }
   } catch (e) {
-    console.warn('编辑器加载失败，回退到简易模式', e)
     mdeReady.value = false
   }
 })

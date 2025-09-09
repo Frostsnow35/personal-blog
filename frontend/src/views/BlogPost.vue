@@ -202,19 +202,22 @@ const fetchPost = async (slug: string) => {
     loading.value = true
     error.value = null
     
+    // 预加载HTTP工具
     const { http } = await import('../utils/http')
     const result = await http.get<any>(`/posts/slug/${slug}`)
     
     if (result.success) {
       post.value = result.data
-      setPageMeta()
-      await nextTick()
-      enhanceContentImages()
+      
+      // 并行执行元数据设置和图片优化
+      await Promise.all([
+        Promise.resolve().then(() => setPageMeta()),
+        nextTick().then(() => enhanceContentImages())
+      ])
     } else {
       error.value = result.message || '文章不存在或未发布'
     }
   } catch (err) {
-    console.error('获取文章失败:', err)
     error.value = '网络错误，请稍后重试'
   } finally {
     loading.value = false

@@ -117,15 +117,14 @@ const togglePlay = () => {
   
   // 若未配置有效地址则忽略（不弹窗打断）
   if (!currentSong.value.url || currentSong.value.url === '#') {
-    console.warn('未配置有效音频地址')
     return
   }
   
   if (isPlaying.value) {
     audio.value.pause()
   } else {
-    audio.value.play().catch(error => {
-      console.error('播放失败:', error)
+    audio.value.play().catch(() => {
+      // 静默处理播放错误
     })
   }
   isPlaying.value = !isPlaying.value

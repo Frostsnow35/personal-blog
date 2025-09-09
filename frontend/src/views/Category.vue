@@ -130,7 +130,6 @@ const fetchPublishedCategories = async () => {
       error.value = result.message || '获取分类失败'
     }
   } catch (err) {
-    console.error('获取分类失败:', err)
     error.value = '网络错误，请稍后重试'
   } finally {
     loading.value = false

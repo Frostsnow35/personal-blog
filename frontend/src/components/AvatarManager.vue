@@ -217,7 +217,6 @@ const applyAvatar = async () => {
     
   } catch (error) {
     showError('头像更新失败', '上传头像时出现错误，请重试')
-    console.error('Avatar update error:', error)
   } finally {
     isProcessing.value = false
   }

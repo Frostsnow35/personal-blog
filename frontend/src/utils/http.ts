@@ -23,7 +23,9 @@ async function request<T>(path: string, method: HttpMethod, body?: any, signal?:
     method,
     headers: withAuth(isForm ? {} : { 'Content-Type': 'application/json' }),
     body: isForm ? body : body ? JSON.stringify(body) : undefined,
-    signal
+    signal,
+    // 添加缓存策略
+    cache: method === 'GET' ? 'default' : 'no-cache'
   })
 
   const text = await res.text()

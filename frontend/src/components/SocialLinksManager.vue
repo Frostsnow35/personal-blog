@@ -253,7 +253,6 @@ const removeLink = async (index: number) => {
       showSuccess('链接已删除', '社交媒体链接已成功删除')
     } catch (error) {
       showError('删除失败', '删除链接时出现错误，请重试')
-      console.error('Remove link error:', error)
     }
   }
 }
@@ -289,7 +288,6 @@ const saveLink = async () => {
     
   } catch (error) {
     showError('操作失败', '保存链接时出现错误，请重试')
-    console.error('Save link error:', error)
   }
 }
 

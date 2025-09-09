@@ -159,11 +159,7 @@
                 </ul>
               </div>
               
-              <!-- 测试信息 -->
-              <div class="text-sm text-gray-500 text-center pt-4 border-t border-gray-200 dark:border-gray-700">
-                测试时间: {{ new Date(testResults.timestamp).toLocaleString() }}<br>
-                总耗时: {{ testResults.totalDuration.toFixed(2) }}ms
-              </div>
+              
             </div>
             
             <div v-else class="text-center py-12 text-gray-500 dark:text-gray-400">
@@ -191,9 +187,8 @@ const runFullBenchmark = async () => {
   try {
     const results = await runBenchmark()
     testResults.value = results
-    console.log('完整测试完成:', results)
   } catch (error) {
-    console.error('测试失败:', error)
+    
   } finally {
     isRunning.value = false
   }
@@ -205,9 +200,8 @@ const runQuickBenchmark = async () => {
   try {
     const results = await quickBenchmark()
     testResults.value = results
-    console.log('快速测试完成:', results)
   } catch (error) {
-    console.error('测试失败:', error)
+    
   } finally {
     isRunning.value = false
   }
@@ -246,7 +240,7 @@ onMounted(() => {
     try {
       testResults.value = JSON.parse(saved)
     } catch (error) {
-      console.error('解析保存的测试结果失败:', error)
+      
     }
   }
 })
