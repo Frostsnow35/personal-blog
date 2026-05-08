@@ -43,6 +43,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Trae IDE
+.trae/
+
 # 证书文件
 .cloudflare/
 *.pem
@@ -58,3 +61,4 @@ ngrok.exe
 *.tmp
 *.temp
 .vercel
+*.tsbuildinfo

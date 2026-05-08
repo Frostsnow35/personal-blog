@@ -66,6 +66,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { http } from '../utils/http'
+import { render_markdown_html } from '../utils/markdown'
 
 const route = useRoute()
 const router = useRouter()
@@ -113,40 +114,7 @@ const save = async (status: 'draft'|'published') => {
 
 onMounted(load)
 
-// 轻量 Markdown 预览（无外部依赖）：先转义，再做基本替换
-const escapeHtml = (s: string) => s
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#39;')
-
-const renderMarkdown = (md: string) => {
-  let html = escapeHtml(md || '')
-  // 代码块 ```
-  html = html.replace(/```([\s\S]*?)```/g, (_m, p1) => `<pre><code>${p1}</code></pre>`)
-  // 行内代码 `code`
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
-  // 粗体 **text** 和 斜体 *text*
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>')
-  // 标题 # ## ###
-  html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>')
-  html = html.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
-  html = html.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
-  // 无序列表
-  html = html.replace(/^(?:-\s.+(?:\r?\n)?)+/gm, (block) => {
-    const items = block.trim().split(/\r?\n/).map(li => li.replace(/^-\s+/, '')).map(li => `<li>${li}</li>`).join('')
-    return `<ul>${items}</ul>`
-  })
-  // 段落
-  html = html.replace(/^(?!<h\d>|<ul>|<pre>|<\/)(.+)$/gm, '<p>$1</p>')
-  // 链接 http(s)
-  html = html.replace(/(https?:\/\/[^\s)]+)(?=\s|$)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
-  return html
-}
-
-const previewHtml = computed(() => renderMarkdown(form.value.content || ''))
+const previewHtml = computed(() => render_markdown_html(form.value.content || ''))
 
 // 动态加载 EasyMDE（零安装，无打包风险）：CDN 注入
 onMounted(async () => {

@@ -40,15 +40,8 @@
     errorMsg.value = ''
     loading.value = true
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.value, password: password.value })
-      })
-      const data = await res.json()
-      if (!res.ok || !data.success) {
-        throw new Error(data?.message || '登录失败')
-      }
+      const { http } = await import('../utils/http')
+      const data = await http.post<any>('/auth/login', { username: username.value, password: password.value })
       localStorage.setItem('access_token', data.access_token)
       localStorage.setItem('auth_user', JSON.stringify(data.user))
       router.push('/profile')

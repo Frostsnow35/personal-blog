@@ -19,7 +19,8 @@ echo ========================================
 echo Development Environment Started!
 echo ========================================
 echo Backend Server: http://localhost:5000
-echo Frontend Dev Server: http://localhost:3000
+echo Frontend Dev Server: http://localhost:3001
+echo If the port is occupied, check the frontend terminal output for the actual port.
 echo.
 echo Press any key to exit...
 pause >nul

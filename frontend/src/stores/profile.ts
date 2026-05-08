@@ -56,6 +56,10 @@ export const useProfileStore = defineStore('profile', () => {
     interests: ['二次元', '海洋', '自然', '哲学', '技术分享'],
     education: '计算机科学与技术',
     occupation: '学生',
+    featuredSlugs: ['vue3-composition-api-practice', 'welcome-to-my-blog'],
+    contactMarkdown: '',
+    cooperationMarkdown: '',
+    siteNoticeMarkdown: '',
     updatedAt: new Date().toISOString()
   })
 
@@ -90,7 +94,16 @@ export const useProfileStore = defineStore('profile', () => {
 
   // 公开的社交媒体链接
   const publicSocialLinks = computed(() => {
-    return profile.value.socialLinks?.filter(link => link.isPublic) || []
+    const list = profile.value.socialLinks?.filter(link => link.isPublic) || []
+    const seen = new Set<string>()
+    return list.filter(link => {
+      const url = String(link.url || '').trim()
+      const normalizedUrl = url.startsWith('mailto:') ? url : url.replace(/\/$/, '')
+      const key = `${link.platform}:${normalizedUrl}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
   })
 
   // 加载个人资料 - 优先使用缓存
@@ -133,6 +146,10 @@ export const useProfileStore = defineStore('profile', () => {
         interests: data.interests ?? [],
         education: data.education ?? '',
         occupation: data.occupation ?? '',
+        featuredSlugs: data.featured_slugs ?? [],
+        contactMarkdown: data.contact_markdown ?? '',
+        cooperationMarkdown: data.cooperation_markdown ?? '',
+        siteNoticeMarkdown: data.site_notice_markdown ?? '',
         updatedAt: data.updated_at ?? new Date().toISOString()
       }
       
@@ -368,7 +385,11 @@ export const useProfileStore = defineStore('profile', () => {
         skills: profile.value.skills,
         interests: profile.value.interests,
         education: profile.value.education,
-        occupation: profile.value.occupation
+        occupation: profile.value.occupation,
+        featured_slugs: profile.value.featuredSlugs || [],
+        contact_markdown: profile.value.contactMarkdown || '',
+        cooperation_markdown: profile.value.cooperationMarkdown || '',
+        site_notice_markdown: profile.value.siteNoticeMarkdown || ''
       }
 
       // 使用统一 http 工具，自动附带 Authorization，并在 401/403 时统一跳转
@@ -459,6 +480,10 @@ export const useProfileStore = defineStore('profile', () => {
       interests: ['二次元', '海洋', '自然', '哲学', '技术分享'],
       education: '计算机科学与技术',
       occupation: '学生',
+      featuredSlugs: ['vue3-composition-api-practice', 'welcome-to-my-blog'],
+      contactMarkdown: '',
+      cooperationMarkdown: '',
+      siteNoticeMarkdown: '',
       updatedAt: new Date().toISOString()
     }
     

@@ -15,6 +15,18 @@
   force = true
 
 [[redirects]]
+  from = "/sitemap.xml"
+  to = "https://frostsnow35-blog.up.railway.app/sitemap.xml"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/rss.xml"
+  to = "https://frostsnow35-blog.up.railway.app/rss.xml"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

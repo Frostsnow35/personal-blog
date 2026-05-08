@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 // 使用动态导入实现真正的懒加载，并添加预加载优化
 const LandingPage = () => import('../views/LandingPage.vue')
 const HomePage = () => import('../views/HomePage.vue')
+const Search = () => import('../views/Search.vue')
 const About = () => import('../views/About.vue')
 const Archive = () => import('../views/Archive.vue')
 const Category = () => import('../views/Category.vue')
@@ -26,6 +27,11 @@ const routes = [
     path: '/home',
     name: 'Home',
     component: HomePage
+  },
+  {
+    path: '/search',
+    name: 'Search',
+    component: Search
   },
   {
     path: '/about',
@@ -80,7 +86,8 @@ const routes = [
   {
     path: '/profile',
     name: 'Profile',
-    component: Profile
+    component: Profile,
+    meta: { requiresAuth: true }
   },
   {
     path: '/performance-test',
@@ -123,6 +130,7 @@ router.beforeEach((to, from, next) => {
   } else if (to.name === 'Home') {
     // 预加载关于页面
     import('../views/About.vue')
+    import('../views/Search.vue')
   }
   next()
 })

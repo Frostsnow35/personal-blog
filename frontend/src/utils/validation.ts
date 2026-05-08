@@ -16,7 +16,7 @@ export const validationRules = {
     pattern: /^[\u4e00-\u9fa5a-zA-Z\s]+$/
   },
   bio: {
-    maxLength: 500
+    maxLength: 4000
   },
   email: {
     pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/

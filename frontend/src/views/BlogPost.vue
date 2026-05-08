@@ -12,7 +12,7 @@
             <router-link to="/archive" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">归档</router-link>
             <router-link to="/category" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">分类</router-link>
             <router-link to="/tag" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">标签</router-link>
-            <router-link to="/about" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">关于</router-link>
+            <router-link to="/about" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">作者</router-link>
           </div>
         </div>
       </div>
@@ -85,11 +85,63 @@
         
         <!-- 文章内容 -->
         <div class="p-8">
-          <div class="prose prose-lg dark:prose-invert max-w-none" ref="articleRef">
+          <div class="prose prose-lg prose-slate dark:prose-invert max-w-none leading-relaxed" ref="articleRef">
             <div v-html="formattedContent"></div>
           </div>
         </div>
       </article>
+
+      <div class="mt-10 card p-6">
+        <div class="flex items-start gap-4">
+          <img
+            :src="profileStore.displayAvatar"
+            :alt="profileStore.displayName"
+            class="w-12 h-12 rounded-full border border-gray-200 dark:border-gray-700"
+          />
+          <div class="min-w-0 flex-1">
+            <div class="font-semibold text-gray-900 dark:text-gray-100">{{ profileStore.displayName }}</div>
+            <div class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ profileStore.displayBio }}</div>
+            <div class="mt-4">
+              <PublicSocialLinks :links="profileStore.publicSocialLinks" :rss-url="rssUrl" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="prev_post || next_post" class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <router-link
+          v-if="prev_post"
+          :to="`/post/${prev_post.slug}`"
+          class="card p-6 hover:shadow-lg transition-shadow text-left"
+        >
+          <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">上一篇</div>
+          <div class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ prev_post.title }}</div>
+        </router-link>
+        <div v-else class="hidden md:block"></div>
+        <router-link
+          v-if="next_post"
+          :to="`/post/${next_post.slug}`"
+          class="card p-6 hover:shadow-lg transition-shadow text-left"
+        >
+          <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">下一篇</div>
+          <div class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ next_post.title }}</div>
+        </router-link>
+      </div>
+
+      <div v-if="related_posts.length" class="mt-10">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">继续阅读</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <router-link
+            v-for="p in related_posts"
+            :key="p.slug"
+            :to="`/post/${p.slug}`"
+            class="card p-5 hover:shadow-lg transition-shadow"
+          >
+            <div class="text-base font-semibold text-gray-900 dark:text-gray-100">{{ p.title }}</div>
+            <div v-if="p.excerpt" class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ p.excerpt }}</div>
+          </router-link>
+        </div>
+      </div>
       
       <!-- 返回按钮 -->
       <div class="mt-8 text-center">
@@ -109,7 +161,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
+import { render_markdown_html } from '../utils/markdown'
+import { useProfileStore } from '../stores/profile'
+import PublicSocialLinks from '../components/PublicSocialLinks.vue'
 
 interface Post {
   id: number
@@ -128,15 +183,20 @@ interface Post {
 }
 
 const route = useRoute()
-const router = useRouter()
+const profileStore = useProfileStore()
+const rssUrl = computed(() => (import.meta.env.DEV ? 'http://localhost:5000/rss.xml' : '/rss.xml'))
 const post = ref<Post | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const articleRef = ref<HTMLElement | null>(null)
+const all_posts = ref<Post[]>([])
+const prev_post = ref<Post | null>(null)
+const next_post = ref<Post | null>(null)
+const related_posts = ref<Post[]>([])
 
 const formattedContent = computed(() => {
   if (!post.value?.content) return ''
-  return post.value.content.replace(/\n/g, '<br>')
+  return render_markdown_html(post.value.content)
 })
 
 const formatDate = (dateString: string) => {
@@ -214,6 +274,8 @@ const fetchPost = async (slug: string) => {
         Promise.resolve().then(() => setPageMeta()),
         nextTick().then(() => enhanceContentImages())
       ])
+
+      await fetchNavigationContext()
     } else {
       error.value = result.message || '文章不存在或未发布'
     }
@@ -224,7 +286,51 @@ const fetchPost = async (slug: string) => {
   }
 }
 
+const fetchNavigationContext = async () => {
+  if (!post.value) return
+  try {
+    const { http } = await import('../utils/http')
+    const res = await http.get<any>(`/posts/published?per_page=1000`)
+    const items: Post[] = Array.isArray(res?.data?.items) ? res.data.items : []
+    all_posts.value = items.slice()
+
+    const sorted = items.slice().sort((a, b) => {
+      const ad = new Date(a.published_at || a.created_at).getTime()
+      const bd = new Date(b.published_at || b.created_at).getTime()
+      return bd - ad
+    })
+
+    const idx = sorted.findIndex(p => p.slug === post.value?.slug)
+    prev_post.value = idx >= 0 && idx + 1 < sorted.length ? sorted[idx + 1] : null
+    next_post.value = idx > 0 ? sorted[idx - 1] : null
+
+    const current_tags = new Set((post.value?.tags || []).map(t => String(t).toLowerCase()))
+    const current_category = (post.value?.category || '').toLowerCase()
+
+    const scored = sorted
+      .filter(p => p.slug !== post.value?.slug)
+      .map(p => {
+        const tags = (p.tags || []).map(t => String(t).toLowerCase())
+        const tag_hits = tags.reduce((acc, t) => acc + (current_tags.has(t) ? 1 : 0), 0)
+        const category_hit = current_category && (String(p.category || '').toLowerCase() === current_category) ? 2 : 0
+        const score = category_hit + tag_hits
+        return { p, score }
+      })
+      .sort((a, b) => b.score - a.score)
+      .filter(x => x.score > 0)
+      .slice(0, 6)
+      .map(x => x.p)
+
+    related_posts.value = scored
+  } catch {
+    prev_post.value = null
+    next_post.value = null
+    related_posts.value = []
+  }
+}
+
 onMounted(() => {
+  profileStore.loadProfile()
   const slug = route.params.slug as string
   if (slug) {
     fetchPost(slug)

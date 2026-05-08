@@ -77,7 +77,13 @@ def migrate_sqlite_to_mysql():
         
         # 迁移个人资料
         print("👤 迁移个人资料...")
-        sqlite_cursor.execute("SELECT * FROM profiles")
+        sqlite_cursor.execute("""
+            SELECT id, name, avatar, bio, email, location, website,
+                   github, twitter, skills, interests, education, occupation,
+                   featured_slugs, contact_markdown, cooperation_markdown, site_notice_markdown,
+                   created_at, updated_at
+            FROM profiles
+        """)
         profiles = sqlite_cursor.fetchall()
         
         for profile in profiles:
@@ -85,8 +91,9 @@ def migrate_sqlite_to_mysql():
                 mysql_cursor.execute("""
                     INSERT INTO profiles (id, name, avatar, bio, email, location, website, 
                                        github, twitter, skills, interests, education, occupation, 
+                                       featured_slugs, contact_markdown, cooperation_markdown, site_notice_markdown,
                                        created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, profile)
                 print(f"✅ 迁移个人资料: {profile[1]}")
             except Exception as e:

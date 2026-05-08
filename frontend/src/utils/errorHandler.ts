@@ -216,10 +216,6 @@ export const logError = (error: AppError, context?: string): void => {
 
   // 生产环境：可以发送到错误监控服务
   // 这里可以集成 Sentry、LogRocket 等服务
-    
-    // 可以在这里发送错误到监控服务
-    // sendErrorToMonitoring(logData)
-  }
 }
 
 // 错误恢复建议

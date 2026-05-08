@@ -2,14 +2,15 @@
   <div id="app">
     <router-view />
     <ThemeToggle />
-    <CursorEffect />
-    <MusicPlayer />
-    <PerformanceMonitor />
+    <CursorEffect v-if="showEffects" />
+    <MusicPlayer v-if="showMusic" />
+    <PerformanceMonitor v-if="showPerformance" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useThemeStore } from './stores/theme'
 import ThemeToggle from './components/ThemeToggle.vue'
 import CursorEffect from './components/CursorEffect.vue'
@@ -17,6 +18,11 @@ import MusicPlayer from './components/MusicPlayer.vue'
 import PerformanceMonitor from './components/PerformanceMonitor.vue'
 
 const themeStore = useThemeStore()
+const route = useRoute()
+
+const showEffects = computed(() => route.path === '/')
+const showMusic = computed(() => route.path === '/')
+const showPerformance = computed(() => import.meta.env.DEV)
 
 onMounted(() => {
   themeStore.initTheme()

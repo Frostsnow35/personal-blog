@@ -56,7 +56,7 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 # 允许前端携带 Authorization 头
 CORS(app, 
-     resources={r"/api/*": {"origins": ["http://localhost:3000", "https://frostsnow35-blog.netlify.app", "https://frostsnow35.dpdns.org", "https://*.trycloudflare.com"]}}, 
+     resources={r"/api/*": {"origins": ["http://localhost:3000", "http://localhost:3001", "https://frostsnow35-blog.netlify.app", "https://frostsnow35.dpdns.org", "https://*.trycloudflare.com"]}}, 
      allow_headers=["Content-Type", "Authorization"], 
      expose_headers=["Authorization"],
      supports_credentials=True,
@@ -116,6 +116,10 @@ class Profile(db.Model):
     interests = db.Column(db.JSON)
     education = db.Column(db.String(200))
     occupation = db.Column(db.String(200))
+    featured_slugs = db.Column(db.JSON)
+    contact_markdown = db.Column(db.Text)
+    cooperation_markdown = db.Column(db.Text)
+    site_notice_markdown = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -362,22 +366,30 @@ def serve_uploads(filename):
     from flask import send_from_directory
     return send_from_directory(UPLOAD_DIR, filename)
 
+def _get_site_url() -> str:
+    site_url = (os.getenv('SITE_URL') or '').strip()
+    if site_url:
+        return site_url.rstrip('/')
+    return request.host_url.rstrip('/')
+
 @app.route('/sitemap.xml')
 def sitemap():
     """生成 sitemap.xml"""
     from flask import make_response
     import xml.etree.ElementTree as ET
     
+    site_url = _get_site_url()
+
     # 创建 XML 根元素
     urlset = ET.Element('urlset')
     urlset.set('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9')
     
     # 添加静态页面
-    static_pages = ['', '/home', '/about', '/archive', '/category', '/tag']
+    static_pages = ['', '/home', '/about', '/archive', '/category', '/tag', '/profile']
     for page in static_pages:
         url = ET.SubElement(urlset, 'url')
         loc = ET.SubElement(url, 'loc')
-        loc.text = f'http://localhost:3000{page}'
+        loc.text = f'{site_url}{page}'
         lastmod = ET.SubElement(url, 'lastmod')
         lastmod.text = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         changefreq = ET.SubElement(url, 'changefreq')
@@ -390,7 +402,7 @@ def sitemap():
     for post in published_posts:
         url = ET.SubElement(urlset, 'url')
         loc = ET.SubElement(url, 'loc')
-        loc.text = f'http://localhost:3000/post/{post.slug}'
+        loc.text = f'{site_url}/post/{post.slug}'
         lastmod = ET.SubElement(url, 'lastmod')
         lastmod.text = post.updated_at.strftime('%Y-%m-%d')
         changefreq = ET.SubElement(url, 'changefreq')
@@ -411,6 +423,8 @@ def rss():
     from flask import make_response
     import xml.etree.ElementTree as ET
     
+    site_url = _get_site_url()
+
     # 创建 RSS 根元素
     rss = ET.Element('rss')
     rss.set('version', '2.0')
@@ -421,7 +435,7 @@ def rss():
     title = ET.SubElement(channel, 'title')
     title.text = '霜雪旧曾谙的个人博客'
     link = ET.SubElement(channel, 'link')
-    link.text = 'http://localhost:3000'
+    link.text = site_url
     description = ET.SubElement(channel, 'description')
     description.text = '计算机专业学生 | 二次元爱好者 | 海洋探索者 | 哲学思考者'
     language = ET.SubElement(channel, 'language')
@@ -436,7 +450,7 @@ def rss():
         item_title.text = post.title
         
         item_link = ET.SubElement(item, 'link')
-        item_link.text = f'http://localhost:3000/post/{post.slug}'
+        item_link.text = f'{site_url}/post/{post.slug}'
         
         item_description = ET.SubElement(item, 'description')
         item_description.text = post.excerpt or post.content[:200] + '...' if len(post.content) > 200 else post.content
@@ -445,7 +459,7 @@ def rss():
         item_pubDate.text = post.published_at.strftime('%a, %d %b %Y %H:%M:%S %z') if post.published_at else ''
         
         item_guid = ET.SubElement(item, 'guid')
-        item_guid.text = f'http://localhost:3000/post/{post.slug}'
+        item_guid.text = f'{site_url}/post/{post.slug}'
     
     # 生成 XML 字符串
     xml_str = ET.tostring(rss, encoding='unicode')
@@ -514,6 +528,56 @@ def ensure_mysql_utf8mb4():
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+def ensure_profile_schema():
+    required_columns = {
+        'featured_slugs': 'TEXT',
+        'contact_markdown': 'TEXT',
+        'cooperation_markdown': 'TEXT',
+        'site_notice_markdown': 'TEXT'
+    }
+
+    try:
+        uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        if 'mysql' in uri:
+            try:
+                db_name_result = db.session.execute('SELECT DATABASE()')
+                db_name = list(db_name_result.fetchone() or [''])[0]
+                if not db_name:
+                    return
+                existing_result = db.session.execute(
+                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = :db AND TABLE_NAME = 'profiles'",
+                    {'db': db_name}
+                )
+                existing = {list(row)[0] for row in existing_result}
+                for col, col_type in required_columns.items():
+                    if col in existing:
+                        continue
+                    db.session.execute(f"ALTER TABLE `profiles` ADD COLUMN `{col}` {col_type}")
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            return
+
+        import sqlite3
+        import os
+
+        db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
+        conn = sqlite3.connect(db_path)
+        try:
+            cur = conn.cursor()
+            cur.execute("PRAGMA table_info(profiles)")
+            existing = {row[1] for row in cur.fetchall()}
+            for col, col_type in required_columns.items():
+                if col in existing:
+                    continue
+                cur.execute(f"ALTER TABLE profiles ADD COLUMN {col} {col_type}")
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        pass
 
 
 def create_access_token(username: str, role: str = 'admin', expires_minutes: int = 120) -> str:
@@ -585,17 +649,43 @@ def get_published_posts():
     if tag:
         query = query.filter(Post.tags.contains([tag]))
     if search:
-        query = query.filter(
-            db.or_(
-                Post.title.ilike(f'%{search}%'),
-                Post.excerpt.ilike(f'%{search}%'),
-                Post.content.ilike(f'%{search}%')
-            )
-        )
+        like = f'%{search}%'
+        query = query.filter(db.or_(
+            Post.title.ilike(like),
+            Post.category.ilike(like),
+            Post.tags.contains([search])
+        ))
     
     posts = query.order_by(Post.published_at.desc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
+
+    uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if 'mysql' in uri:
+        items = []
+        for p in posts.items:
+            items.append({
+                'id': p.id,
+                'title': p.title,
+                'slug': p.slug,
+                'excerpt': p.excerpt,
+                'category': p.category,
+                'tags': p.tags or [],
+                'cover_url': p.cover_url,
+                'read_time': p.read_time,
+                'published_at': p.published_at.isoformat() if p.published_at else None,
+                'created_at': p.created_at.isoformat() if p.created_at else None
+            })
+
+        return json_response({
+            'success': True,
+            'data': {
+                'items': items,
+                'total': posts.total,
+                'pages': posts.pages,
+                'current_page': page
+            }
+        })
     
     # 使用直接SQL查询避免SQLAlchemy编码问题
     import sqlite3
@@ -613,9 +703,13 @@ def get_published_posts():
         if category:
             where_conditions.append("category = ?")
             params.append(category)
+
+        if tag:
+            where_conditions.append("tags LIKE ?")
+            params.append(f'%"{tag}"%')
         
         if search:
-            where_conditions.append("(title LIKE ? OR excerpt LIKE ? OR content LIKE ?)")
+            where_conditions.append("(title LIKE ? OR category LIKE ? OR tags LIKE ?)")
             search_pattern = f'%{search}%'
             params.extend([search_pattern, search_pattern, search_pattern])
         
@@ -682,6 +776,134 @@ def get_published_posts():
             }
         })
         
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/api/search', methods=['GET'])
+def search_published_posts():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    category = (request.args.get('category') or '').strip()
+    tag = (request.args.get('tag') or '').strip()
+    search = (request.args.get('search') or '').strip()
+
+    query = Post.query.filter_by(status='published')
+    if category:
+        query = query.filter(Post.category == category)
+    if tag:
+        query = query.filter(Post.tags.contains([tag]))
+    if search:
+        like = f'%{search}%'
+        query = query.filter(db.or_(
+            Post.title.ilike(like),
+            Post.category.ilike(like),
+            Post.tags.contains([search])
+        ))
+
+    posts = query.order_by(Post.published_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if 'mysql' in uri:
+        items = []
+        for p in posts.items:
+            items.append({
+                'id': p.id,
+                'title': p.title,
+                'slug': p.slug,
+                'excerpt': p.excerpt,
+                'category': p.category,
+                'tags': p.tags or [],
+                'cover_url': p.cover_url,
+                'read_time': p.read_time,
+                'published_at': p.published_at.isoformat() if p.published_at else None,
+                'created_at': p.created_at.isoformat() if p.created_at else None
+            })
+
+        return json_response({
+            'success': True,
+            'data': {
+                'items': items,
+                'total': posts.total,
+                'pages': posts.pages,
+                'current_page': page
+            }
+        })
+
+    import sqlite3
+    import os
+
+    db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        where_conditions = ["status = 'published'"]
+        params = []
+
+        if category:
+            where_conditions.append("category = ?")
+            params.append(category)
+
+        if tag:
+            where_conditions.append("tags LIKE ?")
+            params.append(f'%"{tag}"%')
+
+        if search:
+            where_conditions.append("(title LIKE ? OR category LIKE ? OR tags LIKE ?)")
+            like = f'%{search}%'
+            params.extend([like, like, like])
+
+        where_clause = " AND ".join(where_conditions)
+        cursor.execute(f"SELECT COUNT(*) FROM posts WHERE {where_clause}", params)
+        total = cursor.fetchone()[0]
+
+        offset = (page - 1) * per_page
+        cursor.execute(
+            f"""
+            SELECT id, title, slug, excerpt, category, tags, cover_url, read_time,
+                   published_at, created_at
+            FROM posts
+            WHERE {where_clause}
+            ORDER BY published_at DESC, created_at DESC
+            LIMIT ? OFFSET ?
+            """,
+            params + [per_page, offset]
+        )
+        rows = cursor.fetchall()
+
+        items = []
+        for row in rows:
+            post_id, title, slug, excerpt, category_val, tags_raw, cover_url, read_time, published_at, created_at = row
+            try:
+                tags_list = json.loads(tags_raw) if tags_raw else []
+            except Exception:
+                tags_list = []
+
+            items.append({
+                'id': post_id,
+                'title': title,
+                'slug': slug,
+                'excerpt': excerpt,
+                'category': category_val,
+                'tags': tags_list,
+                'cover_url': cover_url,
+                'read_time': read_time,
+                'published_at': published_at,
+                'created_at': created_at
+            })
+
+        pages = (total + per_page - 1) // per_page
+        return json_response({
+            'success': True,
+            'data': {
+                'items': items,
+                'total': total,
+                'pages': pages,
+                'current_page': page
+            }
+        })
     finally:
         cursor.close()
         conn.close()
@@ -961,72 +1183,50 @@ def get_stats():
 @app.route('/api/profile', methods=['GET'])
 def get_profile():
     """获取个人资料"""
-    # 使用直接SQL查询避免SQLAlchemy编码问题
-    import sqlite3
-    import os
-    import json
-    
-    db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute("SELECT * FROM profiles LIMIT 1")
-        profile_data = cursor.fetchone()
-        
-        if not profile_data:
-            # 如果没有个人资料，返回默认值
-            return json_response({
-                'id': 1,
-                'name': '霜雪旧曾谙',
-                'avatar': '/avatar.jpg',
-                'bio': '计算机专业学生 | 二次元爱好者 | 海洋探索者 | 哲学思考者',
-                'email': 'example@email.com',
-                'location': '中国',
-                'website': 'https://example.com',
-                'github': 'https://github.com/username',
-                'twitter': 'https://twitter.com/username',
-                'skills': ['Vue.js', 'Python', 'Flask', 'MySQL', 'TypeScript', 'Tailwind CSS'],
-                'interests': ['二次元', '海洋', '自然', '哲学', '技术分享'],
-                'education': '计算机科学与技术',
-                'occupation': '学生',
-                'updated_at': datetime.now(timezone.utc).isoformat()
-            })
-        
-        # 假设profiles表的结构：id, name, avatar, bio, email, location, website, github, twitter, skills, interests, education, occupation, updated_at
-        profile_id, name, avatar, bio, email, location, website, github, twitter, skills_str, interests_str, education, occupation, updated_at = profile_data
-        
-        # 处理JSON字段
-        try:
-            skills = json.loads(skills_str) if skills_str else []
-        except:
-            skills = []
-        
-        try:
-            interests = json.loads(interests_str) if interests_str else []
-        except:
-            interests = []
-        
+    profile = Profile.query.first()
+    if not profile:
         return json_response({
-            'id': profile_id,
-            'name': name,
-            'avatar': avatar,
-            'bio': bio,
-            'email': email,
-            'location': location,
-            'website': website,
-            'github': github,
-            'twitter': twitter,
-            'skills': skills,
-            'interests': interests,
-            'education': education,
-            'occupation': occupation,
-            'updated_at': updated_at
+            'id': 1,
+            'name': '霜雪旧曾谙',
+            'avatar': '/avatar.jpg',
+            'bio': '计算机专业学生 | 二次元爱好者 | 海洋探索者 | 哲学思考者',
+            'email': 'example@email.com',
+            'location': '中国',
+            'website': 'https://example.com',
+            'github': 'https://github.com/username',
+            'twitter': 'https://twitter.com/username',
+            'skills': ['Vue.js', 'Python', 'Flask', 'MySQL', 'TypeScript', 'Tailwind CSS'],
+            'interests': ['二次元', '海洋', '自然', '哲学', '技术分享'],
+            'education': '计算机科学与技术',
+            'occupation': '学生',
+            'featured_slugs': [],
+            'contact_markdown': '',
+            'cooperation_markdown': '',
+            'site_notice_markdown': '',
+            'updated_at': datetime.now(timezone.utc).isoformat()
         })
-        
-    finally:
-        cursor.close()
-        conn.close()
+
+    updated_at = profile.updated_at.isoformat() if getattr(profile, 'updated_at', None) else None
+    return json_response({
+        'id': profile.id,
+        'name': profile.name or '',
+        'avatar': profile.avatar or '/avatar.jpg',
+        'bio': profile.bio or '',
+        'email': profile.email or '',
+        'location': profile.location or '',
+        'website': profile.website or '',
+        'github': profile.github or '',
+        'twitter': profile.twitter or '',
+        'skills': profile.skills or [],
+        'interests': profile.interests or [],
+        'education': profile.education or '',
+        'occupation': profile.occupation or '',
+        'featured_slugs': profile.featured_slugs or [],
+        'contact_markdown': profile.contact_markdown or '',
+        'cooperation_markdown': profile.cooperation_markdown or '',
+        'site_notice_markdown': profile.site_notice_markdown or '',
+        'updated_at': updated_at
+    })
 
 @app.route('/api/profile', methods=['PUT'])
 @jwt_required_admin
@@ -1041,7 +1241,24 @@ def update_profile():
         db.session.add(profile)
     
     # 更新字段
-    for field in ['name', 'avatar', 'bio', 'email', 'location', 'website', 'github', 'twitter', 'skills', 'interests', 'education', 'occupation']:
+    for field in [
+        'name',
+        'avatar',
+        'bio',
+        'email',
+        'location',
+        'website',
+        'github',
+        'twitter',
+        'skills',
+        'interests',
+        'education',
+        'occupation',
+        'featured_slugs',
+        'contact_markdown',
+        'cooperation_markdown',
+        'site_notice_markdown'
+    ]:
         if field in data:
             setattr(profile, field, data[field])
     
@@ -1096,26 +1313,33 @@ def not_found(error):
 
 @app.errorhandler(500)
 def internal_error(error):
+    try:
+        app.logger.exception(error)
+    except Exception:
+        pass
     return jsonify({'error': 'Internal server error', 'message': '服务器内部错误'}), 500
 
 @app.errorhandler(Exception)
 def handle_exception(error):
+    try:
+        app.logger.exception(error)
+    except Exception:
+        pass
+    try:
+        addr = (request.remote_addr or '').strip()
+        is_local = addr == '::1' or addr.startswith('127.') or addr.endswith('127.0.0.1')
+        is_production = (os.getenv('FLASK_ENV') == 'production') or (os.getenv('ENV') == 'production')
+        if request.args.get('debug') == '1' and is_local and not is_production:
+            return jsonify({'error': type(error).__name__, 'message': str(error)}), 500
+    except Exception:
+        pass
     return jsonify({'error': 'Server error', 'message': '服务器错误'}), 500
 
 # 自定义JSON响应函数，确保编码正确
 def json_response(data, status_code=200):
     """返回正确编码的JSON响应"""
-    # 确保数据是UTF-8编码
     response = jsonify(data)
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
-    # 添加额外的编码头以确保中文正确显示
-    response.headers['Content-Encoding'] = 'utf-8'
-    # 设置响应编码
-    response.charset = 'utf-8'
-    
-    # 强制设置响应编码
-    response.encoding = 'utf-8'
-    
     return response, status_code
 
 if __name__ == '__main__':
@@ -1139,6 +1363,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         ensure_mysql_utf8mb4()
+        ensure_profile_schema()
         ensure_default_admin()
     
     app.run(debug=False, host='0.0.0.0', port=5000)

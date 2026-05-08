@@ -95,6 +95,10 @@ def init_sqlite_database():
             interests TEXT,  -- JSON字符串
             education TEXT,
             occupation TEXT,
+            featured_slugs TEXT,  -- JSON字符串
+            contact_markdown TEXT,
+            cooperation_markdown TEXT,
+            site_notice_markdown TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -404,8 +408,25 @@ class UserFactory {
     
     # 插入个人资料
     cursor.execute('''
-        INSERT INTO profiles (name, avatar, bio, email, location, website, github, twitter, skills, interests, education, occupation)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO profiles (
+            name,
+            avatar,
+            bio,
+            email,
+            location,
+            website,
+            github,
+            twitter,
+            skills,
+            interests,
+            education,
+            occupation,
+            featured_slugs,
+            contact_markdown,
+            cooperation_markdown,
+            site_notice_markdown
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         '霜雪旧曾谙',
         '/avatar.jpg',
@@ -418,7 +439,11 @@ class UserFactory {
         '["Vue.js", "Python", "Flask", "MySQL", "TypeScript", "Tailwind CSS"]',
         '["二次元", "海洋", "自然", "哲学", "技术分享"]',
         '计算机科学与技术',
-        '学生'
+        '学生',
+        '["vue3-composition-api-practice", "welcome-to-my-blog"]',
+        '可以通过邮箱联系我，也欢迎在 GitHub 提交 issue 讨论文章内容。',
+        '欢迎技术合作与内容转载授权咨询，请邮件说明合作背景、目标与时间安排。',
+        '本站内容默认遵循署名转载规范，引用请标注来源与原文链接。'
     ))
     
     # 插入管理员用户

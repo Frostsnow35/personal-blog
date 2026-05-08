@@ -62,6 +62,10 @@ export interface Profile {
   interests: string[]
   education?: string
   occupation?: string
+  featuredSlugs?: string[]
+  contactMarkdown?: string
+  cooperationMarkdown?: string
+  siteNoticeMarkdown?: string
   updatedAt: string
 }
 
