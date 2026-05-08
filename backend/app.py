@@ -54,13 +54,30 @@ JWT_ALG = 'HS256'
 # 初始化扩展
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+cors_origins_env = os.getenv('CORS_ORIGINS', '')
+cors_origins_from_env = [o.strip() for o in str(cors_origins_env).split(',') if o.strip()]
+cors_default_origins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    'https://frostsnow35-blog.netlify.app',
+    'https://frostsnow35.dpdns.org',
+    'https://*.trycloudflare.com',
+    'https://*.vercel.app'
+]
+cors_allowed_origins = list(dict.fromkeys(cors_default_origins + cors_origins_from_env))
+
 # 允许前端携带 Authorization 头
-CORS(app, 
-     resources={r"/api/*": {"origins": ["http://localhost:3000", "http://localhost:3001", "https://frostsnow35-blog.netlify.app", "https://frostsnow35.dpdns.org", "https://*.trycloudflare.com"]}}, 
-     allow_headers=["Content-Type", "Authorization"], 
-     expose_headers=["Authorization"],
-     supports_credentials=True,
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+CORS(
+    app,
+    resources={r"/api/*": {"origins": cors_allowed_origins}},
+    allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["Authorization"],
+    supports_credentials=True,
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+)
 
  
 
