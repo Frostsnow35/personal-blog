@@ -9,6 +9,7 @@ import re
 import locale
 from dotenv import load_dotenv
 import jwt
+from sqlalchemy.pool import NullPool
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # 加载环境变量
@@ -33,22 +34,30 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
 
-# 添加数据库连接字符集配置
-if 'mysql' in db_uri:
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'connect_args': {
-            'charset': 'utf8mb4',
-            'collation': 'utf8mb4_unicode_ci'
+
+def build_engine_options(uri: str) -> dict:
+    if 'mysql' in uri:
+        return {
+            'connect_args': {
+                'charset': 'utf8mb4',
+                'collation': 'utf8mb4_unicode_ci'
+            }
         }
-    }
-elif db_uri.startswith('sqlite:'):
-    # SQLite的编码配置
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'connect_args': {
-            'check_same_thread': False,
-            'timeout': 20
+    if uri.startswith('sqlite:'):
+        return {
+            'connect_args': {
+                'check_same_thread': False,
+                'timeout': 20
+            }
         }
-    }
+    if uri.startswith('postgresql:'):
+        return {'poolclass': NullPool}
+    return {}
+
+
+engine_options = build_engine_options(db_uri)
+if engine_options:
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = engine_options
 
 # 确保JSON编码支持中文
 app.config['JSON_AS_ASCII'] = False
@@ -112,6 +121,42 @@ CORS(
     supports_credentials=True,
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 )
+
+def uses_direct_sqlite_queries() -> bool:
+    return app.config.get('SQLALCHEMY_DATABASE_URI', '').startswith('sqlite:')
+
+
+def uses_sqlalchemy_queries() -> bool:
+    return not uses_direct_sqlite_queries()
+
+
+def _iso_or_none(value):
+    return value.isoformat() if value else None
+
+
+def _serialize_post_summary(post):
+    return {
+        'id': post.id,
+        'title': post.title,
+        'slug': post.slug,
+        'excerpt': post.excerpt,
+        'category': post.category,
+        'tags': post.tags or [],
+        'cover_url': post.cover_url,
+        'read_time': post.read_time,
+        'published_at': _iso_or_none(post.published_at),
+        'created_at': _iso_or_none(post.created_at)
+    }
+
+
+def _serialize_post_detail(post):
+    data = _serialize_post_summary(post)
+    data.update({
+        'content': post.content,
+        'status': post.status,
+        'updated_at': _iso_or_none(post.updated_at)
+    })
+    return data
 
  
 
@@ -611,6 +656,9 @@ def ensure_profile_schema():
                 db.session.rollback()
             return
 
+        if not uses_direct_sqlite_queries():
+            return
+
         import sqlite3
         import os
 
@@ -711,27 +759,11 @@ def get_published_posts():
         page=page, per_page=per_page, error_out=False
     )
 
-    uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
-    if 'mysql' in uri:
-        items = []
-        for p in posts.items:
-            items.append({
-                'id': p.id,
-                'title': p.title,
-                'slug': p.slug,
-                'excerpt': p.excerpt,
-                'category': p.category,
-                'tags': p.tags or [],
-                'cover_url': p.cover_url,
-                'read_time': p.read_time,
-                'published_at': p.published_at.isoformat() if p.published_at else None,
-                'created_at': p.created_at.isoformat() if p.created_at else None
-            })
-
+    if uses_sqlalchemy_queries():
         return json_response({
             'success': True,
             'data': {
-                'items': items,
+                'items': [_serialize_post_summary(p) for p in posts.items],
                 'total': posts.total,
                 'pages': posts.pages,
                 'current_page': page
@@ -855,27 +887,11 @@ def search_published_posts():
 
     posts = query.order_by(Post.published_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
 
-    uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
-    if 'mysql' in uri:
-        items = []
-        for p in posts.items:
-            items.append({
-                'id': p.id,
-                'title': p.title,
-                'slug': p.slug,
-                'excerpt': p.excerpt,
-                'category': p.category,
-                'tags': p.tags or [],
-                'cover_url': p.cover_url,
-                'read_time': p.read_time,
-                'published_at': p.published_at.isoformat() if p.published_at else None,
-                'created_at': p.created_at.isoformat() if p.created_at else None
-            })
-
+    if uses_sqlalchemy_queries():
         return json_response({
             'success': True,
             'data': {
-                'items': items,
+                'items': [_serialize_post_summary(p) for p in posts.items],
                 'total': posts.total,
                 'pages': posts.pages,
                 'current_page': page
@@ -961,6 +977,12 @@ def search_published_posts():
 
 @app.route('/api/posts/<int:post_id>', methods=['GET'])
 def get_post(post_id):
+    if uses_sqlalchemy_queries():
+        post = Post.query.filter_by(id=post_id, status='published').first()
+        if not post:
+            return jsonify({'success': False, 'message': 'Post not found or unpublished'}), 404
+        return json_response({'success': True, 'data': _serialize_post_detail(post)})
+
     """获取单篇博客文章"""
     # 使用直接SQL查询避免SQLAlchemy编码问题
     import sqlite3
@@ -1019,6 +1041,12 @@ def get_post(post_id):
 
 @app.route('/api/posts/slug/<slug>', methods=['GET'])
 def get_post_by_slug(slug):
+    if uses_sqlalchemy_queries():
+        post = Post.query.filter_by(slug=slug, status='published').first()
+        if not post:
+            return jsonify({'success': False, 'message': 'Post not found or unpublished'}), 404
+        return json_response({'success': True, 'data': _serialize_post_detail(post)})
+
     """根据 slug 获取已发布的博客文章"""
     # 使用直接SQL查询避免SQLAlchemy编码问题
     import sqlite3
@@ -1076,6 +1104,14 @@ def get_post_by_slug(slug):
 
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
+    if uses_sqlalchemy_queries():
+        categories = Category.query.order_by(Category.name).all()
+        return json_response([{
+            'id': category.id,
+            'name': category.name,
+            'description': category.description
+        } for category in categories])
+
     """获取分类列表"""
     # 使用直接SQL查询避免SQLAlchemy编码问题
     import sqlite3
@@ -1101,6 +1137,19 @@ def get_categories():
 
 @app.route('/api/categories/published', methods=['GET'])
 def get_published_categories():
+    if uses_sqlalchemy_queries():
+        rows = (
+            db.session.query(Post.category, db.func.count(Post.id))
+            .filter(Post.status == 'published', Post.category.isnot(None), Post.category != '')
+            .group_by(Post.category)
+            .order_by(db.func.count(Post.id).desc())
+            .all()
+        )
+        return json_response({
+            'success': True,
+            'data': [{'name': category, 'count': count} for category, count in rows]
+        })
+
     """获取已发布文章的分类列表（带文章数量）"""
     # 使用直接SQL查询避免SQLAlchemy编码问题
     import sqlite3
@@ -1135,6 +1184,13 @@ def get_published_categories():
 
 @app.route('/api/tags', methods=['GET'])
 def get_tags():
+    if uses_sqlalchemy_queries():
+        tags = Tag.query.order_by(Tag.name).all()
+        return json_response([{
+            'id': tag.id,
+            'name': tag.name
+        } for tag in tags])
+
     """获取标签列表"""
     # 使用直接SQL查询避免SQLAlchemy编码问题
     import sqlite3
@@ -1159,6 +1215,28 @@ def get_tags():
 
 @app.route('/api/tags/published', methods=['GET'])
 def get_published_tags():
+    if uses_sqlalchemy_queries():
+        rows = Post.query.with_entities(Post.tags).filter(
+            Post.status == 'published',
+            Post.tags.isnot(None)
+        ).all()
+        tag_counts = {}
+        for row in rows:
+            tags_value = row[0] or []
+            if isinstance(tags_value, str):
+                try:
+                    tags_value = json.loads(tags_value)
+                except Exception:
+                    tags_value = []
+            for tag in tags_value:
+                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+
+        tags_with_count = [{'name': tag, 'count': count} for tag, count in tag_counts.items()]
+        return json_response({
+            'success': True,
+            'data': sorted(tags_with_count, key=lambda x: x['count'], reverse=True)
+        })
+
     """获取已发布文章的标签列表（带文章数量）"""
     # 使用直接SQL查询避免SQLAlchemy编码问题
     import sqlite3
@@ -1199,6 +1277,13 @@ def get_published_tags():
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
+    if uses_sqlalchemy_queries():
+        return json_response({
+            'total_posts': Post.query.count(),
+            'total_categories': Category.query.count(),
+            'total_tags': Tag.query.count()
+        })
+
     """获取博客统计信息"""
     # 使用直接SQL查询避免SQLAlchemy编码问题
     import sqlite3

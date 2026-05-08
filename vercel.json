@@ -1,14 +1,9 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
+  "installCommand": "npm --prefix frontend ci",
+  "buildCommand": "npm --prefix frontend run build",
+  "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.py": {
       "excludeFiles": "{frontend/**,docs/**,**/*.mp3,**/*.jpg,**/*.jpeg,**/*.png,**/*.gif,**/*.webp,**/*.db}"
@@ -20,6 +15,14 @@
     },
     {
       "src": "/api/(.*)",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/(sitemap\\.xml|rss\\.xml)",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/uploads/(.*)",
       "dest": "/api/index.py"
     },
     {
