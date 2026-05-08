@@ -5,6 +5,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime, timezone, timedelta
 import os
+import re
+import locale
 from dotenv import load_dotenv
 import jwt
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -16,8 +18,13 @@ app = Flask(__name__)
 
 # 配置数据库
 # 在 Railway 等生产环境中使用绝对路径
-if os.getenv('DATABASE_URL'):
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+database_url = (os.getenv('DATABASE_URL') or '').strip()
+if database_url:
+    if database_url.startswith('mysql://'):
+        database_url = f"mysql+pymysql://{database_url[len('mysql://'):]}"
+    elif database_url.startswith('postgres://'):
+        database_url = f"postgresql://{database_url[len('postgres://'):]}"
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
     # 本地开发使用相对路径，生产环境使用绝对路径
     db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
@@ -67,7 +74,32 @@ cors_default_origins = [
     'https://*.trycloudflare.com',
     'https://*.vercel.app'
 ]
-cors_allowed_origins = list(dict.fromkeys(cors_default_origins + cors_origins_from_env))
+
+def _origin_to_pattern(value: str):
+    v = (value or '').strip()
+    if not v:
+        return None
+    if '*' in v:
+        escaped = re.escape(v).replace('\\*', '.*')
+        return re.compile(f'^{escaped}$')
+    return v
+
+cors_allowed_origins = []
+for origin in (cors_default_origins + cors_origins_from_env):
+    pattern = _origin_to_pattern(origin)
+    if pattern is None:
+        continue
+    if isinstance(pattern, str):
+        if pattern in cors_allowed_origins:
+            continue
+        cors_allowed_origins.append(pattern)
+        continue
+    pattern_str = getattr(pattern, 'pattern', None)
+    if not pattern_str:
+        continue
+    if any(getattr(existing, 'pattern', None) == pattern_str for existing in cors_allowed_origins):
+        continue
+    cors_allowed_origins.append(pattern)
 
 # 允许前端携带 Authorization 头
 CORS(
@@ -1360,15 +1392,11 @@ def json_response(data, status_code=200):
     return response, status_code
 
 if __name__ == '__main__':
-    # 设置Python环境的编码
     import sys
-    import locale
     
-    # 设置默认编码为UTF-8
     if hasattr(sys, 'setdefaultencoding'):
         sys.setdefaultencoding('utf-8')
     
-    # 设置locale编码
     try:
         locale.setlocale(locale.LC_ALL, 'zh_CN.UTF-8')
     except:
@@ -1377,10 +1405,27 @@ if __name__ == '__main__':
         except:
             pass
     
-    with app.app_context():
-        db.create_all()
-        ensure_mysql_utf8mb4()
-        ensure_profile_schema()
-        ensure_default_admin()
-    
     app.run(debug=False, host='0.0.0.0', port=5000)
+
+def bootstrap():
+    try:
+        try:
+            locale.setlocale(locale.LC_ALL, 'zh_CN.UTF-8')
+        except:
+            try:
+                locale.setlocale(locale.LC_ALL, 'C.UTF-8')
+            except:
+                pass
+
+        with app.app_context():
+            db.create_all()
+            ensure_mysql_utf8mb4()
+            ensure_profile_schema()
+            ensure_default_admin()
+    except Exception as e:
+        try:
+            app.logger.exception(e)
+        except Exception:
+            pass
+
+bootstrap()
