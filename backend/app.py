@@ -31,15 +31,17 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}?check_same_thread=False'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+
 # 添加数据库连接字符集配置
-if 'mysql' in app.config['SQLALCHEMY_DATABASE_URI']:
+if 'mysql' in db_uri:
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'connect_args': {
             'charset': 'utf8mb4',
             'collation': 'utf8mb4_unicode_ci'
         }
     }
-else:
+elif db_uri.startswith('sqlite:'):
     # SQLite的编码配置
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'connect_args': {

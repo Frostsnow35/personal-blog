@@ -9,9 +9,18 @@
       }
     }
   ],
+  "functions": {
+    "api/index.py": {
+      "excludeFiles": "{frontend/**,docs/**,**/*.mp3,**/*.jpg,**/*.jpeg,**/*.png,**/*.gif,**/*.webp,**/*.db}"
+    }
+  },
   "routes": [
     {
       "handle": "filesystem"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.py"
     },
     {
       "src": "/(.*)",
