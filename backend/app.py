@@ -26,15 +26,8 @@ if database_url:
         database_url = f"postgresql://{database_url[len('postgres://'):]}"
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
-    # Vercel Serverless 使用 /tmp 目录
-    if os.getenv('VERCEL'):
-        db_path = os.path.join('/tmp', 'personal_blog.db')
-        os.makedirs('/tmp', exist_ok=True)
-        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}?check_same_thread=False'
-    else:
-        # 本地开发使用相对路径
-        db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
-        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}?check_same_thread=False'
+    db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}?check_same_thread=False'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
@@ -77,10 +70,6 @@ JWT_ALG = 'HS256'
 # 初始化扩展
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-
-# 在首次请求时创建数据库表（Vercel Serverless 环境）
-with app.app_context():
-    db.create_all()
 
 cors_origins_env = os.getenv('CORS_ORIGINS', '')
 cors_origins_from_env = [o.strip() for o in str(cors_origins_env).split(',') if o.strip()]
@@ -172,10 +161,7 @@ def _serialize_post_detail(post):
  
 
 # 上传目录
-if os.getenv('VERCEL'):
-    UPLOAD_DIR = os.path.join('/tmp', 'uploads')
-else:
-    UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # 数据模型
