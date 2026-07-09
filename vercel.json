@@ -6,8 +6,7 @@
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.py": {
-      "excludeFiles": "{frontend/**,docs/**,**/*.mp3,**/*.jpg,**/*.jpeg,**/*.png,**/*.gif,**/*.webp,**/*.db}",
-      "runtime": "python3.12"
+      "excludeFiles": "{frontend/**,docs/**,**/*.mp3,**/*.jpg,**/*.jpeg,**/*.png,**/*.gif,**/*.webp,**/*.db}"
     }
   },
   "routes": [
