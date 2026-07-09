@@ -25,6 +25,12 @@ if database_url:
     elif database_url.startswith('postgres://'):
         database_url = f"postgresql://{database_url[len('postgres://'):]}"
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'poolclass': NullPool,
+        'connect_args': {
+            'sslmode': 'require'
+        }
+    }
 else:
     db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}?check_same_thread=False'
