@@ -37,9 +37,23 @@ def init_sqlite_database():
             category TEXT,
             tags TEXT,  -- JSON字符串
             read_time INTEGER DEFAULT 3,
+            views INTEGER DEFAULT 0,
+            likes INTEGER DEFAULT 0,
             published_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # 创建likes表（用于点赞记录）
+    cursor.execute('''
+        CREATE TABLE likes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            ip_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (post_id) REFERENCES posts(id),
+            UNIQUE (post_id, ip_hash)
         )
     ''')
     
@@ -390,8 +404,8 @@ class UserFactory {
     
     for post in sample_posts:
         cursor.execute('''
-            INSERT INTO posts (title, slug, content, excerpt, category, tags, read_time, status, published_at, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO posts (title, slug, content, excerpt, category, tags, read_time, views, likes, status, published_at, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             post['title'],
             post['slug'],
@@ -400,6 +414,8 @@ class UserFactory {
             post['category'],
             post['tags'],
             post['read_time'],
+            0,
+            0,
             post['status'],
             datetime.now(timezone.utc),
             datetime.now(timezone.utc),

@@ -11,10 +11,6 @@
 
       <div class="card">
         <div class="p-6 space-y-4">
-          <div class="flex items-center gap-3">
-            <button @click="mode='edit'" :class="mode==='edit' ? 'bg-ocean-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'" class="px-3 py-1 rounded">编辑</button>
-            <button @click="mode='preview'" :class="mode==='preview' ? 'bg-ocean-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'" class="px-3 py-1 rounded">预览</button>
-          </div>
           <div>
             <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">标题</label>
             <input v-model="form.title" type="text" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"/>
@@ -46,15 +42,7 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">内容（Markdown）</label>
-            <!-- 高级编辑器（EasyMDE）占位 -->
-            <div v-if="mode==='edit'">
-              <textarea ref="mdeRef" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" rows="12"></textarea>
-              <p v-if="!mdeReady" class="mt-2 text-xs text-gray-500 dark:text-gray-400">正在加载编辑器...（若加载失败将自动回退到简易编辑器）</p>
-              <div v-if="!mdeReady" class="mt-2">
-                <textarea v-model="form.content" rows="10" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"></textarea>
-              </div>
-            </div>
-            <div v-else class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded px-4 py-3" v-html="previewHtml"></div>
+            <TiptapEditor v-model="form.content" @save="handleAutoSave" />
           </div>
         </div>
       </div>
@@ -63,26 +51,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { http } from '../utils/http'
-import { render_markdown_html } from '../utils/markdown'
+import TiptapEditor from '../components/TiptapEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
-const isEdit = computed(() => !!route.params.id)
+const isEdit = !!route.params.id
 
 const form = ref<any>({
   title: '', slug: '', content: '', excerpt: '', status: 'draft', cover_url: '', category: '', tags: [] as string[]
 })
 const tagsInput = ref('')
-const mode = ref<'edit'|'preview'>('edit')
-const mdeRef = ref<HTMLTextAreaElement | null>(null)
-let mde: any = null
-const mdeReady = ref(false)
+
+let autoSaveTimer: number | undefined
 
 const load = async () => {
-  if (!isEdit.value) return
+  if (!isEdit) {
+    checkAutoSave()
+    return
+  }
   const id = Number(route.params.id)
   const res = await http.get<{ success:boolean; data:any }>(`/admin/posts/${id}`)
   const d = res.data
@@ -103,69 +92,65 @@ const onPickCover = async (e: Event) => {
 const save = async (status: 'draft'|'published') => {
   form.value.status = status
   form.value.tags = tagsInput.value.split(',').map(s => s.trim()).filter(Boolean)
-  if (isEdit.value) {
+  if (isEdit) {
     await http.put(`/admin/posts/${route.params.id}`, form.value)
   } else {
     const r = await http.post<{ success:boolean; data:{ id:number } }>(`/admin/posts`, form.value)
     router.replace(`/admin/posts/${r.data.id}/edit`)
   }
+  clearAutoSave()
   alert('保存成功')
 }
 
-onMounted(load)
+const AUTO_SAVE_KEY = 'blog_post_autosave'
 
-const previewHtml = computed(() => render_markdown_html(form.value.content || ''))
-
-// 动态加载 EasyMDE（零安装，无打包风险）：CDN 注入
-onMounted(async () => {
-  try {
-    // 跳过 SSR 场景
-    if (typeof window === 'undefined') return
-    // 已存在则跳过
-    if (!document.getElementById('easymde-css')) {
-      const link = document.createElement('link')
-      link.id = 'easymde-css'
-      link.rel = 'stylesheet'
-      link.href = 'https://unpkg.com/easymde/dist/easymde.min.css'
-      document.head.appendChild(link)
-    }
-    // Font Awesome（用于 EasyMDE 工具栏图标）
-    if (!document.getElementById('fa-css')) {
-      const fa = document.createElement('link')
-      fa.id = 'fa-css'
-      fa.rel = 'stylesheet'
-      fa.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css'
-      document.head.appendChild(fa)
-    }
-    if (!(window as any).EasyMDE) {
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement('script')
-        script.src = 'https://unpkg.com/easymde/dist/easymde.min.js'
-        script.async = true
-        script.onload = () => resolve()
-        script.onerror = () => reject(new Error('加载 EasyMDE 失败'))
-        document.body.appendChild(script)
-      })
-    }
-    if (mdeRef.value) {
-      const EasyMDE = (window as any).EasyMDE
-      mde = new EasyMDE({
-        element: mdeRef.value,
-        autosave: { enabled: false },
-        spellChecker: false,
-        placeholder: '在此输入内容（支持 Markdown）',
-        initialValue: form.value.content || '',
-        autoDownloadFontAwesome: false
-      })
-      mde.codemirror.on('change', () => {
-        form.value.content = mde.value()
-      })
-      mdeReady.value = true
-    }
-  } catch (e) {
-    mdeReady.value = false
+const saveToLocalStorage = () => {
+  const data = {
+    title: form.value.title,
+    content: form.value.content,
+    excerpt: form.value.excerpt,
+    category: form.value.category,
+    tagsInput: tagsInput.value,
+    timestamp: Date.now()
   }
+  localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(data))
+}
+
+const checkAutoSave = () => {
+  const saved = localStorage.getItem(AUTO_SAVE_KEY)
+  if (!saved) return
+  
+  try {
+    const data = JSON.parse(saved)
+    const age = Date.now() - data.timestamp
+    if (age < 30 * 60 * 1000) {
+      if (confirm('检测到未保存的草稿，是否恢复？')) {
+        form.value.title = data.title
+        form.value.content = data.content
+        form.value.excerpt = data.excerpt
+        form.value.category = data.category
+        tagsInput.value = data.tagsInput
+      }
+    }
+  } catch {
+    localStorage.removeItem(AUTO_SAVE_KEY)
+  }
+}
+
+const clearAutoSave = () => {
+  localStorage.removeItem(AUTO_SAVE_KEY)
+}
+
+const handleAutoSave = () => {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
+  autoSaveTimer = window.setTimeout(saveToLocalStorage, 3000)
+}
+
+onMounted(() => {
+  load()
+})
+
+onBeforeUnmount(() => {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
 })
 </script>
-
-

@@ -89,7 +89,21 @@
             <div v-html="formattedContent"></div>
           </div>
         </div>
+        
+        <!-- 互动区域 -->
+        <div class="px-8 pb-8">
+          <PostInteraction 
+            :post-id="post.id" 
+            :likes="post.likes || 0" 
+            :views="post.views || 0"
+            :title="post.title"
+            :slug="post.slug"
+          />
+        </div>
       </article>
+
+      <!-- 评论区 -->
+      <CommentSection :slug="`/post/${post.slug}`" :title="post.title" />
 
       <div class="mt-10 card p-6">
         <div class="flex items-start gap-4">
@@ -165,6 +179,8 @@ import { useRoute } from 'vue-router'
 import { render_markdown_html } from '../utils/markdown'
 import { useProfileStore } from '../stores/profile'
 import PublicSocialLinks from '../components/PublicSocialLinks.vue'
+import PostInteraction from '../components/PostInteraction.vue'
+import CommentSection from '../components/CommentSection.vue'
 
 interface Post {
   id: number
@@ -180,6 +196,8 @@ interface Post {
   published_at?: string
   created_at: string
   updated_at: string
+  views?: number
+  likes?: number
 }
 
 const route = useRoute()

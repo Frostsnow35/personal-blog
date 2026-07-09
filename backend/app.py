@@ -18,7 +18,6 @@ load_dotenv()
 app = Flask(__name__)
 
 # 配置数据库
-# 在 Railway 等生产环境中使用绝对路径
 database_url = (os.getenv('DATABASE_URL') or '').strip()
 if database_url:
     if database_url.startswith('mysql://'):
@@ -27,9 +26,15 @@ if database_url:
         database_url = f"postgresql://{database_url[len('postgres://'):]}"
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
-    # 本地开发使用相对路径，生产环境使用绝对路径
-    db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}?check_same_thread=False'
+    # Vercel Serverless 使用 /tmp 目录
+    if os.getenv('VERCEL'):
+        db_path = os.path.join('/tmp', 'personal_blog.db')
+        os.makedirs('/tmp', exist_ok=True)
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}?check_same_thread=False'
+    else:
+        # 本地开发使用相对路径
+        db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}?check_same_thread=False'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
@@ -72,6 +77,10 @@ JWT_ALG = 'HS256'
 # 初始化扩展
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+# 在首次请求时创建数据库表（Vercel Serverless 环境）
+with app.app_context():
+    db.create_all()
 
 cors_origins_env = os.getenv('CORS_ORIGINS', '')
 cors_origins_from_env = [o.strip() for o in str(cors_origins_env).split(',') if o.strip()]
@@ -144,6 +153,8 @@ def _serialize_post_summary(post):
         'tags': post.tags or [],
         'cover_url': post.cover_url,
         'read_time': post.read_time,
+        'views': getattr(post, 'views', 0),
+        'likes': getattr(post, 'likes', 0),
         'published_at': _iso_or_none(post.published_at),
         'created_at': _iso_or_none(post.created_at)
     }
@@ -161,7 +172,10 @@ def _serialize_post_detail(post):
  
 
 # 上传目录
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
+if os.getenv('VERCEL'):
+    UPLOAD_DIR = os.path.join('/tmp', 'uploads')
+else:
+    UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # 数据模型
@@ -233,9 +247,24 @@ class Post(db.Model):
     category = db.Column(db.String(100))
     tags = db.Column(db.JSON)  # list[str]
     read_time = db.Column(db.Integer, default=3)
+    views = db.Column(db.Integer, default=0)
+    likes = db.Column(db.Integer, default=0)
     published_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class Like(db.Model):
+    __tablename__ = 'likes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=False)
+    ip_hash = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        db.UniqueConstraint('post_id', 'ip_hash', name='uq_post_ip_like'),
+    )
 
 # JWT 认证装饰器
 def jwt_required_admin(fn):
@@ -1431,6 +1460,85 @@ def login():
             'role': user.role
         }
     })
+
+
+def _get_client_ip():
+    """获取客户端 IP 地址"""
+    ip = request.headers.get('X-Forwarded-For', '').split(',')[0].strip()
+    if not ip:
+        ip = request.headers.get('X-Real-IP', '').strip()
+    if not ip:
+        ip = request.remote_addr or ''
+    return ip.strip()
+
+
+def _hash_ip(ip: str) -> str:
+    """对 IP 地址进行哈希处理，保护隐私"""
+    import hashlib
+    return hashlib.sha256((ip + app.config.get('SECRET_KEY', '')).encode()).hexdigest()[:64]
+
+
+@app.route('/api/posts/<int:post_id>/like', methods=['POST'])
+def like_post(post_id):
+    """点赞文章（公开接口）"""
+    post = Post.query.get_or_404(post_id)
+    ip = _get_client_ip()
+    ip_hash = _hash_ip(ip)
+
+    try:
+        existing = Like.query.filter_by(post_id=post_id, ip_hash=ip_hash).first()
+        if existing:
+            Like.query.filter_by(post_id=post_id, ip_hash=ip_hash).delete()
+            post.likes = max(0, (post.likes or 0) - 1)
+            liked = False
+        else:
+            like = Like(post_id=post_id, ip_hash=ip_hash)
+            db.session.add(like)
+            post.likes = (post.likes or 0) + 1
+            liked = True
+        db.session.commit()
+        return json_response({
+            'success': True,
+            'data': {
+                'liked': liked,
+                'count': post.likes
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return json_response({'success': False, 'message': str(e)}, 500)
+
+
+@app.route('/api/posts/<int:post_id>/like', methods=['GET'])
+def get_like_status(post_id):
+    """获取点赞状态（公开接口）"""
+    post = Post.query.get_or_404(post_id)
+    ip = _get_client_ip()
+    ip_hash = _hash_ip(ip)
+
+    existing = Like.query.filter_by(post_id=post_id, ip_hash=ip_hash).first()
+    return json_response({
+        'success': True,
+        'data': {
+            'liked': existing is not None,
+            'count': post.likes or 0
+        }
+    })
+
+
+@app.route('/api/posts/<int:post_id>/view', methods=['POST'])
+def view_post(post_id):
+    """记录阅读（公开接口）"""
+    post = Post.query.get_or_404(post_id)
+    post.views = (post.views or 0) + 1
+    db.session.commit()
+    return json_response({
+        'success': True,
+        'data': {
+            'views': post.views
+        }
+    })
+
 
 # 健康检查
 @app.route('/health', methods=['GET'])
