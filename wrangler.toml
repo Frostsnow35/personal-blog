@@ -1,0 +1,7 @@
+name = "personal-blog"
+pages_build_output_dir = "frontend/dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "personal-blog-db"
+database_id = "26205f35-357f-48b7-806a-a22c1a3a589e"

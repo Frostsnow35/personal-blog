@@ -1,33 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
-  "installCommand": "npm --prefix frontend ci && pip install -r backend/requirements.txt",
-  "buildCommand": "npm --prefix frontend run build",
+  "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "functions": {
-    "api/index.py": {
-      "excludeFiles": "{frontend/**,docs/**,**/*.mp3,**/*.jpg,**/*.jpeg,**/*.png,**/*.gif,**/*.webp,**/*.db}"
-    }
-  },
-  "routes": [
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/(sitemap\\.xml|rss\\.xml)",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/uploads/(.*)",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/[...path]" },
+    { "source": "/(.*)", "destination": "/" }
   ]
 }

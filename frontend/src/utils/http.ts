@@ -1,11 +1,9 @@
 const viteEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {}
 const envBase = viteEnv.VITE_API_BASE_URL || ''
 const normalizedEnvBase = envBase ? String(envBase).replace(/\/$/, '') : ''
-const isDev = !!viteEnv.DEV
 
 const BASE_URL =
   normalizedEnvBase ||
-  (isDev ? 'http://localhost:5000/api' : '') ||
   (typeof window !== 'undefined' ? `${window.location.origin}/api` : '')
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
