@@ -1,0 +1,7 @@
+backend/
+functions/
+sql/
+wrangler.toml
+cloudflared.msi
+*.db
+*.sqlite
