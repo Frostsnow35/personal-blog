@@ -119,6 +119,21 @@ for origin in (cors_default_origins + cors_origins_from_env):
         continue
     cors_allowed_origins.append(pattern)
 
+# 惰性初始化标志
+_db_initialized = False
+
+
+@app.before_request
+def lazy_init():
+    global _db_initialized
+    if not _db_initialized and request.path.startswith('/api/'):
+        try:
+            bootstrap()
+            _db_initialized = True
+        except Exception as e:
+            app.logger.error(f"Database init failed: {e}")
+
+
 # 允许前端携带 Authorization 头
 CORS(
     app,
