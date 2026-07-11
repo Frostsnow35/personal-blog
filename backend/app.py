@@ -188,9 +188,14 @@ def _serialize_post_detail(post):
 
  
 
-# 上传目录
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def _ensure_upload_dir():
+    try:
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+    except Exception:
+        pass
 
 # 数据模型
 class BlogPost(db.Model):
