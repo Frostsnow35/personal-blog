@@ -69,31 +69,25 @@
                 <div class="prose prose-slate dark:prose-invert max-w-none" v-html="aboutHtml"></div>
               </section>
 
-              <template v-if="blogContentHtml">
-                <SectionHeading eyebrow="BLOG" title="博客内容" :icon="blogIcon" />
-                <section class="prose-content">
-                  <div class="prose prose-slate dark:prose-invert max-w-none" v-html="blogContentHtml"></div>
-                </section>
-              </template>
+              <SectionHeading eyebrow="BLOG" title="博客内容" :icon="blogIcon" />
+              <section class="prose-content">
+                <div class="prose prose-slate dark:prose-invert max-w-none" v-html="blogContentHtml"></div>
+              </section>
 
-              <template v-if="philosophyHtml">
-                <SectionHeading eyebrow="PHILOSOPHY" title="我的理念" :icon="philosophyIcon" />
-                <section class="prose-content">
-                  <div class="prose prose-slate dark:prose-invert max-w-none" v-html="philosophyHtml"></div>
-                </section>
-              </template>
+              <SectionHeading eyebrow="PHILOSOPHY" title="我的理念" :icon="philosophyIcon" />
+              <section class="prose-content">
+                <div class="prose prose-slate dark:prose-invert max-w-none" v-html="philosophyHtml"></div>
+              </section>
 
-              <template v-if="nowHtml">
-                <SectionHeading eyebrow="NOW" title="我目前正在做" :icon="nowIcon" />
-                <section class="rounded-xl border border-ocean-200/60 dark:border-ocean-500/20 bg-gradient-to-br from-ocean-50/80 to-sea-50/60 dark:from-ocean-500/5 dark:to-sea-500/5 backdrop-blur p-6">
-                  <div class="flex items-start gap-3">
-                    <div class="shrink-0 mt-1 w-2 h-2 rounded-full bg-ocean-500 animate-pulse"></div>
-                    <div class="prose prose-slate dark:prose-invert max-w-none" v-html="nowHtml"></div>
-                  </div>
-                </section>
-              </template>
+              <SectionHeading eyebrow="NOW" title="我目前正在做" :icon="nowIcon" />
+              <section class="rounded-xl border border-ocean-200/60 dark:border-ocean-500/20 bg-gradient-to-br from-ocean-50/80 to-sea-50/60 dark:from-ocean-500/5 dark:to-sea-500/5 backdrop-blur p-6">
+                <div class="flex items-start gap-3">
+                  <div class="shrink-0 mt-1 w-2 h-2 rounded-full bg-ocean-500 animate-pulse"></div>
+                  <div class="prose prose-slate dark:prose-invert max-w-none" v-html="nowHtml"></div>
+                </div>
+              </section>
 
-              <section v-if="profileStore.profile.skills?.length || profileStore.profile.interests?.length" class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <section class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div v-if="profileStore.profile.skills?.length" class="rounded-xl border border-gray-200/70 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5">
                   <div class="text-xs tracking-widest text-gray-500 dark:text-gray-400">SKILLS</div>
                   <div class="mt-2 text-lg font-semibold text-gray-900 dark:text-gray-100">擅长</div>
@@ -115,12 +109,10 @@
                 </div>
               </section>
 
-              <template v-if="contactHtml">
-                <SectionHeading eyebrow="CONTACT" title="联系方式" :icon="contactIcon" />
-                <section class="rounded-xl border border-gray-200/70 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur p-6">
-                  <div class="prose prose-slate dark:prose-invert max-w-none" v-html="contactHtml"></div>
-                </section>
-              </template>
+              <SectionHeading eyebrow="CONTACT" title="联系方式" :icon="contactIcon" />
+              <section class="rounded-xl border border-gray-200/70 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur p-6">
+                <div class="prose prose-slate dark:prose-invert max-w-none" v-html="contactHtml"></div>
+              </section>
 
               <template v-if="siteNoticeHtml">
                 <SectionHeading eyebrow="NOTICE" title="站点声明" :icon="noticeIcon" />
@@ -176,25 +168,25 @@ const aboutHtml = computed(() => {
 })
 
 const blogContentHtml = computed(() => {
-  const md = profileStore.profile.blogContentMarkdown || ''
+  const md = profileStore.profile.blogContentMarkdown || '这里主要记录我的技术学习笔记、项目实践经验和个人思考。涵盖前端开发、后端技术、系统设计等多个领域。'
   const trimmed = String(md).trim()
   return trimmed ? render_markdown_html(trimmed) : ''
 })
 
 const philosophyHtml = computed(() => {
-  const md = profileStore.profile.philosophyMarkdown || ''
+  const md = profileStore.profile.philosophyMarkdown || '坚持持续学习，相信技术的力量可以改变世界。追求简洁优雅的解决方案，注重代码质量和用户体验。'
   const trimmed = String(md).trim()
   return trimmed ? render_markdown_html(trimmed) : ''
 })
 
 const nowHtml = computed(() => {
-  const md = profileStore.profile.nowMarkdown || ''
+  const md = profileStore.profile.nowMarkdown || '- 正在学习 Vue 3 和 TypeScript\n- 开发个人博客系统\n- 阅读技术书籍'
   const trimmed = String(md).trim()
   return trimmed ? render_markdown_html(trimmed) : ''
 })
 
 const contactHtml = computed(() => {
-  const md = profileStore.profile.contactMarkdown || ''
+  const md = profileStore.profile.contactMarkdown || '欢迎通过以下方式联系我：\n\n- **邮箱**: example@email.com\n- **GitHub**: https://github.com/username\n- **Twitter**: https://twitter.com/username'
   const trimmed = String(md).trim()
   return trimmed ? render_markdown_html(trimmed) : ''
 })
