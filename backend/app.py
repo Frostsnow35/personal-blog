@@ -18,12 +18,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 load_dotenv()
 
 _frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'dist')
-_static_folder = os.path.join(_frontend_dist, 'assets') if os.path.isdir(os.path.join(_frontend_dist, 'assets')) else _frontend_dist
 
 app = Flask(
     __name__,
-    static_folder=_static_folder,
-    static_url_path='/assets'
+    static_folder=None,
+    static_url_path=None
 )
 
 # 配置数据库
@@ -1581,13 +1580,17 @@ def init_db():
 def debug_info():
     import os
     info = {
+        'cwd': os.getcwd(),
+        'frontend_dist': _frontend_dist,
         'frontend_dist_exists': os.path.isdir(_frontend_dist),
-        'frontend_dist_files': os.listdir(_frontend_dist) if os.path.isdir(_frontend_dist) else [],
+        'frontend_dist_files': sorted(os.listdir(_frontend_dist)) if os.path.isdir(_frontend_dist) else [],
         'index_html_exists': os.path.isfile(os.path.join(_frontend_dist, 'index.html')),
         'database_url_set': bool(app.config.get('SQLALCHEMY_DATABASE_URI', '').strip()),
         'vercel_env': os.environ.get('VERCEL', 'false'),
         'db_initialized': _db_initialized,
         'python_version': sys.version,
+        'backend_dir': os.path.dirname(os.path.abspath(__file__)),
+        'root_files': sorted(os.listdir('.')) if os.path.isdir('.') else [],
     }
     return jsonify(info)
 
