@@ -311,7 +311,7 @@ function parseJson(value: any): any {
 const routes: RouteHandler[] = [
   {
     method: 'GET',
-    path: '/api/posts',
+    path: '/posts',
     async handler(request, env) {
       const url = new URL(request.url)
       const page = parseInt(url.searchParams.get('page') || '1')
@@ -327,7 +327,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/posts/published',
+    path: '/posts/published',
     async handler(request, env) {
       const url = new URL(request.url)
       const page = parseInt(url.searchParams.get('page') || '1')
@@ -343,7 +343,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/search',
+    path: '/search',
     async handler(request, env) {
       const url = new URL(request.url)
       const page = parseInt(url.searchParams.get('page') || '1')
@@ -359,7 +359,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/posts/:id',
+    path: '/posts/:id',
     async handler(request, env, params) {
       const id = parseInt(params.id)
       const { results } = await env.DB.prepare(
@@ -378,7 +378,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/posts/slug/:slug',
+    path: '/posts/slug/:slug',
     async handler(request, env, params) {
       const { results } = await env.DB.prepare(
         'SELECT id, title, slug, content, excerpt, status, cover_url, category, tags, read_time, views, likes, published_at, created_at, updated_at FROM posts WHERE slug = ? AND status = ?'
@@ -396,7 +396,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'POST',
-    path: '/api/posts/:id/like',
+    path: '/posts/:id/like',
     async handler(request, env, params) {
       const postId = parseInt(params.id)
       const ip = getClientIp(request)
@@ -420,7 +420,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/posts/:id/like',
+    path: '/posts/:id/like',
     async handler(request, env, params) {
       const postId = parseInt(params.id)
       const ip = getClientIp(request)
@@ -440,7 +440,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'POST',
-    path: '/api/posts/:id/view',
+    path: '/posts/:id/view',
     async handler(request, env, params) {
       const postId = parseInt(params.id)
       await env.DB.prepare('UPDATE posts SET views = views + 1 WHERE id = ?').bind(postId).run()
@@ -451,7 +451,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/categories',
+    path: '/categories',
     async handler(request, env) {
       const { results } = await env.DB.prepare('SELECT id, name, description FROM categories ORDER BY name').run()
       return jsonResponse(results)
@@ -460,7 +460,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/categories/published',
+    path: '/categories/published',
     async handler(request, env) {
       const { results } = await env.DB.prepare(`
         SELECT category, COUNT(*) as count 
@@ -475,7 +475,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/tags',
+    path: '/tags',
     async handler(request, env) {
       const { results } = await env.DB.prepare('SELECT id, name FROM tags ORDER BY name').run()
       return jsonResponse(results)
@@ -484,7 +484,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/tags/published',
+    path: '/tags/published',
     async handler(request, env) {
       const { results: posts } = await env.DB.prepare('SELECT tags FROM posts WHERE status = "published" AND tags IS NOT NULL AND tags != ""').run()
       const tagCounts: Record<string, number> = {}
@@ -509,7 +509,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/stats',
+    path: '/stats',
     async handler(request, env) {
       const [{ results: posts }, { results: categories }, { results: tags }] = await Promise.all([
         env.DB.prepare('SELECT COUNT(*) as count FROM posts').run(),
@@ -527,7 +527,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/profile',
+    path: '/profile',
     async handler(request, env) {
       const { results } = await env.DB.prepare('SELECT * FROM profiles LIMIT 1').run()
       
@@ -573,7 +573,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'PUT',
-    path: '/api/profile',
+    path: '/profile',
     async handler(request, env) {
       if (!(await requireAdmin(request, env))) return unauthorized()
       
@@ -639,7 +639,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'POST',
-    path: '/api/auth/login',
+    path: '/auth/login',
     async handler(request, env) {
       const data = await request.json()
       const username = (data.username || '').trim()
@@ -660,7 +660,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/admin/posts',
+    path: '/admin/posts',
     async handler(request, env) {
       if (!(await requireAdmin(request, env))) return unauthorized()
       
@@ -709,7 +709,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/admin/posts/:id',
+    path: '/admin/posts/:id',
     async handler(request, env, params) {
       if (!(await requireAdmin(request, env))) return unauthorized()
       
@@ -734,7 +734,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'POST',
-    path: '/api/admin/posts',
+    path: '/admin/posts',
     async handler(request, env) {
       if (!(await requireAdmin(request, env))) return unauthorized()
       
@@ -780,7 +780,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'PUT',
-    path: '/api/admin/posts/:id',
+    path: '/admin/posts/:id',
     async handler(request, env, params) {
       if (!(await requireAdmin(request, env))) return unauthorized()
       
@@ -871,7 +871,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'DELETE',
-    path: '/api/admin/posts/:id',
+    path: '/admin/posts/:id',
     async handler(request, env, params) {
       if (!(await requireAdmin(request, env))) return unauthorized()
       
@@ -883,7 +883,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'POST',
-    path: '/api/admin/posts/:id/publish',
+    path: '/admin/posts/:id/publish',
     async handler(request, env, params) {
       if (!(await requireAdmin(request, env))) return unauthorized()
       
@@ -895,7 +895,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'POST',
-    path: '/api/admin/posts/:id/unpublish',
+    path: '/admin/posts/:id/unpublish',
     async handler(request, env, params) {
       if (!(await requireAdmin(request, env))) return unauthorized()
       
@@ -907,7 +907,7 @@ const routes: RouteHandler[] = [
   
   {
     method: 'GET',
-    path: '/api/health',
+    path: '/health',
     async handler(request, env) {
       return jsonResponse({ status: 'healthy', timestamp: new Date().toISOString() })
     }
@@ -915,11 +915,12 @@ const routes: RouteHandler[] = [
 ]
 
 function matchRoute(method: HttpMethod, path: string): { handler: RouteHandler['handler']; params: Record<string, string> } | null {
+  const normalizedPath = path.startsWith('/api/') ? path.slice(5) : path
   for (const route of routes) {
     if (route.method !== method) continue
     
     const routeSegments = route.path.split('/').filter(s => s)
-    const pathSegments = path.split('/').filter(s => s)
+    const pathSegments = normalizedPath.split('/').filter(s => s)
     
     if (routeSegments.length !== pathSegments.length) continue
     
@@ -969,6 +970,24 @@ export async function onRequestPost(context: { request: Request; env: Env }): Pr
   
   const url = new URL(request.url)
   const path = url.pathname
+  
+  if (path === '/api/auth/login') {
+    const data = await request.json()
+    const username = (data.username || '').trim()
+    const password = data.password || ''
+    
+    if (!username || !password) return badRequest('用户名或密码不能为空')
+    
+    const { results } = await env.DB.prepare('SELECT username, password_hash, role FROM users WHERE username = ?').bind(username).run()
+    
+    if (results.length === 0) return unauthorized('用户名或密码错误')
+    
+    const user = results[0]
+    const token = createJwt(user.username, user.role, env.JWT_SECRET)
+    
+    return jsonResponse({ success: true, access_token: token, user: { username: user.username, role: user.role } })
+  }
+  
   const match = matchRoute('POST', path)
   
   if (match) {
