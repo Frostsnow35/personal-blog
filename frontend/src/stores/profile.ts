@@ -150,12 +150,12 @@ export const useProfileStore = defineStore('profile', () => {
         education: data.education ?? '',
         occupation: data.occupation ?? '',
         featuredSlugs: data.featured_slugs ?? [],
-        contactMarkdown: data.contact_markdown ?? '',
+        contactMarkdown: data.contact_markdown || '欢迎通过以下方式联系我：\n\n- **邮箱**: example@email.com\n- **GitHub**: https://github.com/username\n- **Twitter**: https://twitter.com/username',
         cooperationMarkdown: data.cooperation_markdown ?? '',
         siteNoticeMarkdown: data.site_notice_markdown ?? '',
-        blogContentMarkdown: data.blog_content_markdown ?? '',
-        philosophyMarkdown: data.philosophy_markdown ?? '',
-        nowMarkdown: data.now_markdown ?? '',
+        blogContentMarkdown: data.blog_content_markdown || '这里主要记录我的技术学习笔记、项目实践经验和个人思考。涵盖前端开发、后端技术、系统设计等多个领域。',
+        philosophyMarkdown: data.philosophy_markdown || '坚持持续学习，相信技术的力量可以改变世界。追求简洁优雅的解决方案，注重代码质量和用户体验。',
+        nowMarkdown: data.now_markdown || '- 正在学习 Vue 3 和 TypeScript\n- 开发个人博客系统\n- 阅读技术书籍',
         updatedAt: data.updated_at ?? new Date().toISOString()
       }
       
