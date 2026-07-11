@@ -1,5 +1,6 @@
 {
-  "buildCommand": "cd frontend && npm install && npm run build:prod",
-  "installCommand": "pip install -r requirements.txt && cd frontend && npm install",
+  "framework": null,
+  "buildCommand": "cd frontend && npm run build:prod",
+  "installCommand": "pip install --break-system-packages -r requirements.txt && cd frontend && npm install",
   "outputDirectory": "frontend/dist"
 }
