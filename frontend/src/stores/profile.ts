@@ -57,12 +57,12 @@ export const useProfileStore = defineStore('profile', () => {
     education: '计算机科学与技术',
     occupation: '学生',
     featuredSlugs: ['vue3-composition-api-practice', 'welcome-to-my-blog'],
-    contactMarkdown: '',
+    contactMarkdown: '欢迎通过以下方式联系我：\n\n- **邮箱**: example@email.com\n- **GitHub**: https://github.com/username\n- **Twitter**: https://twitter.com/username',
     cooperationMarkdown: '',
     siteNoticeMarkdown: '',
-    blogContentMarkdown: '',
-    philosophyMarkdown: '',
-    nowMarkdown: '',
+    blogContentMarkdown: '这里主要记录我的技术学习笔记、项目实践经验和个人思考。涵盖前端开发、后端技术、系统设计等多个领域。',
+    philosophyMarkdown: '坚持持续学习，相信技术的力量可以改变世界。追求简洁优雅的解决方案，注重代码质量和用户体验。',
+    nowMarkdown: '- 正在学习 Vue 3 和 TypeScript\n- 开发个人博客系统\n- 阅读技术书籍',
     updatedAt: new Date().toISOString()
   })
 
@@ -490,13 +490,13 @@ export const useProfileStore = defineStore('profile', () => {
       education: '计算机科学与技术',
       occupation: '学生',
       featuredSlugs: ['vue3-composition-api-practice', 'welcome-to-my-blog'],
-      contactMarkdown: '',
-      cooperationMarkdown: '',
-      siteNoticeMarkdown: '',
-      blogContentMarkdown: '',
-      philosophyMarkdown: '',
-      nowMarkdown: '',
-      updatedAt: new Date().toISOString()
+      contactMarkdown: '欢迎通过以下方式联系我：\n\n- **邮箱**: example@email.com\n- **GitHub**: https://github.com/username\n- **Twitter**: https://twitter.com/username',
+    cooperationMarkdown: '',
+    siteNoticeMarkdown: '',
+    blogContentMarkdown: '这里主要记录我的技术学习笔记、项目实践经验和个人思考。涵盖前端开发、后端技术、系统设计等多个领域。',
+    philosophyMarkdown: '坚持持续学习，相信技术的力量可以改变世界。追求简洁优雅的解决方案，注重代码质量和用户体验。',
+    nowMarkdown: '- 正在学习 Vue 3 和 TypeScript\n- 开发个人博客系统\n- 阅读技术书籍',
+    updatedAt: new Date().toISOString()
     }
     
     lastUpdated.value = Date.now()
