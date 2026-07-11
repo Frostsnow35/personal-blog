@@ -1,5 +1,6 @@
 name = "personal-blog"
 pages_build_output_dir = "frontend/dist"
+compatibility_date = "2026-07-11"
 
 [[d1_databases]]
 binding = "DB"

@@ -4,6 +4,7 @@
     "/*"
   ],
   "exclude": [
+    "/api/*",
     "/uploads/*",
     "/assets/*",
     "/avatar.jpg",

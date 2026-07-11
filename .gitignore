@@ -68,3 +68,4 @@ ngrok.exe
 # Cloudflare
 .wrangler
 .env.pages
+.vercel

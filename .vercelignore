@@ -5,4 +5,3 @@ wrangler.toml
 cloudflared.msi
 *.db
 *.sqlite
-api/

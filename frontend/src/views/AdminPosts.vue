@@ -90,9 +90,18 @@ const unpublish = async (id: number) => {
 }
 
 const remove = async (id: number) => {
-  if (!confirm('确认删除该文章？')) return
-  await http.delete(`/admin/posts/${id}`)
-  await load()
+  if (!confirm('确认删除该文章？此操作不可撤销。')) return
+  try {
+    const res = await http.delete(`/admin/posts/${id}`)
+    if (res.success) {
+      alert('删除成功')
+      await load()
+    } else {
+      alert(res.message || '删除失败')
+    }
+  } catch (err: any) {
+    alert(`删除失败：${err.message || '未知错误'}`)
+  }
 }
 
 const formatTime = (iso: string) => new Date(iso).toLocaleString()
