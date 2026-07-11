@@ -1,12 +1,23 @@
 export const config = {
-  runtime: 'edge',
+  runtime: 'edge'
 }
 
-export default function handler(request: Request): Response {
-  return new Response(JSON.stringify({ status: 'healthy', timestamp: new Date().toISOString() }), {
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Access-Control-Allow-Origin': '*'
-    }
-  })
+import { query, success, error } from './_db'
+
+export default async function handler(): Promise<Response> {
+  try {
+    const posts = await query(`SELECT COUNT(*) as count FROM posts`)
+    return success({ 
+      status: 'ok', 
+      database: 'connected',
+      posts_count: posts[0]?.count || 0
+    })
+  } catch (e) {
+    const err = e as Error
+    return success({ 
+      status: 'ok', 
+      database: 'error',
+      error: err.message 
+    })
+  }
 }

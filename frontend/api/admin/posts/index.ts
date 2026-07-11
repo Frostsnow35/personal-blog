@@ -53,51 +53,56 @@ export default async function handler(request: Request): Promise<Response> {
   }
 
   if (request.method === 'POST') {
-    const body = await request.json()
-    const title = (body.title || '').trim()
+    try {
+      const body = await request.json()
+      const title = (body.title || '').trim()
 
-    if (!title) {
-      return error('标题不能为空', 400)
+      if (!title) {
+        return error('标题不能为空', 400)
+      }
+
+      if (title.length > 200) {
+        return error('标题过长(<=200)', 400)
+      }
+
+      if (body.excerpt && body.excerpt.length > 500) {
+        return error('摘要过长(<=500)', 400)
+      }
+
+      const slug = (body.slug || '').trim() || slugify(title)
+      const existingSlug = await query<{ id: number }>(`SELECT id FROM posts WHERE slug = ?`, [slug])
+      if (existingSlug.length > 0) {
+        return error('slug 已存在', 400)
+      }
+
+      const now = new Date().toISOString()
+      const status = body.status || 'draft'
+
+      await run(
+        `INSERT INTO posts (title, slug, content, excerpt, status, cover_url, category, tags, read_time, published_at, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          title,
+          slug,
+          body.content || '',
+          body.excerpt || '',
+          status,
+          body.cover_url || null,
+          body.category || null,
+          JSON.stringify(body.tags || []),
+          Math.max(1, Math.floor((body.content || '').length / 300)),
+          status === 'published' ? now : null,
+          now,
+          now
+        ]
+      )
+
+      const inserted = await query<{ id: number }>(`SELECT id FROM posts WHERE slug = ?`, [slug])
+      return success({ id: inserted[0]?.id, message: '创建成功' })
+    } catch (e) {
+      const err = e as Error
+      return error(`创建失败: ${err.message}`, 500)
     }
-
-    if (title.length > 200) {
-      return error('标题过长(<=200)', 400)
-    }
-
-    if (body.excerpt && body.excerpt.length > 500) {
-      return error('摘要过长(<=500)', 400)
-    }
-
-    const slug = (body.slug || '').trim() || slugify(title)
-    const existingSlug = await query<{ id: number }>(`SELECT id FROM posts WHERE slug = ?`, [slug])
-    if (existingSlug.length > 0) {
-      return error('slug 已存在', 400)
-    }
-
-    const now = new Date().toISOString()
-    const status = body.status || 'draft'
-
-    await run(
-      `INSERT INTO posts (title, slug, content, excerpt, status, cover_url, category, tags, read_time, published_at, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        title,
-        slug,
-        body.content || '',
-        body.excerpt || '',
-        status,
-        body.cover_url || null,
-        body.category || null,
-        JSON.stringify(body.tags || []),
-        Math.max(1, Math.floor((body.content || '').length / 300)),
-        status === 'published' ? now : null,
-        now,
-        now
-      ]
-    )
-
-    const inserted = await query<{ id: number }>(`SELECT id FROM posts WHERE slug = ?`, [slug])
-    return success({ id: inserted[0]?.id, message: '创建成功' })
   }
 
   return error('Method not allowed', 405)

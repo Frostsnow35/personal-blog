@@ -1,18 +1,28 @@
 declare global {
-  const DB: D1Database
+  const DB: D1Database | undefined
+}
+
+function getDB(): D1Database {
+  if (!DB) {
+    throw new Error('D1 database is not available')
+  }
+  return DB
 }
 
 export async function query<T = any>(sql: string, params?: any[]): Promise<T[]> {
-  const result = await DB.prepare(sql).bind(...(params || [])).all()
+  const db = getDB()
+  const result = await db.prepare(sql).bind(...(params || [])).all()
   return result.results as T[]
 }
 
 export async function run(sql: string, params?: any[]): Promise<void> {
-  await DB.prepare(sql).bind(...(params || [])).run()
+  const db = getDB()
+  await db.prepare(sql).bind(...(params || [])).run()
 }
 
 export async function get<T = any>(sql: string, params?: any[]): Promise<T | null> {
-  const result = await DB.prepare(sql).bind(...(params || [])).first()
+  const db = getDB()
+  const result = await db.prepare(sql).bind(...(params || [])).first()
   return result as T | null
 }
 
