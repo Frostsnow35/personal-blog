@@ -69,3 +69,6 @@ ngrok.exe
 .wrangler
 .env.pages
 .vercel
+
+.vercel
+.env*
