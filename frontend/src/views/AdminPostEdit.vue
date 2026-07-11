@@ -17,8 +17,8 @@
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Slug</label>
-              <input v-model="form.slug" type="text" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"/>
+              <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Slug <span class="text-xs text-gray-500">(根据标题自动生成)</span></label>
+              <input v-model="form.slug" type="text" :disabled="!isEdit && form.title" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 disabled:bg-gray-100 dark:disabled:bg-gray-700"/>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">分类</label>
@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { http } from '../utils/http'
 import TiptapEditor from '../components/TiptapEditor.vue'
@@ -64,6 +64,21 @@ const form = ref<any>({
   title: '', slug: '', content: '', excerpt: '', status: 'draft', cover_url: '', category: '', tags: [] as string[]
 })
 const tagsInput = ref('')
+
+function slugify(title: string): string {
+  let base = title.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '')
+  if (!base) base = 'post'
+  if (/[\u4e00-\u9fa5]/.test(base)) {
+    base = encodeURIComponent(base).replace(/%/g, '-')
+  }
+  return base
+}
+
+watch(() => form.value.title, (newTitle) => {
+  if (!isEdit && newTitle && !form.value.slug) {
+    form.value.slug = slugify(newTitle)
+  }
+})
 
 let autoSaveTimer: number | undefined
 
