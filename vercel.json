@@ -5,10 +5,6 @@
   "installCommand": "npm install && pip install -r requirements.txt",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/app"
-    },
-    {
       "source": "/(.*)",
       "destination": "/frontend/dist/$1"
     },
