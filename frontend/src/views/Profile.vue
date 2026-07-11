@@ -117,11 +117,31 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">精选文章</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">博客内容</label>
               <textarea
-                v-model="featuredSlugsText"
-                rows="3"
-                placeholder="每行一个文章 slug，例如 vue3-composition-api-practice"
+                v-model="profileStore.profile.blogContentMarkdown"
+                rows="5"
+                placeholder="告诉访客这个博客主要写什么，支持 Markdown"
+                class="w-full px-3 py-2 border border-gray-400 dark:border-gray-500 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-ocean-500 focus:border-transparent"
+              ></textarea>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">我的理念</label>
+              <textarea
+                v-model="profileStore.profile.philosophyMarkdown"
+                rows="5"
+                placeholder="你的价值观、想法，支持 Markdown"
+                class="w-full px-3 py-2 border border-gray-400 dark:border-gray-500 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-ocean-500 focus:border-transparent"
+              ></textarea>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">我目前正在做</label>
+              <textarea
+                v-model="profileStore.profile.nowMarkdown"
+                rows="4"
+                placeholder="当前在做的项目、学习什么，支持 Markdown"
                 class="w-full px-3 py-2 border border-gray-400 dark:border-gray-500 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-ocean-500 focus:border-transparent"
               ></textarea>
             </div>
@@ -387,23 +407,6 @@ onMounted(() => {
   profileStore.loadProfile()
 })
 
-const featuredSlugsText = computed({
-  get() {
-    return (profileStore.profile.featuredSlugs || []).join('\n')
-  },
-  set(value: string) {
-    const list = String(value || '')
-      .split('\n')
-      .map(s => s.trim())
-      .filter(Boolean)
-    const seen = new Set<string>()
-    profileStore.profile.featuredSlugs = list.filter(s => {
-      if (seen.has(s)) return false
-      seen.add(s)
-      return true
-    })
-  }
-})
 const resolvedPublicLinks = computed(() => {
   const base = (profileStore.publicSocialLinks || []).slice()
   const hasBili = base.some(l => l.platform === 'bilibili')

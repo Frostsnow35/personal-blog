@@ -31,7 +31,7 @@
             <header class="text-center">
               <div class="inline-flex items-center justify-center">
                 <div class="relative">
-                  <div class="absolute -inset-6 rounded-full bg-gradient-to-br from-ocean-500/30 via-fuchsia-500/12 to-transparent blur-2xl"></div>
+                  <div class="absolute -inset-8 rounded-full bg-gradient-to-br from-ocean-500/25 via-fuchsia-500/10 to-sea-500/20 blur-3xl animate-pulse"></div>
                   <div class="relative rounded-full bg-gradient-to-br from-ocean-500/70 via-sea-500/25 to-fuchsia-500/60 p-[2px]">
                     <img
                       :src="profileStore.displayAvatar"
@@ -42,7 +42,7 @@
                 </div>
               </div>
 
-              <div class="mt-6 text-3xl sm:text-4xl font-semibold text-gray-900 dark:text-gray-100">
+              <div class="mt-6 text-3xl sm:text-4xl font-bold bg-gradient-to-r from-ocean-600 via-sea-500 to-fuchsia-500 bg-clip-text text-transparent">
                 {{ profileStore.displayName }}
               </div>
               <div
@@ -63,107 +63,71 @@
               </div>
             </header>
 
-            <div class="mt-10 border-t border-gray-200/70 dark:border-white/10 pt-10 space-y-12">
-              <section id="about" class="scroll-mt-28">
-                <div class="text-xs tracking-widest text-gray-500 dark:text-gray-400">ABOUT</div>
-                <h2 class="mt-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">关于我</h2>
-                <div class="mt-6 prose prose-slate dark:prose-invert max-w-none" v-html="aboutHtml"></div>
+            <div class="mt-10 border-t border-gray-200/70 dark:border-white/10 pt-10 space-y-16">
+              <SectionHeading eyebrow="ABOUT" title="关于我" :icon="aboutIcon" />
+              <section class="prose-content">
+                <div class="prose prose-slate dark:prose-invert max-w-none" v-html="aboutHtml"></div>
               </section>
 
+              <template v-if="blogContentHtml">
+                <SectionHeading eyebrow="BLOG" title="博客内容" :icon="blogIcon" />
+                <section class="prose-content">
+                  <div class="prose prose-slate dark:prose-invert max-w-none" v-html="blogContentHtml"></div>
+                </section>
+              </template>
+
+              <template v-if="philosophyHtml">
+                <SectionHeading eyebrow="PHILOSOPHY" title="我的理念" :icon="philosophyIcon" />
+                <section class="prose-content">
+                  <div class="prose prose-slate dark:prose-invert max-w-none" v-html="philosophyHtml"></div>
+                </section>
+              </template>
+
+              <template v-if="nowHtml">
+                <SectionHeading eyebrow="NOW" title="我目前正在做" :icon="nowIcon" />
+                <section class="rounded-xl border border-ocean-200/60 dark:border-ocean-500/20 bg-gradient-to-br from-ocean-50/80 to-sea-50/60 dark:from-ocean-500/5 dark:to-sea-500/5 backdrop-blur p-6">
+                  <div class="flex items-start gap-3">
+                    <div class="shrink-0 mt-1 w-2 h-2 rounded-full bg-ocean-500 animate-pulse"></div>
+                    <div class="prose prose-slate dark:prose-invert max-w-none" v-html="nowHtml"></div>
+                  </div>
+                </section>
+              </template>
+
               <section v-if="profileStore.profile.skills?.length || profileStore.profile.interests?.length" class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div v-if="profileStore.profile.skills?.length" class="rounded-xl border border-gray-200/70 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur p-6">
+                <div v-if="profileStore.profile.skills?.length" class="rounded-xl border border-gray-200/70 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5">
                   <div class="text-xs tracking-widest text-gray-500 dark:text-gray-400">SKILLS</div>
                   <div class="mt-2 text-lg font-semibold text-gray-900 dark:text-gray-100">擅长</div>
                   <div class="mt-4 flex flex-wrap gap-2">
-                    <span v-for="skill in profileStore.profile.skills" :key="skill" class="px-3 py-1 rounded-full text-sm bg-gray-100/80 dark:bg-white/10 text-gray-800 dark:text-gray-200 border border-gray-200/70 dark:border-white/10">
+                    <span v-for="skill in profileStore.profile.skills" :key="skill" class="px-3 py-1 rounded-full text-sm bg-ocean-50 dark:bg-ocean-500/10 text-ocean-700 dark:text-ocean-300 border border-ocean-200/60 dark:border-ocean-500/20 hover:bg-ocean-100 dark:hover:bg-ocean-500/20 hover:scale-105 transition-all duration-200 cursor-default">
                       {{ skill }}
                     </span>
                   </div>
                 </div>
 
-                <div v-if="profileStore.profile.interests?.length" class="rounded-xl border border-gray-200/70 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur p-6">
+                <div v-if="profileStore.profile.interests?.length" class="rounded-xl border border-gray-200/70 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5">
                   <div class="text-xs tracking-widest text-gray-500 dark:text-gray-400">INTERESTS</div>
                   <div class="mt-2 text-lg font-semibold text-gray-900 dark:text-gray-100">兴趣</div>
                   <div class="mt-4 flex flex-wrap gap-2">
-                    <span v-for="interest in profileStore.profile.interests" :key="interest" class="px-3 py-1 rounded-full text-sm bg-gray-100/80 dark:bg-white/10 text-gray-800 dark:text-gray-200 border border-gray-200/70 dark:border-white/10">
+                    <span v-for="interest in profileStore.profile.interests" :key="interest" class="px-3 py-1 rounded-full text-sm bg-fuchsia-50 dark:bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300 border border-fuchsia-200/60 dark:border-fuchsia-500/20 hover:bg-fuchsia-100 dark:hover:bg-fuchsia-500/20 hover:scale-105 transition-all duration-200 cursor-default">
                       {{ interest }}
                     </span>
                   </div>
                 </div>
               </section>
 
-              <section id="works" class="scroll-mt-28">
-                <div class="text-xs tracking-widest text-gray-500 dark:text-gray-400">WORKS</div>
-                <div class="mt-2 flex items-end justify-between gap-6">
-                  <h2 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">精选文章</h2>
-                  <router-link to="/archive" class="text-sm text-gray-600 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">查看归档</router-link>
-                </div>
+              <template v-if="contactHtml">
+                <SectionHeading eyebrow="CONTACT" title="联系方式" :icon="contactIcon" />
+                <section class="rounded-xl border border-gray-200/70 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur p-6">
+                  <div class="prose prose-slate dark:prose-invert max-w-none" v-html="contactHtml"></div>
+                </section>
+              </template>
 
-                <div v-if="featuredPosts.length" class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <router-link
-                    v-for="p in featuredPosts"
-                    :key="p.id"
-                    :to="`/post/${p.slug}`"
-                    class="group rounded-xl border border-gray-200/70 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur p-6 hover:shadow-lg transition-all"
-                  >
-                    <div class="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-ocean-600 dark:group-hover:text-ocean-400 transition-colors">
-                      {{ p.title }}
-                    </div>
-                    <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      {{ formatDate(p.published_at || p.created_at) }} · {{ p.read_time }} 分钟阅读
-                      <span v-if="p.category" class="ml-2">· {{ p.category }}</span>
-                    </div>
-                    <div v-if="p.excerpt" class="mt-3 text-sm text-gray-600 dark:text-gray-300 overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
-                      {{ p.excerpt }}
-                    </div>
-                  </router-link>
-                </div>
-                <div v-else class="mt-6 text-sm text-gray-500 dark:text-gray-400">暂无精选文章</div>
-              </section>
-
-              <section id="latest" class="scroll-mt-28">
-                <div class="text-xs tracking-widest text-gray-500 dark:text-gray-400">LATEST</div>
-                <h2 class="mt-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">最新文章</h2>
-
-                <div v-if="latestPosts.length" class="mt-6 divide-y divide-gray-200/70 dark:divide-white/10">
-                  <div v-for="p in latestPosts" :key="p.id" class="py-4 flex items-start justify-between gap-4">
-                    <div class="min-w-0">
-                      <router-link :to="`/post/${p.slug}`" class="text-gray-900 dark:text-gray-100 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">
-                        {{ p.title }}
-                      </router-link>
-                      <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        {{ formatDate(p.published_at || p.created_at) }} · {{ p.read_time }} 分钟阅读
-                      </div>
-                    </div>
-                    <div v-if="p.category" class="shrink-0 text-xs text-gray-500 dark:text-gray-400">{{ p.category }}</div>
-                  </div>
-                </div>
-                <div v-else class="mt-6 text-sm text-gray-500 dark:text-gray-400">暂无文章</div>
-              </section>
-
-              <section id="contact" class="scroll-mt-28">
-                <div class="text-xs tracking-widest text-gray-500 dark:text-gray-400">CONTACT</div>
-                <h2 class="mt-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">联系与合作</h2>
-
-                <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div v-if="contactHtml" class="rounded-xl border border-gray-200/70 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur p-6">
-                    <div class="text-lg font-semibold text-gray-900 dark:text-gray-100">联系</div>
-                    <div class="mt-4 prose prose-slate dark:prose-invert max-w-none" v-html="contactHtml"></div>
-                  </div>
-                  <div v-if="cooperationHtml" class="rounded-xl border border-gray-200/70 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur p-6">
-                    <div class="text-lg font-semibold text-gray-900 dark:text-gray-100">合作</div>
-                    <div class="mt-4 prose prose-slate dark:prose-invert max-w-none" v-html="cooperationHtml"></div>
-                  </div>
-                  <div v-if="!contactHtml && !cooperationHtml" class="text-sm text-gray-500 dark:text-gray-400">暂无联系与合作说明</div>
-                </div>
-              </section>
-
-              <section id="notice" class="scroll-mt-28">
-                <div class="text-xs tracking-widest text-gray-500 dark:text-gray-400">NOTICE</div>
-                <h2 class="mt-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">站点声明</h2>
-                <div v-if="siteNoticeHtml" class="mt-6 prose prose-slate dark:prose-invert max-w-none" v-html="siteNoticeHtml"></div>
-                <div v-else class="mt-6 text-sm text-gray-500 dark:text-gray-400">暂无站点声明</div>
-              </section>
+              <template v-if="siteNoticeHtml">
+                <SectionHeading eyebrow="NOTICE" title="站点声明" :icon="noticeIcon" />
+                <section class="prose-content">
+                  <div class="prose prose-slate dark:prose-invert max-w-none text-sm" v-html="siteNoticeHtml"></div>
+                </section>
+              </template>
 
               <section class="border-t border-gray-200/70 dark:border-white/10 pt-8">
                 <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
@@ -185,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, h, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProfileStore } from '../stores/profile'
 import PublicSocialLinks from '../components/PublicSocialLinks.vue'
@@ -204,21 +168,6 @@ const logout = () => {
   router.push('/home')
 }
 
-interface PublishedPost {
-  id: number
-  title: string
-  slug: string
-  excerpt: string
-  category?: string
-  tags: string[]
-  cover_url?: string
-  read_time: number
-  published_at?: string
-  created_at: string
-}
-
-const latestPosts = ref<PublishedPost[]>([])
-const featuredPosts = ref<PublishedPost[]>([])
 const rssUrl = computed(() => (import.meta.env.DEV ? 'http://localhost:5000/rss.xml' : '/rss.xml'))
 
 const aboutHtml = computed(() => {
@@ -226,14 +175,26 @@ const aboutHtml = computed(() => {
   return render_markdown_html(bio)
 })
 
-const contactHtml = computed(() => {
-  const md = profileStore.profile.contactMarkdown || ''
+const blogContentHtml = computed(() => {
+  const md = profileStore.profile.blogContentMarkdown || ''
   const trimmed = String(md).trim()
   return trimmed ? render_markdown_html(trimmed) : ''
 })
 
-const cooperationHtml = computed(() => {
-  const md = profileStore.profile.cooperationMarkdown || ''
+const philosophyHtml = computed(() => {
+  const md = profileStore.profile.philosophyMarkdown || ''
+  const trimmed = String(md).trim()
+  return trimmed ? render_markdown_html(trimmed) : ''
+})
+
+const nowHtml = computed(() => {
+  const md = profileStore.profile.nowMarkdown || ''
+  const trimmed = String(md).trim()
+  return trimmed ? render_markdown_html(trimmed) : ''
+})
+
+const contactHtml = computed(() => {
+  const md = profileStore.profile.contactMarkdown || ''
   const trimmed = String(md).trim()
   return trimmed ? render_markdown_html(trimmed) : ''
 })
@@ -244,44 +205,49 @@ const siteNoticeHtml = computed(() => {
   return trimmed ? render_markdown_html(trimmed) : ''
 })
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
-
-const fetchLatestPosts = async () => {
-  try {
-    const { http } = await import('../utils/http')
-    const res = await http.get<any>('/posts/published?page=1&per_page=5')
-    latestPosts.value = Array.isArray(res?.data?.items) ? res.data.items : []
-  } catch {
-    latestPosts.value = []
+const SectionHeading = {
+  props: {
+    eyebrow: { type: String, required: true },
+    title: { type: String, required: true },
+    icon: { type: String, default: '' }
+  },
+  setup(props: { eyebrow: string; title: string; icon: string }) {
+    return () => h('div', { class: 'flex items-center gap-3' }, [
+      h('div', {
+        class: 'shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-ocean-500/20 to-fuchsia-500/20 dark:from-ocean-500/30 dark:to-fuchsia-500/30 flex items-center justify-center',
+        innerHTML: props.icon
+      }),
+      h('div', [
+        h('div', { class: 'text-xs tracking-widest text-gray-500 dark:text-gray-400' }, props.eyebrow),
+        h('h2', { class: 'mt-0.5 text-2xl font-semibold text-gray-900 dark:text-gray-100' }, props.title)
+      ])
+    ])
   }
 }
 
-const fetchFeaturedPosts = async () => {
-  try {
-    const slugs = (profileStore.profile.featuredSlugs || []).map(s => String(s).trim()).filter(Boolean)
-    if (!slugs.length) {
-      featuredPosts.value = []
-      return
-    }
-    const { http } = await import('../utils/http')
-    const res = await http.get<any>('/posts/published?page=1&per_page=1000')
-    const items: PublishedPost[] = Array.isArray(res?.data?.items) ? res.data.items : []
-    const map = new Map(items.map(p => [p.slug, p]))
-    featuredPosts.value = slugs.map(s => map.get(s)).filter(Boolean) as PublishedPost[]
-  } catch {
-    featuredPosts.value = []
-  }
-}
+const aboutIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-ocean-500"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>`
+const blogIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-sea-500"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>`
+const philosophyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fuchsia-500"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`
+const nowIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-ocean-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`
+const contactIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-sea-500"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>`
+const noticeIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500 dark:text-gray-400"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>`
 
 onMounted(async () => {
   await profileStore.loadProfile()
-  await Promise.allSettled([fetchFeaturedPosts(), fetchLatestPosts()])
 })
 </script>
+
+<style scoped>
+.prose-content {
+  padding-left: 3.5rem;
+  border-left: 2px solid;
+  border-image: linear-gradient(to bottom, rgba(14, 165, 233, 0.3), rgba(217, 70, 239, 0.15), transparent) 1;
+}
+
+@media (max-width: 640px) {
+  .prose-content {
+    padding-left: 1rem;
+    border-left: 1px solid rgba(14, 165, 233, 0.2);
+  }
+}
+</style>

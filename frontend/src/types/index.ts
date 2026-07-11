@@ -66,6 +66,9 @@ export interface Profile {
   contactMarkdown?: string
   cooperationMarkdown?: string
   siteNoticeMarkdown?: string
+  blogContentMarkdown?: string
+  philosophyMarkdown?: string
+  nowMarkdown?: string
   updatedAt: string
 }
 

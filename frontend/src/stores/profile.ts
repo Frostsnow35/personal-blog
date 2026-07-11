@@ -60,6 +60,9 @@ export const useProfileStore = defineStore('profile', () => {
     contactMarkdown: '',
     cooperationMarkdown: '',
     siteNoticeMarkdown: '',
+    blogContentMarkdown: '',
+    philosophyMarkdown: '',
+    nowMarkdown: '',
     updatedAt: new Date().toISOString()
   })
 
@@ -150,6 +153,9 @@ export const useProfileStore = defineStore('profile', () => {
         contactMarkdown: data.contact_markdown ?? '',
         cooperationMarkdown: data.cooperation_markdown ?? '',
         siteNoticeMarkdown: data.site_notice_markdown ?? '',
+        blogContentMarkdown: data.blog_content_markdown ?? '',
+        philosophyMarkdown: data.philosophy_markdown ?? '',
+        nowMarkdown: data.now_markdown ?? '',
         updatedAt: data.updated_at ?? new Date().toISOString()
       }
       
@@ -389,7 +395,10 @@ export const useProfileStore = defineStore('profile', () => {
         featured_slugs: profile.value.featuredSlugs || [],
         contact_markdown: profile.value.contactMarkdown || '',
         cooperation_markdown: profile.value.cooperationMarkdown || '',
-        site_notice_markdown: profile.value.siteNoticeMarkdown || ''
+        site_notice_markdown: profile.value.siteNoticeMarkdown || '',
+        blog_content_markdown: profile.value.blogContentMarkdown || '',
+        philosophy_markdown: profile.value.philosophyMarkdown || '',
+        now_markdown: profile.value.nowMarkdown || ''
       }
 
       // 使用统一 http 工具，自动附带 Authorization，并在 401/403 时统一跳转
@@ -484,6 +493,9 @@ export const useProfileStore = defineStore('profile', () => {
       contactMarkdown: '',
       cooperationMarkdown: '',
       siteNoticeMarkdown: '',
+      blogContentMarkdown: '',
+      philosophyMarkdown: '',
+      nowMarkdown: '',
       updatedAt: new Date().toISOString()
     }
     

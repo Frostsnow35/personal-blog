@@ -226,10 +226,25 @@ async function initDatabase(db: D1Database): Promise<void> {
       contact_markdown TEXT,
       cooperation_markdown TEXT,
       site_notice_markdown TEXT,
+      blog_content_markdown TEXT,
+      philosophy_markdown TEXT,
+      now_markdown TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `).run()
+
+  const tableInfo = await db.prepare('PRAGMA table_info(profiles)').run()
+  const columns = tableInfo.results.map((col: any) => col.name)
+  if (!columns.includes('blog_content_markdown')) {
+    await db.prepare('ALTER TABLE profiles ADD COLUMN blog_content_markdown TEXT').run()
+  }
+  if (!columns.includes('philosophy_markdown')) {
+    await db.prepare('ALTER TABLE profiles ADD COLUMN philosophy_markdown TEXT').run()
+  }
+  if (!columns.includes('now_markdown')) {
+    await db.prepare('ALTER TABLE profiles ADD COLUMN now_markdown TEXT').run()
+  }
   
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS users (
@@ -535,6 +550,9 @@ const routes: RouteHandler[] = [
           contact_markdown: '',
           cooperation_markdown: '',
           site_notice_markdown: '',
+          blog_content_markdown: '',
+          philosophy_markdown: '',
+          now_markdown: '',
           updated_at: new Date().toISOString()
         })
       }
@@ -545,6 +563,9 @@ const routes: RouteHandler[] = [
         skills: parseJson(profile.skills) || [],
         interests: parseJson(profile.interests) || [],
         featured_slugs: parseJson(profile.featured_slugs) || [],
+        blog_content_markdown: profile.blog_content_markdown || '',
+        philosophy_markdown: profile.philosophy_markdown || '',
+        now_markdown: profile.now_markdown || '',
         updated_at: profile.updated_at ? new Date(profile.updated_at).toISOString() : null
       })
     }
@@ -561,30 +582,8 @@ const routes: RouteHandler[] = [
       
       if (results.length === 0) {
         await env.DB.prepare(`
-          INSERT INTO profiles (name, avatar, bio, email, location, website, github, twitter, skills, interests, education, occupation, featured_slugs, contact_markdown, cooperation_markdown, site_notice_markdown)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          data.name || '',
-          data.avatar || '',
-          data.bio || '',
-          data.email || '',
-          data.location || '',
-          data.website || '',
-          data.github || '',
-          data.twitter || '',
-          JSON.stringify(data.skills || []),
-          JSON.stringify(data.interests || []),
-          data.education || '',
-          data.occupation || '',
-          JSON.stringify(data.featured_slugs || []),
-          data.contact_markdown || '',
-          data.cooperation_markdown || '',
-          data.site_notice_markdown || ''
-        ).run()
-      } else {
-        const profileId = results[0].id
-        await env.DB.prepare(`
-          UPDATE profiles SET name = ?, avatar = ?, bio = ?, email = ?, location = ?, website = ?, github = ?, twitter = ?, skills = ?, interests = ?, education = ?, occupation = ?, featured_slugs = ?, contact_markdown = ?, cooperation_markdown = ?, site_notice_markdown = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+          INSERT INTO profiles (name, avatar, bio, email, location, website, github, twitter, skills, interests, education, occupation, featured_slugs, contact_markdown, cooperation_markdown, site_notice_markdown, blog_content_markdown, philosophy_markdown, now_markdown)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           data.name || '',
           data.avatar || '',
@@ -602,6 +601,34 @@ const routes: RouteHandler[] = [
           data.contact_markdown || '',
           data.cooperation_markdown || '',
           data.site_notice_markdown || '',
+          data.blog_content_markdown || '',
+          data.philosophy_markdown || '',
+          data.now_markdown || ''
+        ).run()
+      } else {
+        const profileId = results[0].id
+        await env.DB.prepare(`
+          UPDATE profiles SET name = ?, avatar = ?, bio = ?, email = ?, location = ?, website = ?, github = ?, twitter = ?, skills = ?, interests = ?, education = ?, occupation = ?, featured_slugs = ?, contact_markdown = ?, cooperation_markdown = ?, site_notice_markdown = ?, blog_content_markdown = ?, philosophy_markdown = ?, now_markdown = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+        `).bind(
+          data.name || '',
+          data.avatar || '',
+          data.bio || '',
+          data.email || '',
+          data.location || '',
+          data.website || '',
+          data.github || '',
+          data.twitter || '',
+          JSON.stringify(data.skills || []),
+          JSON.stringify(data.interests || []),
+          data.education || '',
+          data.occupation || '',
+          JSON.stringify(data.featured_slugs || []),
+          data.contact_markdown || '',
+          data.cooperation_markdown || '',
+          data.site_notice_markdown || '',
+          data.blog_content_markdown || '',
+          data.philosophy_markdown || '',
+          data.now_markdown || '',
           profileId
         ).run()
       }
