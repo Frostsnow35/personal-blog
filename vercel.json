@@ -1,14 +1,9 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pip install --break-system-packages -r requirements.txt && cd frontend && npm install",
-  "buildCommand": "cd frontend && npm run build:prod",
   "functions": {
-    "api/index.py": {
+    "index": {
       "includeFiles": "frontend/dist/**",
       "maxDuration": 30
     }
-  },
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index" }
-  ]
+  }
 }

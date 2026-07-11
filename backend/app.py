@@ -1602,6 +1602,13 @@ def serve_assets(filename):
     return send_from_directory(assets_dir, filename)
 
 
+@app.route('/js/<path:filename>')
+def serve_js(filename):
+    from flask import send_from_directory
+    js_dir = os.path.join(_frontend_dist, 'js')
+    return send_from_directory(js_dir, filename)
+
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_frontend(path):
