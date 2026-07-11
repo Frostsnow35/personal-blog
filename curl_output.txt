@@ -1,0 +1,70 @@
+﻿curl.exe :   % Total    % Received % Xferd  Average Speed  Time   
+ Time    Time   Current
+所在位置 行:1 字符: 1
++ curl.exe -v --max-time 30 "https://personal-blog-jade.vercel.app
+/api/ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo          : NotSpecified: (  % Total    % ... T 
+   ime   Current:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                 Dload  Upload  Total   Spent   Le
+ft   Speed
+
+  0      0   0      0   0      0      0      0                    
+          0* Host personal-blog-jade.vercel.app:443 was resolved.
+* IPv6: 2a03:2880:f10c:83:face:b00c:0:25de
+* IPv4: 104.244.46.21
+*   Trying [2a03:2880:f10c:83:face:b00c:0:25de]:443...
+*   Trying 104.244.46.21:443...
+
+  0      0   0      0   0      0      0      0           00:01    
+          0
+  0      0   0      0   0      0      0      0           00:02    
+          0
+  0      0   0      0   0      0      0      0           00:03    
+          0
+  0      0   0      0   0      0      0      0           00:04    
+          0
+  0      0   0      0   0      0      0      0           00:05    
+          0
+  0      0   0      0   0      0      0      0           00:06    
+          0
+  0      0   0      0   0      0      0      0           00:07    
+          0
+  0      0   0      0   0      0      0      0           00:08    
+          0
+  0      0   0      0   0      0      0      0           00:09    
+          0
+  0      0   0      0   0      0      0      0           00:10    
+          0
+  0      0   0      0   0      0      0      0           00:11    
+          0
+  0      0   0      0   0      0      0      0           00:12    
+          0
+  0      0   0      0   0      0      0      0           00:13    
+          0
+  0      0   0      0   0      0      0      0           00:14    
+          0
+  0      0   0      0   0      0      0      0           00:15    
+          0
+  0      0   0      0   0      0      0      0           00:16    
+          0
+  0      0   0      0   0      0      0      0           00:17    
+          0
+  0      0   0      0   0      0      0      0           00:18    
+          0
+  0      0   0      0   0      0      0      0           00:19    
+          0
+  0      0   0      0   0      0      0      0           00:20    
+          0* connect to 2a03:2880:f10c:83:face:b00c:0:25de port 44
+3 from :: port 40976 failed: Timed out
+* connect to 104.244.46.21 port 443 from 0.0.0.0 port 40977 failed
+: Timed out
+* Failed to connect to personal-blog-jade.vercel.app port 443 afte
+r 21285 ms: Could not connect to server
+
+* closing connection #0
+curl: (28) Failed to connect to personal-blog-jade.vercel.app port
+ 443 after 21285 ms: Could not connect to server

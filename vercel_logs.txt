@@ -1,0 +1,11 @@
+﻿node.exe : Vercel CLI 55.0.0 (Node.js 22.15.0)
+所在位置 C:\Program Files\nodejs\New Folder\npx.ps1:29 字符: 3
++   & $NODE_EXE $NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Vercel CLI 55.0.0 (N 
+   ode.js 22.15.0):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Resolving deployment "personal-blog-jade.vercel.app"
+Fetching project "prj_2T8baH0gzfpSiPhKCGh19lAfxmKU"
+Fetching logs...
