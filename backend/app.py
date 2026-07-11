@@ -15,7 +15,14 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # 加载环境变量
 load_dotenv()
 
-app = Flask(__name__)
+_frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'dist')
+_static_folder = os.path.join(_frontend_dist, 'assets') if os.path.isdir(os.path.join(_frontend_dist, 'assets')) else _frontend_dist
+
+app = Flask(
+    __name__,
+    static_folder=_static_folder,
+    static_url_path='/assets'
+)
 
 # 配置数据库
 # 在 Railway 等生产环境中使用绝对路径
@@ -1547,10 +1554,35 @@ def init_db():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+# 前端静态文件服务
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    from flask import send_from_directory
+    assets_dir = os.path.join(_frontend_dist, 'assets')
+    return send_from_directory(assets_dir, filename)
+
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    from flask import send_from_directory
+    if path.startswith('api/') or path.startswith('uploads/'):
+        return jsonify({'error': 'Not found', 'message': '请求的资源不存在'}), 404
+    full_path = os.path.join(_frontend_dist, path)
+    if path and os.path.isfile(full_path):
+        return send_from_directory(_frontend_dist, path)
+    index_path = os.path.join(_frontend_dist, 'index.html')
+    if os.path.isfile(index_path):
+        return send_from_directory(_frontend_dist, 'index.html')
+    return jsonify({'error': 'Frontend not built', 'message': '前端文件未构建'}), 500
+
+
 # 错误处理
 @app.errorhandler(404)
 def not_found(error):
-    return jsonify({'error': 'Not found', 'message': '请求的资源不存在'}), 404
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Not found', 'message': '请求的资源不存在'}), 404
+    return serve_frontend(request.path.lstrip('/'))
 
 @app.errorhandler(500)
 def internal_error(error):
