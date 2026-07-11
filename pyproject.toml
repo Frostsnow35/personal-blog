@@ -1,5 +1,5 @@
 [tool.vercel]
-entrypoint = "test_app:app"
+entrypoint = "index:app"
 
 [tool.vercel.scripts]
 build = "cd frontend && npm install && npm run build:prod"
