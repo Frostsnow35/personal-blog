@@ -1538,6 +1538,15 @@ def health_check():
 def health_check_api():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now(timezone.utc).isoformat()})
 
+@app.route('/api/init-db', methods=['POST'])
+def init_db():
+    """初始化数据库表结构，仅在首次部署时调用一次"""
+    try:
+        bootstrap()
+        return jsonify({'status': 'success', 'message': '数据库初始化完成'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 # 错误处理
 @app.errorhandler(404)
 def not_found(error):
@@ -1611,4 +1620,11 @@ def bootstrap():
         except Exception:
             pass
 
-bootstrap()
+if __name__ == '__main__':
+    bootstrap()
+    app.run(debug=False, host='0.0.0.0', port=5000)
+elif os.environ.get('VERCEL'):
+    # Vercel 环境下延迟初始化，避免冷启动超时
+    pass
+else:
+    bootstrap()
