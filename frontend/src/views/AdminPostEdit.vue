@@ -105,16 +105,20 @@ const onPickCover = async (e: Event) => {
 }
 
 const save = async (status: 'draft'|'published') => {
-  form.value.status = status
-  form.value.tags = tagsInput.value.split(',').map(s => s.trim()).filter(Boolean)
-  if (isEdit) {
-    await http.put(`/admin/posts/${route.params.id}`, form.value)
-  } else {
-    const r = await http.post<{ success:boolean; data:{ id:number } }>(`/admin/posts`, form.value)
-    router.replace(`/admin/posts/${r.data.id}/edit`)
+  try {
+    form.value.status = status
+    form.value.tags = tagsInput.value.split(',').map(s => s.trim()).filter(Boolean)
+    if (isEdit) {
+      await http.put(`/admin/posts/${route.params.id}`, form.value)
+    } else {
+      const r = await http.post<{ success:boolean; data:{ id:number } }>(`/admin/posts`, form.value)
+      router.replace(`/admin/posts/${r.data.id}/edit`)
+    }
+    clearAutoSave()
+    alert('保存成功')
+  } catch (err: any) {
+    alert(`保存失败：${err.message || '未知错误'}`)
   }
-  clearAutoSave()
-  alert('保存成功')
 }
 
 const AUTO_SAVE_KEY = 'blog_post_autosave'
