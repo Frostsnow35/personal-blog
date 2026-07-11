@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 import json
+import sys
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -128,6 +129,8 @@ _db_initialized = False
 def lazy_init():
     global _db_initialized
     if not _db_initialized and request.path.startswith('/api/'):
+        if request.path in ('/api/health', '/api/debug'):
+            return
         _db_initialized = True
         try:
             bootstrap()
