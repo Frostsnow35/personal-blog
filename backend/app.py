@@ -10,6 +10,7 @@ import locale
 from dotenv import load_dotenv
 import jwt
 from sqlalchemy.pool import NullPool
+from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # 加载环境变量
@@ -127,9 +128,9 @@ _db_initialized = False
 def lazy_init():
     global _db_initialized
     if not _db_initialized and request.path.startswith('/api/'):
+        _db_initialized = True
         try:
             bootstrap()
-            _db_initialized = True
         except Exception as e:
             app.logger.error(f"Database init failed: {e}")
 
@@ -646,18 +647,16 @@ def ensure_mysql_utf8mb4():
         if 'mysql' not in uri:
             return
         # 获取当前数据库名
-        db_name_result = db.session.execute('SELECT DATABASE()')
+        db_name_result = db.session.execute(text('SELECT DATABASE()'))
         db_name = list(db_name_result.fetchone() or [''])[0]
         if not db_name:
             return
-        # 设置数据库级别字符集
-        db.session.execute(f"ALTER DATABASE `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-        # 遍历所有表并转换字符集
-        tables_result = db.session.execute('SHOW TABLES')
+        db.session.execute(text(f"ALTER DATABASE `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+        tables_result = db.session.execute(text('SHOW TABLES'))
         tables = [list(row)[0] for row in tables_result]
         for table in tables:
             try:
-                db.session.execute(f"ALTER TABLE `{table}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+                db.session.execute(text(f"ALTER TABLE `{table}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
             except Exception:
                 pass
         db.session.commit()
@@ -677,19 +676,19 @@ def ensure_profile_schema():
         uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
         if 'mysql' in uri:
             try:
-                db_name_result = db.session.execute('SELECT DATABASE()')
+                db_name_result = db.session.execute(text('SELECT DATABASE()'))
                 db_name = list(db_name_result.fetchone() or [''])[0]
                 if not db_name:
                     return
                 existing_result = db.session.execute(
-                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = :db AND TABLE_NAME = 'profiles'",
+                    text("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = :db AND TABLE_NAME = 'profiles'"),
                     {'db': db_name}
                 )
                 existing = {list(row)[0] for row in existing_result}
                 for col, col_type in required_columns.items():
                     if col in existing:
                         continue
-                    db.session.execute(f"ALTER TABLE `profiles` ADD COLUMN `{col}` {col_type}")
+                    db.session.execute(text(f"ALTER TABLE `profiles` ADD COLUMN `{col}` {col_type}"))
                 db.session.commit()
             except Exception:
                 db.session.rollback()
@@ -1568,6 +1567,21 @@ def init_db():
         return jsonify({'status': 'success', 'message': '数据库初始化完成'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/debug')
+def debug_info():
+    import os
+    info = {
+        'frontend_dist_exists': os.path.isdir(_frontend_dist),
+        'frontend_dist_files': os.listdir(_frontend_dist) if os.path.isdir(_frontend_dist) else [],
+        'index_html_exists': os.path.isfile(os.path.join(_frontend_dist, 'index.html')),
+        'database_url_set': bool(app.config.get('SQLALCHEMY_DATABASE_URI', '').strip()),
+        'vercel_env': os.environ.get('VERCEL', 'false'),
+        'db_initialized': _db_initialized,
+        'python_version': sys.version,
+    }
+    return jsonify(info)
 
 # 前端静态文件服务
 @app.route('/assets/<path:filename>')
