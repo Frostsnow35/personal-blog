@@ -1,3 +1,1 @@
-{
-  "installCommand": "pip install --break-system-packages -r requirements.txt && cd frontend && npm install && npm run build:prod"
-}
+{}
