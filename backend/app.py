@@ -285,19 +285,98 @@ class Like(db.Model):
     )
 
 
-class Comment(db.Model):
-    __tablename__ = 'comments'
+class GuestMessage(db.Model):
+    """留言板留言（独立端到端，替代原文章评论）"""
+    __tablename__ = 'guest_messages'
 
     id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=False, index=True)
-    parent_id = db.Column(db.Integer, db.ForeignKey('comments.id'), nullable=True)
     author_name = db.Column(db.String(32), nullable=False)
     author_email = db.Column(db.String(120), nullable=True)
     content = db.Column(db.Text, nullable=False)
+    referenced_post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=True, index=True)
     ip_hash = db.Column(db.String(64), nullable=False, index=True)
     user_agent = db.Column(db.String(500), nullable=True)
     is_approved = db.Column(db.Boolean, default=False, index=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+
+class Album(db.Model):
+    """相册"""
+    __tablename__ = 'albums'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    slug = db.Column(db.String(140), unique=True, index=True)
+    description = db.Column(db.Text)
+    cover_url = db.Column(db.String(500))
+    sort_order = db.Column(db.Integer, default=0, index=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class Photo(db.Model):
+    """相册照片"""
+    __tablename__ = 'photos'
+
+    id = db.Column(db.Integer, primary_key=True)
+    album_id = db.Column(db.Integer, db.ForeignKey('albums.id', ondelete='CASCADE'), nullable=False, index=True)
+    url = db.Column(db.String(500), nullable=False)
+    thumbnail_url = db.Column(db.String(500))
+    description = db.Column(db.String(500))
+    taken_at = db.Column(db.DateTime)
+    sort_order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class MusicFavorite(db.Model):
+    """百宝箱 - 个人喜爱音乐"""
+    __tablename__ = 'music_favorites'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    artist = db.Column(db.String(200))
+    album = db.Column(db.String(200))
+    cover_url = db.Column(db.String(500))
+    source_url = db.Column(db.String(500), nullable=False)
+    description = db.Column(db.Text)
+    tags = db.Column(db.JSON)
+    sort_order = db.Column(db.Integer, default=0, index=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class MovieFavorite(db.Model):
+    """百宝箱 - 喜爱电影"""
+    __tablename__ = 'movie_favorites'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    director = db.Column(db.String(200))
+    year = db.Column(db.Integer)
+    cover_url = db.Column(db.String(500))
+    source_url = db.Column(db.String(500))
+    description = db.Column(db.Text)
+    rating = db.Column(db.Integer)  # 1-10
+    tags = db.Column(db.JSON)
+    sort_order = db.Column(db.Integer, default=0, index=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class FriendLink(db.Model):
+    """百宝箱 - 友链"""
+    __tablename__ = 'friend_links'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    logo_url = db.Column(db.String(500))
+    description = db.Column(db.String(500))
+    email = db.Column(db.String(120))
+    sort_order = db.Column(db.Integer, default=0, index=True)
+    is_featured = db.Column(db.Boolean, default=False, index=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 # JWT 认证装饰器
 def jwt_required_admin(fn):
@@ -521,39 +600,51 @@ def admin_unpublish_post(post_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-# ============== 评论管理 ==============
-@app.route('/api/admin/comments', methods=['GET'])
+# ============== 留言板管理 ==============
+def _message_to_dict(m: GuestMessage) -> dict:
+    return {
+        'id': m.id,
+        'author_name': m.author_name,
+        'author_email': m.author_email,
+        'content': m.content,
+        'referenced_post_id': m.referenced_post_id,
+        'is_approved': m.is_approved,
+        'created_at': m.created_at.isoformat() if m.created_at else None,
+    }
+
+
+@app.route('/api/admin/guestbook/messages', methods=['GET'])
 @jwt_required_admin
-def admin_list_comments():
+def admin_list_guestbook():
+    """留言管理列表"""
     page = max(1, int(request.args.get('page', 1)))
     per_page = min(100, max(1, int(request.args.get('per_page', 20))))
     is_approved = request.args.get('is_approved')
-    q = Comment.query
+    q = GuestMessage.query
     if is_approved == 'true':
         q = q.filter_by(is_approved=True)
     elif is_approved == 'false':
         q = q.filter_by(is_approved=False)
     total = q.count()
-    rows = q.order_by(Comment.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
-    items = [{
-        'id': c.id,
-        'post_id': c.post_id,
-        'parent_id': c.parent_id,
-        'author_name': c.author_name,
-        'author_email': c.author_email,
-        'content': c.content,
-        'is_approved': c.is_approved,
-        'created_at': c.created_at.isoformat() if c.created_at else None,
-    } for c in rows]
+    rows = q.order_by(GuestMessage.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    items = [_message_to_dict(c) for c in rows]
+    # 附关联文章标题
+    post_ids = list({c['referenced_post_id'] for c in items if c['referenced_post_id']})
+    posts_map = {}
+    if post_ids:
+        for p in Post.query.filter(Post.id.in_(post_ids)).all():
+            posts_map[p.id] = {'id': p.id, 'title': p.title, 'slug': p.slug}
+    for it in items:
+        it['referenced_post'] = posts_map.get(it['referenced_post_id']) if it['referenced_post_id'] else None
     return jsonify({'success': True, 'data': {'items': items, 'total': total, 'page': page, 'per_page': per_page}})
 
 
-@app.route('/api/admin/comments/<int:comment_id>/approve', methods=['PUT'])
+@app.route('/api/admin/guestbook/messages/<int:msg_id>/approve', methods=['PUT'])
 @jwt_required_admin
-def admin_approve_comment(comment_id):
-    c = Comment.query.get_or_404(comment_id)
+def admin_approve_guestbook(msg_id):
+    m = GuestMessage.query.get_or_404(msg_id)
     try:
-        c.is_approved = True
+        m.is_approved = True
         db.session.commit()
         return jsonify({'success': True, 'message': '已通过'})
     except Exception as e:
@@ -561,19 +652,432 @@ def admin_approve_comment(comment_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@app.route('/api/admin/comments/<int:comment_id>', methods=['DELETE'])
+@app.route('/api/admin/guestbook/messages/<int:msg_id>', methods=['DELETE'])
 @jwt_required_admin
-def admin_delete_comment(comment_id):
-    c = Comment.query.get_or_404(comment_id)
+def admin_delete_guestbook(msg_id):
+    m = GuestMessage.query.get_or_404(msg_id)
     try:
-        # 先删除子评论
-        Comment.query.filter_by(parent_id=c.id).delete()
-        db.session.delete(c)
+        db.session.delete(m)
         db.session.commit()
         return jsonify({'success': True, 'message': '已删除'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ============== 相册（公开 + 管理） ==============
+def _album_to_dict(a: Album, include_photos: bool = False) -> dict:
+    data = {
+        'id': a.id,
+        'name': a.name,
+        'slug': a.slug,
+        'description': a.description,
+        'cover_url': a.cover_url,
+        'sort_order': a.sort_order,
+        'created_at': a.created_at.isoformat() if a.created_at else None,
+        'photo_count': Photo.query.filter_by(album_id=a.id).count(),
+    }
+    if include_photos:
+        photos = Photo.query.filter_by(album_id=a.id).order_by(Photo.sort_order.asc(), Photo.id.asc()).all()
+        data['photos'] = [{
+            'id': p.id,
+            'url': p.url,
+            'thumbnail_url': p.thumbnail_url,
+            'description': p.description,
+            'taken_at': p.taken_at.isoformat() if p.taken_at else None,
+            'sort_order': p.sort_order,
+        } for p in photos]
+    return data
+
+
+def _photo_to_dict(p: Photo) -> dict:
+    return {
+        'id': p.id,
+        'album_id': p.album_id,
+        'url': p.url,
+        'thumbnail_url': p.thumbnail_url,
+        'description': p.description,
+        'taken_at': p.taken_at.isoformat() if p.taken_at else None,
+        'sort_order': p.sort_order,
+        'created_at': p.created_at.isoformat() if p.created_at else None,
+    }
+
+
+@app.route('/api/albums', methods=['GET'])
+def list_albums():
+    """公开：相册列表（不含照片）"""
+    rows = Album.query.order_by(Album.sort_order.asc(), Album.id.desc()).all()
+    return json_response({'success': True, 'data': [_album_to_dict(a, include_photos=False) for a in rows]})
+
+
+@app.route('/api/albums/<int:album_id>', methods=['GET'])
+def get_album(album_id):
+    """公开：相册详情（含照片）"""
+    a = Album.query.get_or_404(album_id)
+    return json_response({'success': True, 'data': _album_to_dict(a, include_photos=True)})
+
+
+@app.route('/api/admin/albums', methods=['POST'])
+@jwt_required_admin
+def admin_create_album():
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'message': '相册名称必填'}), 400
+    slug = (data.get('slug') or '').strip() or _slugify(name)
+    # 确保唯一
+    base = slug
+    i = 1
+    while Album.query.filter_by(slug=slug).first() is not None:
+        i += 1
+        slug = f"{base}-{i}"
+    a = Album(
+        name=name[:120],
+        slug=slug,
+        description=(data.get('description') or '').strip() or None,
+        cover_url=(data.get('cover_url') or '').strip() or None,
+        sort_order=int(data.get('sort_order') or 0),
+    )
+    db.session.add(a)
+    db.session.commit()
+    return jsonify({'success': True, 'data': _album_to_dict(a)})
+
+
+@app.route('/api/admin/albums/<int:album_id>', methods=['PUT'])
+@jwt_required_admin
+def admin_update_album(album_id):
+    a = Album.query.get_or_404(album_id)
+    data = request.get_json() or {}
+    if 'name' in data:
+        nm = (data.get('name') or '').strip()
+        if not nm:
+            return jsonify({'success': False, 'message': '相册名称不能为空'}), 400
+        a.name = nm[:120]
+    if 'description' in data:
+        a.description = (data.get('description') or '').strip() or None
+    if 'cover_url' in data:
+        a.cover_url = (data.get('cover_url') or '').strip() or None
+    if 'sort_order' in data:
+        try:
+            a.sort_order = int(data.get('sort_order') or 0)
+        except (TypeError, ValueError):
+            pass
+    db.session.commit()
+    return jsonify({'success': True, 'data': _album_to_dict(a)})
+
+
+@app.route('/api/admin/albums/<int:album_id>', methods=['DELETE'])
+@jwt_required_admin
+def admin_delete_album(album_id):
+    a = Album.query.get_or_404(album_id)
+    try:
+        db.session.delete(a)  # 照片级联删除（ondelete=CASCADE）
+        db.session.commit()
+        return jsonify({'success': True, 'message': '已删除'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/admin/albums/<int:album_id>/photos', methods=['POST'])
+@jwt_required_admin
+def admin_add_photos(album_id):
+    a = Album.query.get_or_404(album_id)
+    data = request.get_json() or {}
+    items = data.get('photos') if isinstance(data, dict) else data
+    if not isinstance(items, list) or not items:
+        return jsonify({'success': False, 'message': 'photos 必须是非空数组'}), 400
+    created = []
+    try:
+        for it in items:
+            url = (it.get('url') or '').strip()
+            if not url:
+                continue
+            p = Photo(
+                album_id=a.id,
+                url=url[:500],
+                thumbnail_url=(it.get('thumbnail_url') or '').strip() or None,
+                description=(it.get('description') or '').strip() or None,
+                sort_order=int(it.get('sort_order') or 0),
+            )
+            db.session.add(p)
+            created.append(p)
+        # 若相册没有封面，取第一张
+        if not a.cover_url and created:
+            a.cover_url = created[0].url
+        db.session.commit()
+        return jsonify({'success': True, 'data': [_photo_to_dict(p) for p in created]})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/admin/photos/<int:photo_id>', methods=['DELETE'])
+@jwt_required_admin
+def admin_delete_photo(photo_id):
+    p = Photo.query.get_or_404(photo_id)
+    try:
+        db.session.delete(p)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '已删除'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ============== 百宝箱 - 音乐/电影/友链 ==============
+def _music_to_dict(m: MusicFavorite) -> dict:
+    return {
+        'id': m.id,
+        'title': m.title,
+        'artist': m.artist,
+        'album': m.album,
+        'cover_url': m.cover_url,
+        'source_url': m.source_url,
+        'description': m.description,
+        'tags': m.tags or [],
+        'sort_order': m.sort_order,
+        'created_at': m.created_at.isoformat() if m.created_at else None,
+    }
+
+
+def _movie_to_dict(m: MovieFavorite) -> dict:
+    return {
+        'id': m.id,
+        'title': m.title,
+        'director': m.director,
+        'year': m.year,
+        'cover_url': m.cover_url,
+        'source_url': m.source_url,
+        'description': m.description,
+        'rating': m.rating,
+        'tags': m.tags or [],
+        'sort_order': m.sort_order,
+        'created_at': m.created_at.isoformat() if m.created_at else None,
+    }
+
+
+def _friend_to_dict(f: FriendLink) -> dict:
+    return {
+        'id': f.id,
+        'name': f.name,
+        'url': f.url,
+        'logo_url': f.logo_url,
+        'description': f.description,
+        'email': f.email,
+        'sort_order': f.sort_order,
+        'is_featured': f.is_featured,
+        'created_at': f.created_at.isoformat() if f.created_at else None,
+    }
+
+
+# --- 音乐 ---
+@app.route('/api/music-favorites', methods=['GET'])
+def list_music_favorites():
+    rows = MusicFavorite.query.order_by(MusicFavorite.sort_order.asc(), MusicFavorite.id.desc()).all()
+    return json_response({'success': True, 'data': [_music_to_dict(m) for m in rows]})
+
+
+@app.route('/api/admin/music-favorites', methods=['POST'])
+@jwt_required_admin
+def admin_create_music():
+    data = request.get_json() or {}
+    title = (data.get('title') or '').strip()
+    source_url = (data.get('source_url') or '').strip()
+    if not title or not source_url:
+        return jsonify({'success': False, 'message': '标题和音频源必填'}), 400
+    m = MusicFavorite(
+        title=title[:200],
+        artist=(data.get('artist') or '').strip() or None,
+        album=(data.get('album') or '').strip() or None,
+        cover_url=(data.get('cover_url') or '').strip() or None,
+        source_url=source_url[:500],
+        description=(data.get('description') or '').strip() or None,
+        tags=data.get('tags') or [],
+        sort_order=int(data.get('sort_order') or 0),
+    )
+    db.session.add(m)
+    db.session.commit()
+    return jsonify({'success': True, 'data': _music_to_dict(m)})
+
+
+@app.route('/api/admin/music-favorites/<int:mid>', methods=['PUT'])
+@jwt_required_admin
+def admin_update_music(mid):
+    m = MusicFavorite.query.get_or_404(mid)
+    data = request.get_json() or {}
+    for field in ['title', 'artist', 'album', 'cover_url', 'source_url', 'description']:
+        if field in data:
+            val = (data.get(field) or '').strip() or None
+            if field == 'title' and not val:
+                return jsonify({'success': False, 'message': '标题不能为空'}), 400
+            if field == 'source_url' and not val:
+                return jsonify({'success': False, 'message': '音频源不能为空'}), 400
+            setattr(m, field, (val or '')[:500] if field in ('source_url', 'cover_url') else (val or '')[:200] if field == 'title' else val)
+    if 'tags' in data:
+        m.tags = data.get('tags') or []
+    if 'sort_order' in data:
+        try:
+            m.sort_order = int(data.get('sort_order') or 0)
+        except (TypeError, ValueError):
+            pass
+    db.session.commit()
+    return jsonify({'success': True, 'data': _music_to_dict(m)})
+
+
+@app.route('/api/admin/music-favorites/<int:mid>', methods=['DELETE'])
+@jwt_required_admin
+def admin_delete_music(mid):
+    m = MusicFavorite.query.get_or_404(mid)
+    try:
+        db.session.delete(m)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '已删除'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# --- 电影 ---
+@app.route('/api/movie-favorites', methods=['GET'])
+def list_movie_favorites():
+    rows = MovieFavorite.query.order_by(MovieFavorite.sort_order.asc(), MovieFavorite.id.desc()).all()
+    return json_response({'success': True, 'data': [_movie_to_dict(m) for m in rows]})
+
+
+@app.route('/api/admin/movie-favorites', methods=['POST'])
+@jwt_required_admin
+def admin_create_movie():
+    data = request.get_json() or {}
+    title = (data.get('title') or '').strip()
+    if not title:
+        return jsonify({'success': False, 'message': '标题必填'}), 400
+    m = MovieFavorite(
+        title=title[:200],
+        director=(data.get('director') or '').strip() or None,
+        year=int(data['year']) if data.get('year') else None,
+        cover_url=(data.get('cover_url') or '').strip() or None,
+        source_url=(data.get('source_url') or '').strip() or None,
+        description=(data.get('description') or '').strip() or None,
+        rating=int(data['rating']) if data.get('rating') else None,
+        tags=data.get('tags') or [],
+        sort_order=int(data.get('sort_order') or 0),
+    )
+    db.session.add(m)
+    db.session.commit()
+    return jsonify({'success': True, 'data': _movie_to_dict(m)})
+
+
+@app.route('/api/admin/movie-favorites/<int:mid>', methods=['PUT'])
+@jwt_required_admin
+def admin_update_movie(mid):
+    m = MovieFavorite.query.get_or_404(mid)
+    data = request.get_json() or {}
+    for field in ['title', 'director', 'cover_url', 'source_url', 'description']:
+        if field in data:
+            val = (data.get(field) or '').strip() or None
+            if field == 'title' and not val:
+                return jsonify({'success': False, 'message': '标题不能为空'}), 400
+            if field in ('cover_url', 'source_url'):
+                val = (val or '')[:500]
+            setattr(m, field, val)
+    if 'year' in data:
+        try: m.year = int(data['year']) if data.get('year') else None
+        except (TypeError, ValueError): pass
+    if 'rating' in data:
+        try: m.rating = int(data['rating']) if data.get('rating') else None
+        except (TypeError, ValueError): pass
+    if 'tags' in data:
+        m.tags = data.get('tags') or []
+    if 'sort_order' in data:
+        try: m.sort_order = int(data.get('sort_order') or 0)
+        except (TypeError, ValueError): pass
+    db.session.commit()
+    return jsonify({'success': True, 'data': _movie_to_dict(m)})
+
+
+@app.route('/api/admin/movie-favorites/<int:mid>', methods=['DELETE'])
+@jwt_required_admin
+def admin_delete_movie(mid):
+    m = MovieFavorite.query.get_or_404(mid)
+    try:
+        db.session.delete(m)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '已删除'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# --- 友链 ---
+@app.route('/api/friend-links', methods=['GET'])
+def list_friend_links():
+    featured = request.args.get('featured')
+    q = FriendLink.query
+    if featured == 'true':
+        q = q.filter_by(is_featured=True)
+    elif featured == 'false':
+        q = q.filter_by(is_featured=False)
+    rows = q.order_by(FriendLink.is_featured.desc(), FriendLink.sort_order.asc(), FriendLink.id.desc()).all()
+    return json_response({'success': True, 'data': [_friend_to_dict(f) for f in rows]})
+
+
+@app.route('/api/admin/friend-links', methods=['POST'])
+@jwt_required_admin
+def admin_create_friend():
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    url = (data.get('url') or '').strip()
+    if not name or not url:
+        return jsonify({'success': False, 'message': '名称和链接必填'}), 400
+    f = FriendLink(
+        name=name[:100],
+        url=url[:500],
+        logo_url=(data.get('logo_url') or '').strip() or None,
+        description=(data.get('description') or '').strip() or None,
+        email=(data.get('email') or '').strip() or None,
+        sort_order=int(data.get('sort_order') or 0),
+        is_featured=bool(data.get('is_featured')),
+    )
+    db.session.add(f)
+    db.session.commit()
+    return jsonify({'success': True, 'data': _friend_to_dict(f)})
+
+
+@app.route('/api/admin/friend-links/<int:fid>', methods=['PUT'])
+@jwt_required_admin
+def admin_update_friend(fid):
+    f = FriendLink.query.get_or_404(fid)
+    data = request.get_json() or {}
+    for field in ['name', 'url', 'logo_url', 'description', 'email']:
+        if field in data:
+            val = (data.get(field) or '').strip() or None
+            if field in ('name',) and not val:
+                return jsonify({'success': False, 'message': '名称不能为空'}), 400
+            if field in ('url',) and not val:
+                return jsonify({'success': False, 'message': '链接不能为空'}), 400
+            setattr(f, field, val)
+    if 'sort_order' in data:
+        try: f.sort_order = int(data.get('sort_order') or 0)
+        except (TypeError, ValueError): pass
+    if 'is_featured' in data:
+        f.is_featured = bool(data.get('is_featured'))
+    db.session.commit()
+    return jsonify({'success': True, 'data': _friend_to_dict(f)})
+
+
+@app.route('/api/admin/friend-links/<int:fid>', methods=['DELETE'])
+@jwt_required_admin
+def admin_delete_friend(fid):
+    f = FriendLink.query.get_or_404(fid)
+    try:
+        db.session.delete(f)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '已删除'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @app.route('/api/admin/upload', methods=['POST'])
 @jwt_required_admin
@@ -1646,11 +2150,11 @@ def view_post(post_id):
     }), 202
 
 
-# 评论简易 XSS 过滤
+# 留言 XSS 过滤
 import re as _re
 _SCRIPT_RE = _re.compile(r'<\s*script[^>]*>.*?<\s*/\s*script\s*>', _re.IGNORECASE | _re.DOTALL)
 _HTML_TAG_RE = _re.compile(r'<[^>]+>')
-def _sanitize_comment(text: str) -> str:
+def _sanitize_message(text: str) -> str:
     if not text:
         return ''
     t = _SCRIPT_RE.sub('', text)
@@ -1658,119 +2162,102 @@ def _sanitize_comment(text: str) -> str:
     return t.strip()
 
 
-# 评论频率限制（内存版，单实例生效；多实例需要 Redis 替换）
-_comment_rate = {}
-def _check_comment_rate(ip_hash: str, window_sec: int = 60, limit: int = 2) -> bool:
+# 留言频率限制（内存版，单实例生效；多实例需要 Redis 替换）
+_guest_rate = {}
+def _check_guest_rate(ip_hash: str, window_sec: int = 60, limit: int = 2) -> bool:
     import time
     now = time.time()
-    arr = _comment_rate.get(ip_hash, [])
+    arr = _guest_rate.get(ip_hash, [])
     arr = [t for t in arr if now - t < window_sec]
     if len(arr) >= limit:
-        _comment_rate[ip_hash] = arr
+        _guest_rate[ip_hash] = arr
         return False
     arr.append(now)
-    _comment_rate[ip_hash] = arr
+    _guest_rate[ip_hash] = arr
     return True
 
 
-def _comment_to_dict(c: Comment) -> dict:
-    return {
-        'id': c.id,
-        'post_id': c.post_id,
-        'parent_id': c.parent_id,
-        'author_name': c.author_name,
-        'content': c.content,
-        'created_at': c.created_at.isoformat() if c.created_at else None,
-        'replies': [],
-    }
-
-
-@app.route('/api/posts/<int:post_id>/comments', methods=['GET'])
-def list_post_comments(post_id):
-    """公开：获取某篇文章已审核评论（一层嵌套）"""
-    Post.query.get_or_404(post_id)
+# ============== 留言板（公开） ==============
+@app.route('/api/guestbook/messages', methods=['GET'])
+def list_guestbook():
+    """公开：获取已审核留言（分页）"""
     page = max(1, int(request.args.get('page', 1)))
     per_page = min(100, max(1, int(request.args.get('per_page', 20))))
-    q = Comment.query.filter_by(post_id=post_id, is_approved=True, parent_id=None)
+    q = GuestMessage.query.filter_by(is_approved=True)
     total = q.count()
-    rows = q.order_by(Comment.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
-
-    parent_ids = [c.id for c in rows]
-    replies_by_parent = {}
-    if parent_ids:
-        rs = (Comment.query
-              .filter(Comment.post_id == post_id, Comment.is_approved.is_(True), Comment.parent_id.in_(parent_ids))
-              .order_by(Comment.created_at.asc())
-              .limit(5 * len(parent_ids))
-              .all())
-        for r in rs:
-            replies_by_parent.setdefault(r.parent_id, []).append(_comment_to_dict(r))
-
-    items = []
-    for c in rows:
-        d = _comment_to_dict(c)
-        d['replies'] = replies_by_parent.get(c.id, [])
-        items.append(d)
-
-    return json_response({
-        'success': True,
-        'data': {
-            'items': items,
-            'total': total,
-            'page': page,
-            'per_page': per_page,
-        }
-    })
+    rows = q.order_by(GuestMessage.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    items = [_message_to_dict(c) for c in rows]
+    # 附关联文章
+    post_ids = list({it['referenced_post_id'] for it in items if it['referenced_post_id']})
+    posts_map = {}
+    if post_ids:
+        for p in Post.query.filter(Post.id.in_(post_ids)).all():
+            posts_map[p.id] = {'id': p.id, 'title': p.title, 'slug': p.slug}
+    for it in items:
+        it['referenced_post'] = posts_map.get(it['referenced_post_id']) if it['referenced_post_id'] else None
+    return json_response({'success': True, 'data': {'items': items, 'total': total, 'page': page, 'per_page': per_page}})
 
 
-@app.route('/api/posts/<int:post_id>/comments', methods=['POST'])
-def create_post_comment(post_id):
-    """公开：提交评论，默认待审核"""
-    Post.query.get_or_404(post_id)
+@app.route('/api/guestbook/messages', methods=['POST'])
+def create_guestbook():
+    """公开：提交留言，默认待审核"""
     data = request.get_json() or {}
     author_name = (data.get('author_name') or '').strip()
     author_email = (data.get('author_email') or '').strip() or None
     content_raw = data.get('content') or ''
-    content = _sanitize_comment(str(content_raw)).strip()
-    parent_id = data.get('parent_id')
+    content = _sanitize_message(str(content_raw)).strip()
+    referenced_post_id = data.get('referenced_post_id')
 
     if not author_name or len(author_name) > 32:
         return json_response({'success': False, 'message': '昵称必填且不超过 32 字符'}, 400)
     if not content or len(content) > 1000:
-        return json_response({'success': False, 'message': '评论内容必填且不超过 1000 字符'}, 400)
+        return json_response({'success': False, 'message': '留言内容必填且不超过 1000 字符'}, 400)
     if author_email and len(author_email) > 120:
         return json_response({'success': False, 'message': '邮箱过长'}, 400)
-    if parent_id:
+    if referenced_post_id:
         try:
-            parent_id = int(parent_id)
-            parent = Comment.query.get(parent_id)
-            if not parent or parent.post_id != post_id:
-                return json_response({'success': False, 'message': '父评论不存在'}, 400)
+            referenced_post_id = int(referenced_post_id)
+            post = Post.query.get(referenced_post_id)
+            if not post or post.status != 'published':
+                referenced_post_id = None
         except (TypeError, ValueError):
-            return json_response({'success': False, 'message': '父评论 ID 非法'}, 400)
+            referenced_post_id = None
 
     ip = _get_client_ip()
     ip_hash = _hash_ip(ip)
-    if not _check_comment_rate(ip_hash):
-        return json_response({'success': False, 'message': '评论过于频繁，请稍后再试'}, 429)
+    if not _check_guest_rate(ip_hash):
+        return json_response({'success': False, 'message': '留言过于频繁，请稍后再试'}, 429)
 
     try:
-        c = Comment(
-            post_id=post_id,
-            parent_id=parent_id,
+        m = GuestMessage(
             author_name=author_name[:32],
             author_email=author_email,
             content=content[:1000],
+            referenced_post_id=referenced_post_id,
             ip_hash=ip_hash,
             user_agent=(request.headers.get('User-Agent') or '')[:500],
             is_approved=False,
         )
-        db.session.add(c)
+        db.session.add(m)
         db.session.commit()
-        return json_response({'success': True, 'message': '评论提交成功，等待审核后显示', 'data': {'id': c.id}})
+        return json_response({'success': True, 'message': '留言提交成功，等待审核后显示', 'data': {'id': m.id}})
     except Exception as e:
         db.session.rollback()
         return json_response({'success': False, 'message': str(e)}, 500)
+
+
+@app.route('/api/guestbook/posts-for-mention', methods=['GET'])
+def guestbook_posts_for_mention():
+    """公开：返回已发布文章列表（供留言@下拉用）"""
+    rows = (Post.query
+            .filter_by(status='published')
+            .with_entities(Post.id, Post.title, Post.slug)
+            .order_by(Post.published_at.desc())
+            .limit(200)
+            .all())
+    return json_response({'success': True, 'data': [
+        {'id': pid, 'title': title, 'slug': slug} for (pid, title, slug) in rows
+    ]})
 
 
 # 健康检查

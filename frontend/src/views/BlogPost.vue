@@ -1,22 +1,7 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-sea-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
     <!-- 导航栏 -->
-    <nav class="sticky top-0 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
-          <div class="flex items-center">
-            <h1 class="text-2xl font-bold text-gradient">个人博客</h1>
-          </div>
-          <div class="hidden md:flex items-center space-x-8">
-            <router-link to="/home" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">首页</router-link>
-            <router-link to="/archive" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">归档</router-link>
-            <router-link to="/category" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">分类</router-link>
-            <router-link to="/tag" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">标签</router-link>
-            <router-link to="/about" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">作者</router-link>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <SiteNav />
 
     <!-- 加载状态 -->
     <div v-if="loading" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -102,9 +87,6 @@
         </div>
       </article>
 
-      <!-- 评论区 -->
-      <CommentSection :slug="`/post/${post.slug}`" :title="post.title" />
-
       <div class="mt-10 card p-6">
         <div class="flex items-start gap-4">
           <img
@@ -179,8 +161,8 @@ import { useRoute } from 'vue-router'
 import { render_markdown_html } from '../utils/markdown'
 import { useProfileStore } from '../stores/profile'
 import PublicSocialLinks from '../components/PublicSocialLinks.vue'
+import SiteNav from '../components/SiteNav.vue'
 import PostInteraction from '../components/PostInteraction.vue'
-import CommentSection from '../components/CommentSection.vue'
 
 interface Post {
   id: number

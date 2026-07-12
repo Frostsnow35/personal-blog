@@ -1,22 +1,7 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-sea-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
     <!-- 导航栏 -->
-    <nav class="sticky top-0 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
-          <div class="flex items-center">
-            <h1 class="text-2xl font-bold text-gradient">个人博客</h1>
-          </div>
-          <div class="hidden md:flex items-center space-x-8">
-            <router-link to="/home" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">首页</router-link>
-            <router-link to="/archive" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">归档</router-link>
-            <router-link to="/category" class="text-ocean-600 dark:text-ocean-400 font-medium">分类</router-link>
-            <router-link to="/tag" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">标签</router-link>
-            <router-link to="/about" class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors">作者</router-link>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <SiteNav />
 
     <!-- 主要内容 -->
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -92,6 +77,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import SiteNav from '../components/SiteNav.vue'
 
 interface Category {
   name: string

@@ -1,22 +1,6 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
-    <nav class="sticky top-0 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
-          <div class="flex items-center">
-            <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 via-cyan-500 to-purple-600 bg-clip-text text-transparent">个人博客</h1>
-          </div>
-          <div class="hidden md:flex items-center space-x-8">
-            <router-link to="/home" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">首页</router-link>
-            <router-link to="/search" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">搜索</router-link>
-            <router-link to="/archive" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">归档</router-link>
-            <router-link to="/category" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">分类</router-link>
-            <router-link to="/tag" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">标签</router-link>
-            <router-link to="/about" class="text-blue-600 dark:text-blue-400 font-medium">作者</router-link>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <SiteNav />
 
     <div class="max-w-3xl sm:max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div class="relative">
@@ -161,6 +145,7 @@ import { useRouter } from 'vue-router'
 import { useProfileStore } from '../stores/profile'
 import PublicSocialLinks from '../components/PublicSocialLinks.vue'
 import { render_markdown_html } from '../utils/markdown'
+import SiteNav from '../components/SiteNav.vue'
 
 const profileStore = useProfileStore()
 const router = useRouter()

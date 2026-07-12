@@ -1,93 +1,7 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-sea-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
     <!-- 导航栏 -->
-    <nav class="sticky top-0 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
-          <!-- Logo和博主信息 -->
-          <div class="flex items-center space-x-4">
-            <img 
-              v-lazy-img="'/avatar.jpg'"
-              alt="霜雪旧曾谙"
-              class="w-10 h-10 rounded-full border-2 border-ocean-200 dark:border-ocean-700"
-            />
-            <div>
-              <h1 class="text-xl font-bold text-gradient">霜雪旧曾谙</h1>
-              <p class="text-xs text-gray-500 dark:text-gray-400">个人博客</p>
-            </div>
-          </div>
-          
-          <!-- 导航菜单 -->
-          <div class="hidden md:flex items-center space-x-8">
-            <router-link 
-              to="/home" 
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              首页
-            </router-link>
-            <router-link
-              to="/search"
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              搜索
-            </router-link>
-            <router-link 
-              to="/archive" 
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              归档
-            </router-link>
-            <router-link 
-              to="/category" 
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              分类
-            </router-link>
-            <router-link 
-              to="/tag" 
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              标签
-            </router-link>
-            <router-link 
-              to="/about" 
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              作者
-            </router-link>
-            <router-link 
-              v-if="isAuthenticated"
-              to="/audio-library" 
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              🎵 音频库
-            </router-link>
-
-          </div>
-
-          <!-- 管理员欢迎与快捷入口 -->
-          <div v-if="isAuthenticated" class="hidden md:flex items-center space-x-3">
-            <span class="text-sm text-gray-600 dark:text-gray-300">欢迎，{{ adminName }}</span>
-            <router-link
-              to="/admin/posts/new"
-              class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-ocean-600 text-white hover:bg-ocean-700"
-              title="新建文章"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-            </router-link>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <SiteNav />
 
     <!-- 主要内容 -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -377,6 +291,7 @@
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProfileStore } from '../stores/profile'
+import SiteNav from '../components/SiteNav.vue'
 import PublicSocialLinks from '../components/PublicSocialLinks.vue'
 
 interface PublishedPost {

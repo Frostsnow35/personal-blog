@@ -1,63 +1,6 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-sea-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-    <nav class="sticky top-0 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
-          <div class="flex items-center space-x-4">
-            <img v-lazy-img="'/avatar.jpg'" alt="霜雪旧曾谙" class="w-10 h-10 rounded-full border-2 border-ocean-200 dark:border-ocean-700" />
-            <div>
-              <h1 class="text-xl font-bold text-gradient">霜雪旧曾谙</h1>
-              <p class="text-xs text-gray-500 dark:text-gray-400">个人博客</p>
-            </div>
-          </div>
-
-          <div class="hidden md:flex items-center space-x-8">
-            <router-link
-              to="/home"
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              首页
-            </router-link>
-            <router-link
-              to="/search"
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              搜索
-            </router-link>
-            <router-link
-              to="/archive"
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              归档
-            </router-link>
-            <router-link
-              to="/category"
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              分类
-            </router-link>
-            <router-link
-              to="/tag"
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              标签
-            </router-link>
-            <router-link
-              to="/about"
-              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-              active-class="text-ocean-600 dark:text-ocean-400"
-            >
-              作者
-            </router-link>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <SiteNav />
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -270,6 +213,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import SiteNav from '../components/SiteNav.vue'
 
 interface SearchPost {
   id: number

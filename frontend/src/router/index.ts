@@ -4,7 +4,6 @@ const LandingPage = () => import('../views/LandingPage.vue')
 const HomePage = () => import('../views/HomePage.vue')
 const Search = () => import('../views/Search.vue')
 const About = () => import('../views/About.vue')
-const Archive = () => import('../views/Archive.vue')
 const Category = () => import('../views/Category.vue')
 const Tag = () => import('../views/Tag.vue')
 const BlogPost = () => import('../views/BlogPost.vue')
@@ -14,9 +13,19 @@ const AdminLogin = () => import('../views/AdminLogin.vue')
 const AdminPosts = () => import('../views/AdminPosts.vue')
 const AdminPostEdit = () => import('../views/AdminPostEdit.vue')
 const AdminDashboard = () => import('../views/AdminDashboard.vue')
-const AdminComments = () => import('../views/AdminComments.vue')
-const AudioLibrary = () => import('../views/AudioLibrary.vue')
-// import TestPage from '../views/TestPage.vue'
+// 新功能（留言栏 / 相册 / 百宝箱）
+const Guestbook = () => import('../views/Guestbook.vue')
+const Albums = () => import('../views/Albums.vue')
+const AlbumDetail = () => import('../views/AlbumDetail.vue')
+const MusicFavorites = () => import('../views/MusicFavorites.vue')
+const MovieFavorites = () => import('../views/MovieFavorites.vue')
+const FriendLinks = () => import('../views/FriendLinks.vue')
+// Admin 后台 - 新增
+const AdminGuestbook = () => import('../views/AdminGuestbook.vue')
+const AdminAlbums = () => import('../views/AdminAlbums.vue')
+const AdminMusic = () => import('../views/AdminMusic.vue')
+const AdminMovies = () => import('../views/AdminMovies.vue')
+const AdminFriendLinks = () => import('../views/AdminFriendLinks.vue')
 
 const routes = [
   {
@@ -40,11 +49,6 @@ const routes = [
     component: About
   },
   {
-    path: '/archive',
-    name: 'Archive',
-    component: Archive
-  },
-  {
     path: '/category',
     name: 'Category',
     component: Category
@@ -59,6 +63,38 @@ const routes = [
     name: 'BlogPost',
     component: BlogPost
   },
+  // 新功能 - 公开页
+  {
+    path: '/guestbook',
+    name: 'Guestbook',
+    component: Guestbook
+  },
+  {
+    path: '/albums',
+    name: 'Albums',
+    component: Albums
+  },
+  {
+    path: '/albums/:id',
+    name: 'AlbumDetail',
+    component: AlbumDetail
+  },
+  {
+    path: '/treasure/music',
+    name: 'MusicFavorites',
+    component: MusicFavorites
+  },
+  {
+    path: '/treasure/movies',
+    name: 'MovieFavorites',
+    component: MovieFavorites
+  },
+  {
+    path: '/treasure/friends',
+    name: 'FriendLinks',
+    component: FriendLinks
+  },
+  // Admin
   {
     path: '/admin-login',
     name: 'AdminLogin',
@@ -84,10 +120,36 @@ const routes = [
     name: 'AdminDashboard',
     component: AdminDashboard
   },
+  // Admin - 新模块
   {
-    path: '/admin/comments',
-    name: 'AdminComments',
-    component: AdminComments
+    path: '/admin/guestbook',
+    name: 'AdminGuestbook',
+    component: AdminGuestbook,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/albums',
+    name: 'AdminAlbums',
+    component: AdminAlbums,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/music',
+    name: 'AdminMusic',
+    component: AdminMusic,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/movies',
+    name: 'AdminMovies',
+    component: AdminMovies,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/friend-links',
+    name: 'AdminFriendLinks',
+    component: AdminFriendLinks,
+    meta: { requiresAuth: true }
   },
   {
     path: '/profile',
@@ -100,18 +162,7 @@ const routes = [
     name: 'PerformanceTest',
     component: PerformanceTest,
     meta: { requiresAuth: true }
-  },
-  {
-    path: '/audio-library',
-    name: 'AudioLibrary',
-    component: AudioLibrary,
-    meta: { requiresAuth: true }
   }
-  // {
-  //   path: '/test',
-  //   name: 'Test',
-  //   component: TestPage
-  // }
 ]
 
 const router = createRouter({
