@@ -27,9 +27,22 @@
       </div>
 
       <!-- 分类网格 -->
-      <div v-else-if="categories.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div 
-          v-for="category in categories" 
+      <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div
+          v-for="i in 3"
+          :key="`skeleton-category-${i}`"
+          class="card p-6 text-center"
+        >
+          <div class="skeleton w-16 h-16 rounded-full mx-auto mb-4"></div>
+          <div class="skeleton h-6 w-2/3 mx-auto mb-2"></div>
+          <div class="skeleton h-4 w-full mb-2"></div>
+          <div class="skeleton h-4 w-5/6 mx-auto mb-4"></div>
+          <div class="skeleton h-7 w-24 mx-auto rounded-full"></div>
+        </div>
+      </div>
+      <TransitionGroup v-else-if="categories.length > 0" name="list" tag="div" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div
+          v-for="category in categories"
           :key="category.name"
           class="card hover:shadow-xl transition-all duration-300 group cursor-pointer"
           @click="selectCategory(category.name)"
@@ -60,8 +73,8 @@
             </div>
           </div>
         </div>
-      </div>
-      
+      </TransitionGroup>
+
       <!-- 无分类提示 -->
       <div v-else class="text-center py-12">
         <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
