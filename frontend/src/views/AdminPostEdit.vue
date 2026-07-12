@@ -4,8 +4,8 @@
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ isEdit ? '编辑文章' : '新建文章' }}</h1>
         <div class="space-x-2">
-          <button @click="save('draft')" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded">保存草稿</button>
-          <button @click="save('published')" class="px-4 py-2 bg-ocean-600 text-white rounded">发布</button>
+          <LoadingButton type="button" variant="secondary" :loading="saving" loading-text="保存中" @click="save('draft')">保存草稿</LoadingButton>
+          <LoadingButton type="button" variant="primary" :loading="saving" loading-text="发布中" @click="save('published')">发布</LoadingButton>
         </div>
       </div>
 
@@ -52,7 +52,9 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { http } from '../utils/http'
+import { toast } from '../composables/useToast'
 import TiptapEditor from '../components/TiptapEditor.vue'
+import LoadingButton from '../components/LoadingButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -62,6 +64,7 @@ const form = ref<any>({
   title: '', slug: '', content: '', excerpt: '', status: 'draft', cover_url: '', category: '', tags: [] as string[]
 })
 const tagsInput = ref('')
+const saving = ref(false)
 
 function djb2(s: string): number {
   // 32-bit djb2 哈希，与后端 _djb2 保持一致
@@ -122,6 +125,7 @@ const onPickCover = async (e: Event) => {
 }
 
 const save = async (status: 'draft'|'published') => {
+  saving.value = true
   try {
     form.value.status = status
     form.value.tags = tagsInput.value.split(',').map(s => s.trim()).filter(Boolean)
@@ -132,9 +136,11 @@ const save = async (status: 'draft'|'published') => {
       router.replace(`/admin/posts/${r.data.id}/edit`)
     }
     clearAutoSave()
-    alert('保存成功')
+    toast.success('已保存', '文章已成功保存')
   } catch (err: any) {
-    alert(`保存失败：${err.message || '未知错误'}`)
+    toast.error('保存失败', err.message || '未知错误')
+  } finally {
+    saving.value = false
   }
 }
 
