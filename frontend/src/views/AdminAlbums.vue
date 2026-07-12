@@ -76,6 +76,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { http } from '../utils/http'
+import { toast } from '../composables/useToast'
 
 interface Album {
   id: number
@@ -109,7 +110,7 @@ const openCreate = () => { editing.value = { name: '', description: '', cover_ur
 const openEdit = (a: Album) => { editing.value = { id: a.id, name: a.name, description: a.description || '', cover_url: a.cover_url || '', sort_order: 0 } }
 
 const saveAlbum = async () => {
-  if (!editing.value?.name?.trim()) { alert('请输入名称'); return }
+  if (!editing.value?.name?.trim()) { toast.warning('请输入名称'); return }
   try {
     const payload = {
       name: editing.value.name,
@@ -121,17 +122,17 @@ const saveAlbum = async () => {
       ? await http.put<any>(`/admin/albums/${editing.value.id}`, payload)
       : await http.post<any>('/admin/albums', payload)
     if (r?.success) { editing.value = null; await load() }
-    else alert(r?.message || '保存失败')
-  } catch (e: any) { alert(e?.message || '保存失败') }
+    else toast.error('保存失败', r?.message)
+  } catch (e: any) { toast.error('保存失败', e?.message) }
 }
 
 const del = async (a: Album) => {
   if (!confirm(`删除相册「${a.name}」？所有照片也会被删除。`)) return
   try {
     const r = await http.delete<any>(`/admin/albums/${a.id}`)
-    if (r?.success) await load()
-    else alert(r?.message || '删除失败')
-  } catch (e: any) { alert(e?.message || '删除失败') }
+    if (r?.success) { toast.success('已删除'); await load() }
+    else toast.error('删除失败', r?.message)
+  } catch (e: any) { toast.error('删除失败', e?.message) }
 }
 
 const openManagePhotos = async (a: Album) => {
@@ -165,7 +166,7 @@ const onFilePick = async (e: Event) => {
       }
     }
   } catch (e: any) {
-    alert(e?.message || '上传失败')
+    toast.error('上传失败', e?.message)
   } finally {
     uploading.value = false
     (e.target as HTMLInputElement).value = ''
@@ -179,7 +180,7 @@ const delPhoto = async (p: Photo) => {
     if (r?.success && photoMgr.value) {
       photoMgr.value.photos = photoMgr.value.photos.filter((x: Photo) => x.id !== p.id)
     }
-  } catch (e: any) { alert(e?.message || '删除失败') }
+  } catch (e: any) { toast.error('删除失败', e?.message) }
 }
 
 onMounted(load)
