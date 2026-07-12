@@ -27,8 +27,17 @@
       </div>
 
       <!-- 标签云 -->
-      <div v-else-if="tags.length > 0" class="card p-8 mb-8">
+      <div v-if="loading" class="card p-8 mb-8">
         <div class="flex flex-wrap gap-4 justify-center">
+          <div
+            v-for="i in 6"
+            :key="`skeleton-tag-cloud-${i}`"
+            class="skeleton h-12 w-24 rounded-full"
+          ></div>
+        </div>
+      </div>
+      <div v-else-if="tags.length > 0" class="card p-8 mb-8">
+        <TransitionGroup name="list" tag="div" class="flex flex-wrap gap-4 justify-center">
           <button
             v-for="tag in tags"
             :key="tag.name"
@@ -38,13 +47,24 @@
             <span class="text-lg font-medium">{{ tag.name }}</span>
             <span class="ml-2 text-sm bg-white/20 px-2 py-1 rounded-full">{{ tag.count }}</span>
           </button>
-        </div>
+        </TransitionGroup>
       </div>
 
       <!-- 标签统计 -->
-      <div v-if="tags.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div 
-          v-for="tag in tags" 
+      <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div
+          v-for="i in 3"
+          :key="`skeleton-tag-stat-${i}`"
+          class="card p-6 text-center"
+        >
+          <div class="skeleton w-16 h-16 rounded-full mx-auto mb-4"></div>
+          <div class="skeleton h-6 w-1/2 mx-auto mb-2"></div>
+          <div class="skeleton h-7 w-24 mx-auto rounded-full"></div>
+        </div>
+      </div>
+      <TransitionGroup v-else-if="tags.length > 0" name="list" tag="div" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div
+          v-for="tag in tags"
           :key="tag.name"
           class="card hover:shadow-xl transition-all duration-300 group cursor-pointer"
           @click="selectTag(tag.name)"
@@ -63,7 +83,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
       
       <!-- 无标签提示 -->
       <div v-else class="text-center py-12">
