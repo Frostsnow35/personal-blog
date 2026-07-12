@@ -4,6 +4,7 @@
   "buildCommand": "cd frontend && npm run build:prod",
   "outputDirectory": "frontend/dist",
   "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index" },
     { "source": "/((?!api/|assets/|js/|.*\\..*).*)", "destination": "/index.html" }
   ]
 }

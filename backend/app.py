@@ -1580,17 +1580,15 @@ def init_db():
 def debug_info():
     import os
     info = {
+        'request_path': request.path,
+        'request_url': request.url,
+        'request_method': request.method,
+        'all_routes': sorted([str(r) for r in app.url_map.iter_rules() if '/api/admin' in str(r) or '/api/auth' in str(r) or '/api/posts' in str(r)][:20]),
         'cwd': os.getcwd(),
         'frontend_dist': _frontend_dist,
         'frontend_dist_exists': os.path.isdir(_frontend_dist),
-        'frontend_dist_files': sorted(os.listdir(_frontend_dist)) if os.path.isdir(_frontend_dist) else [],
-        'index_html_exists': os.path.isfile(os.path.join(_frontend_dist, 'index.html')),
         'database_url_set': bool(app.config.get('SQLALCHEMY_DATABASE_URI', '').strip()),
-        'vercel_env': os.environ.get('VERCEL', 'false'),
         'db_initialized': _db_initialized,
-        'python_version': sys.version,
-        'backend_dir': os.path.dirname(os.path.abspath(__file__)),
-        'root_files': sorted(os.listdir('.')) if os.path.isdir('.') else [],
     }
     return jsonify(info)
 
