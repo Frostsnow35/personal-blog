@@ -52,6 +52,27 @@
           </div>
         </div>
 
+        <!-- 评论管理 -->
+        <div class="card p-6 hover:shadow-lg transition-shadow">
+          <div class="flex items-center space-x-3 mb-4">
+            <div class="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">评论管理</h3>
+          </div>
+          <p class="text-gray-600 dark:text-gray-400 mb-4">审核访客评论、删除垃圾内容</p>
+          <div class="space-y-2">
+            <router-link
+              to="/admin/comments"
+              class="block w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-center rounded-lg transition-colors"
+            >
+              查看评论
+            </router-link>
+          </div>
+        </div>
+
                   <!-- 性能测试 -->
           <div class="card p-6 hover:shadow-lg transition-shadow">
             <div class="flex items-center space-x-3 mb-4">

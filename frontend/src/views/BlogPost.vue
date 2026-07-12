@@ -279,14 +279,31 @@ const fetchPost = async (slug: string) => {
   try {
     loading.value = true
     error.value = null
-    
+
     // 预加载HTTP工具
     const { http } = await import('../utils/http')
     const result = await http.get<any>(`/posts/slug/${slug}`)
-    
+
     if (result.success) {
       post.value = result.data
-      
+
+      // 浏览量统计：30 分钟内同 ID 不重复
+      const postId = post.value?.id
+      if (postId) {
+        try {
+          const key = 'viewed_posts'
+          const raw = sessionStorage.getItem(key)
+          const map: Record<string, number> = raw ? JSON.parse(raw) : {}
+          const last = map[String(postId)] || 0
+          if (!last || Date.now() - last > 30 * 60 * 1000) {
+            map[String(postId)] = Date.now()
+            sessionStorage.setItem(key, JSON.stringify(map))
+            // 异步发送，不阻塞
+            http.post(`/posts/${postId}/view`).catch(() => {})
+          }
+        } catch {}
+      }
+
       // 并行执行元数据设置和图片优化
       await Promise.all([
         Promise.resolve().then(() => setPageMeta()),

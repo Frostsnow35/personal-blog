@@ -42,6 +42,19 @@ export default defineConfig({
         manualChunks: {
           'three': ['three'],
           'gsap': ['gsap'],
+          'tiptap': [
+            '@tiptap/core',
+            '@tiptap/pm',
+            '@tiptap/starter-kit',
+            '@tiptap/vue-3',
+            '@tiptap/extension-image',
+            '@tiptap/extension-link',
+            '@tiptap/extension-placeholder',
+            '@tiptap/extension-text-style',
+            'tiptap-markdown',
+            'dompurify',
+            'markdown-it'
+          ],
           'vendor': ['vue', 'vue-router', 'pinia']
         },
         chunkFileNames: 'js/[name]-[hash].js',

@@ -284,6 +284,21 @@ class Like(db.Model):
         db.UniqueConstraint('post_id', 'ip_hash', name='uq_post_ip_like'),
     )
 
+
+class Comment(db.Model):
+    __tablename__ = 'comments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=False, index=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey('comments.id'), nullable=True)
+    author_name = db.Column(db.String(32), nullable=False)
+    author_email = db.Column(db.String(120), nullable=True)
+    content = db.Column(db.Text, nullable=False)
+    ip_hash = db.Column(db.String(64), nullable=False, index=True)
+    user_agent = db.Column(db.String(500), nullable=True)
+    is_approved = db.Column(db.Boolean, default=False, index=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
 # JWT 认证装饰器
 def jwt_required_admin(fn):
     from functools import wraps
@@ -340,19 +355,24 @@ def admin_list_posts():
     if category:
         query = query.filter_by(category=category)
 
+    # 用 with_entities 限制查询字段，减少数据传输
+    query = query.with_entities(
+        Post.id, Post.title, Post.slug, Post.status,
+        Post.category, Post.tags, Post.updated_at
+    )
     posts = query.order_by(Post.updated_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     return jsonify({
         'success': True,
         'data': {
             'items': [{
-                'id': p.id,
-                'title': p.title,
-                'slug': p.slug,
-                'status': p.status,
-                'category': p.category,
-                'tags': p.tags or [],
-                'updated_at': p.updated_at.isoformat()
-            } for p in posts.items],
+                'id': pid,
+                'title': title,
+                'slug': slug,
+                'status': status,
+                'category': category,
+                'tags': tags or [],
+                'updated_at': updated_at.isoformat() if updated_at else None,
+            } for (pid, title, slug, status, category, tags, updated_at) in posts.items],
             'total': posts.total,
             'page': page,
             'pages': posts.pages
@@ -425,40 +445,44 @@ def admin_create_post():
 def admin_update_post(post_id):
     p = Post.query.get_or_404(post_id)
     data = request.get_json() or {}
-    if 'title' in data:
-        title = (data.get('title') or '').strip()
-        if not title:
-            return jsonify({'success': False, 'message': '标题不能为空'}), 400
-        if len(title) > 200:
-            return jsonify({'success': False, 'message': '标题过长(<=200)'}), 400
-        p.title = title
-    if 'slug' in data:
-        new_slug = (data.get('slug') or '').strip() or _slugify(p.title)
-        import re
-        if not re.match(r'^[a-z0-9]+(?:-[a-z0-9]+)*$', new_slug):
-            return jsonify({'success': False, 'message': 'slug 格式仅允许小写字母、数字及中划线'}), 400
-        if new_slug != p.slug and Post.query.filter_by(slug=new_slug).first():
-            return jsonify({'success': False, 'message': 'slug 已存在'}), 400
-        p.slug = new_slug
-    for f in ['content', 'excerpt', 'cover_url', 'category']:
-        if f in data:
-            if f == 'excerpt' and data.get('excerpt') and len(data.get('excerpt')) > 500:
-                return jsonify({'success': False, 'message': '摘要过长(<=500)'}), 400
-            setattr(p, f, data.get(f))
-    if 'tags' in data:
-        p.tags = data.get('tags') or []
-    if 'status' in data:
-        st = data.get('status') or 'draft'
-        if st not in ['draft', 'published']:
-            return jsonify({'success': False, 'message': '非法状态'}), 400
-        p.status = st
-        if p.status == 'published' and not p.published_at:
-            p.published_at = datetime.now(timezone.utc)
-    # 重算阅读时长
-    words = len((p.content or '').replace('\n', ''))
-    p.read_time = max(1, words // 300)
-    db.session.commit()
-    return jsonify({'success': True, 'message': '更新成功'})
+    try:
+        if 'title' in data:
+            title = (data.get('title') or '').strip()
+            if not title:
+                return jsonify({'success': False, 'message': '标题不能为空'}), 400
+            if len(title) > 200:
+                return jsonify({'success': False, 'message': '标题过长(<=200)'}), 400
+            p.title = title
+        if 'slug' in data:
+            new_slug = (data.get('slug') or '').strip() or _slugify(p.title)
+            import re
+            if not re.match(r'^[a-z0-9]+(?:-[a-z0-9]+)*$', new_slug):
+                return jsonify({'success': False, 'message': 'slug 格式仅允许小写字母、数字及中划线'}), 400
+            if new_slug != p.slug and Post.query.filter_by(slug=new_slug).first():
+                return jsonify({'success': False, 'message': 'slug 已存在'}), 400
+            p.slug = new_slug
+        for f in ['content', 'excerpt', 'cover_url', 'category']:
+            if f in data:
+                if f == 'excerpt' and data.get('excerpt') and len(data.get('excerpt')) > 500:
+                    return jsonify({'success': False, 'message': '摘要过长(<=500)'}), 400
+                setattr(p, f, data.get(f))
+        if 'tags' in data:
+            p.tags = data.get('tags') or []
+        if 'status' in data:
+            st = data.get('status') or 'draft'
+            if st not in ['draft', 'published']:
+                return jsonify({'success': False, 'message': '非法状态'}), 400
+            p.status = st
+            if p.status == 'published' and not p.published_at:
+                p.published_at = datetime.now(timezone.utc)
+        # 重算阅读时长
+        words = len((p.content or '').replace('\n', ''))
+        p.read_time = max(1, words // 300)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '更新成功'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/api/admin/posts/<int:post_id>', methods=['DELETE'])
@@ -474,19 +498,82 @@ def admin_delete_post(post_id):
 @jwt_required_admin
 def admin_publish_post(post_id):
     p = Post.query.get_or_404(post_id)
-    p.status = 'published'
-    p.published_at = p.published_at or datetime.now(timezone.utc)
-    db.session.commit()
-    return jsonify({'success': True, 'message': '已发布'})
+    try:
+        p.status = 'published'
+        p.published_at = p.published_at or datetime.now(timezone.utc)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '已发布'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/api/admin/posts/<int:post_id>/unpublish', methods=['POST'])
 @jwt_required_admin
 def admin_unpublish_post(post_id):
     p = Post.query.get_or_404(post_id)
-    p.status = 'draft'
-    db.session.commit()
-    return jsonify({'success': True, 'message': '已撤回为草稿'})
+    try:
+        p.status = 'draft'
+        db.session.commit()
+        return jsonify({'success': True, 'message': '已撤回为草稿'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ============== 评论管理 ==============
+@app.route('/api/admin/comments', methods=['GET'])
+@jwt_required_admin
+def admin_list_comments():
+    page = max(1, int(request.args.get('page', 1)))
+    per_page = min(100, max(1, int(request.args.get('per_page', 20))))
+    is_approved = request.args.get('is_approved')
+    q = Comment.query
+    if is_approved == 'true':
+        q = q.filter_by(is_approved=True)
+    elif is_approved == 'false':
+        q = q.filter_by(is_approved=False)
+    total = q.count()
+    rows = q.order_by(Comment.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    items = [{
+        'id': c.id,
+        'post_id': c.post_id,
+        'parent_id': c.parent_id,
+        'author_name': c.author_name,
+        'author_email': c.author_email,
+        'content': c.content,
+        'is_approved': c.is_approved,
+        'created_at': c.created_at.isoformat() if c.created_at else None,
+    } for c in rows]
+    return jsonify({'success': True, 'data': {'items': items, 'total': total, 'page': page, 'per_page': per_page}})
+
+
+@app.route('/api/admin/comments/<int:comment_id>/approve', methods=['PUT'])
+@jwt_required_admin
+def admin_approve_comment(comment_id):
+    c = Comment.query.get_or_404(comment_id)
+    try:
+        c.is_approved = True
+        db.session.commit()
+        return jsonify({'success': True, 'message': '已通过'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/admin/comments/<int:comment_id>', methods=['DELETE'])
+@jwt_required_admin
+def admin_delete_comment(comment_id):
+    c = Comment.query.get_or_404(comment_id)
+    try:
+        # 先删除子评论
+        Comment.query.filter_by(parent_id=c.id).delete()
+        db.session.delete(c)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '已删除'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/admin/upload', methods=['POST'])
 @jwt_required_admin
@@ -1015,7 +1102,7 @@ def search_published_posts():
                 'pages': pages,
                 'current_page': page
             }
-        })
+        }, cache_control='public, max-age=60, stale-while-revalidate=300')
     finally:
         cursor.close()
         conn.close()
@@ -1193,7 +1280,7 @@ def get_published_categories():
         return json_response({
             'success': True,
             'data': [{'name': category, 'count': count} for category, count in rows]
-        })
+        }, cache_control='public, max-age=60, stale-while-revalidate=300')
 
     """获取已发布文章的分类列表（带文章数量）"""
     # 使用直接SQL查询避免SQLAlchemy编码问题
@@ -1280,7 +1367,7 @@ def get_published_tags():
         return json_response({
             'success': True,
             'data': sorted(tags_with_count, key=lambda x: x['count'], reverse=True)
-        })
+        }, cache_control='public, max-age=60, stale-while-revalidate=300')
 
     """获取已发布文章的标签列表（带文章数量）"""
     # 使用直接SQL查询避免SQLAlchemy编码问题
@@ -1544,16 +1631,146 @@ def get_like_status(post_id):
 
 @app.route('/api/posts/<int:post_id>/view', methods=['POST'])
 def view_post(post_id):
-    """记录阅读（公开接口）"""
+    """记录阅读（公开接口）异步返回 202，不阻塞主流程"""
     post = Post.query.get_or_404(post_id)
-    post.views = (post.views or 0) + 1
-    db.session.commit()
+    try:
+        post.views = (post.views or 0) + 1
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
     return json_response({
         'success': True,
         'data': {
-            'views': post.views
+            'views': post.views or 0
+        }
+    }), 202
+
+
+# 评论简易 XSS 过滤
+import re as _re
+_SCRIPT_RE = _re.compile(r'<\s*script[^>]*>.*?<\s*/\s*script\s*>', _re.IGNORECASE | _re.DOTALL)
+_HTML_TAG_RE = _re.compile(r'<[^>]+>')
+def _sanitize_comment(text: str) -> str:
+    if not text:
+        return ''
+    t = _SCRIPT_RE.sub('', text)
+    t = _HTML_TAG_RE.sub('', t)
+    return t.strip()
+
+
+# 评论频率限制（内存版，单实例生效；多实例需要 Redis 替换）
+_comment_rate = {}
+def _check_comment_rate(ip_hash: str, window_sec: int = 60, limit: int = 2) -> bool:
+    import time
+    now = time.time()
+    arr = _comment_rate.get(ip_hash, [])
+    arr = [t for t in arr if now - t < window_sec]
+    if len(arr) >= limit:
+        _comment_rate[ip_hash] = arr
+        return False
+    arr.append(now)
+    _comment_rate[ip_hash] = arr
+    return True
+
+
+def _comment_to_dict(c: Comment) -> dict:
+    return {
+        'id': c.id,
+        'post_id': c.post_id,
+        'parent_id': c.parent_id,
+        'author_name': c.author_name,
+        'content': c.content,
+        'created_at': c.created_at.isoformat() if c.created_at else None,
+        'replies': [],
+    }
+
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['GET'])
+def list_post_comments(post_id):
+    """公开：获取某篇文章已审核评论（一层嵌套）"""
+    Post.query.get_or_404(post_id)
+    page = max(1, int(request.args.get('page', 1)))
+    per_page = min(100, max(1, int(request.args.get('per_page', 20))))
+    q = Comment.query.filter_by(post_id=post_id, is_approved=True, parent_id=None)
+    total = q.count()
+    rows = q.order_by(Comment.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+
+    parent_ids = [c.id for c in rows]
+    replies_by_parent = {}
+    if parent_ids:
+        rs = (Comment.query
+              .filter(Comment.post_id == post_id, Comment.is_approved.is_(True), Comment.parent_id.in_(parent_ids))
+              .order_by(Comment.created_at.asc())
+              .limit(5 * len(parent_ids))
+              .all())
+        for r in rs:
+            replies_by_parent.setdefault(r.parent_id, []).append(_comment_to_dict(r))
+
+    items = []
+    for c in rows:
+        d = _comment_to_dict(c)
+        d['replies'] = replies_by_parent.get(c.id, [])
+        items.append(d)
+
+    return json_response({
+        'success': True,
+        'data': {
+            'items': items,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
         }
     })
+
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['POST'])
+def create_post_comment(post_id):
+    """公开：提交评论，默认待审核"""
+    Post.query.get_or_404(post_id)
+    data = request.get_json() or {}
+    author_name = (data.get('author_name') or '').strip()
+    author_email = (data.get('author_email') or '').strip() or None
+    content_raw = data.get('content') or ''
+    content = _sanitize_comment(str(content_raw)).strip()
+    parent_id = data.get('parent_id')
+
+    if not author_name or len(author_name) > 32:
+        return json_response({'success': False, 'message': '昵称必填且不超过 32 字符'}, 400)
+    if not content or len(content) > 1000:
+        return json_response({'success': False, 'message': '评论内容必填且不超过 1000 字符'}, 400)
+    if author_email and len(author_email) > 120:
+        return json_response({'success': False, 'message': '邮箱过长'}, 400)
+    if parent_id:
+        try:
+            parent_id = int(parent_id)
+            parent = Comment.query.get(parent_id)
+            if not parent or parent.post_id != post_id:
+                return json_response({'success': False, 'message': '父评论不存在'}, 400)
+        except (TypeError, ValueError):
+            return json_response({'success': False, 'message': '父评论 ID 非法'}, 400)
+
+    ip = _get_client_ip()
+    ip_hash = _hash_ip(ip)
+    if not _check_comment_rate(ip_hash):
+        return json_response({'success': False, 'message': '评论过于频繁，请稍后再试'}, 429)
+
+    try:
+        c = Comment(
+            post_id=post_id,
+            parent_id=parent_id,
+            author_name=author_name[:32],
+            author_email=author_email,
+            content=content[:1000],
+            ip_hash=ip_hash,
+            user_agent=(request.headers.get('User-Agent') or '')[:500],
+            is_approved=False,
+        )
+        db.session.add(c)
+        db.session.commit()
+        return json_response({'success': True, 'message': '评论提交成功，等待审核后显示', 'data': {'id': c.id}})
+    except Exception as e:
+        db.session.rollback()
+        return json_response({'success': False, 'message': str(e)}, 500)
 
 
 # 健康检查
@@ -1597,14 +1814,18 @@ def debug_info():
 def serve_assets(filename):
     from flask import send_from_directory
     assets_dir = os.path.join(_frontend_dist, 'assets')
-    return send_from_directory(assets_dir, filename)
+    resp = send_from_directory(assets_dir, filename)
+    resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return resp
 
 
 @app.route('/js/<path:filename>')
 def serve_js(filename):
     from flask import send_from_directory
     js_dir = os.path.join(_frontend_dist, 'js')
-    return send_from_directory(js_dir, filename)
+    resp = send_from_directory(js_dir, filename)
+    resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return resp
 
 
 @app.route('/', defaults={'path': ''})
@@ -1654,10 +1875,12 @@ def handle_exception(error):
     return jsonify({'error': 'Server error', 'message': '服务器错误'}), 500
 
 # 自定义JSON响应函数，确保编码正确
-def json_response(data, status_code=200):
-    """返回正确编码的JSON响应"""
+def json_response(data, status_code=200, cache_control=None):
+    """返回正确编码的JSON响应，支持可选缓存头"""
     response = jsonify(data)
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    if cache_control:
+        response.headers['Cache-Control'] = cache_control
     return response, status_code
 
 if __name__ == '__main__':

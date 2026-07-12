@@ -14,6 +14,7 @@ const AdminLogin = () => import('../views/AdminLogin.vue')
 const AdminPosts = () => import('../views/AdminPosts.vue')
 const AdminPostEdit = () => import('../views/AdminPostEdit.vue')
 const AdminDashboard = () => import('../views/AdminDashboard.vue')
+const AdminComments = () => import('../views/AdminComments.vue')
 const AudioLibrary = () => import('../views/AudioLibrary.vue')
 // import TestPage from '../views/TestPage.vue'
 
@@ -82,6 +83,11 @@ const routes = [
     path: '/admin/dashboard',
     name: 'AdminDashboard',
     component: AdminDashboard
+  },
+  {
+    path: '/admin/comments',
+    name: 'AdminComments',
+    component: AdminComments
   },
   {
     path: '/profile',
