@@ -15,15 +15,13 @@
             <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">标题</label>
             <input v-model="form.title" type="text" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"/>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Slug <span class="text-xs text-gray-500">(根据标题自动生成)</span></label>
-              <input v-model="form.slug" type="text" :disabled="!isEdit && form.title" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 disabled:bg-gray-100 dark:disabled:bg-gray-700"/>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">分类</label>
-              <input v-model="form.category" type="text" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"/>
-            </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Slug <span class="text-xs text-gray-500">(根据标题自动生成，可手动编辑)</span></label>
+            <input v-model="form.slug" type="text" maxlength="200" :disabled="!isEdit && form.title" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 disabled:bg-gray-100 dark:disabled:bg-gray-700 font-mono text-sm" :title="form.slug" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">分类</label>
+            <input v-model="form.category" type="text" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"/>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">标签（逗号分隔）</label>
@@ -66,11 +64,16 @@ const form = ref<any>({
 const tagsInput = ref('')
 
 function slugify(title: string): string {
-  // 保留原大小写：alnum 字符直接保留，其他字符替换为 '-'
-  let base = title.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]+/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '')
+  // 与后端 _slugify 保持一致：
+  // 保留 Unicode 字母/数字（含中文），其它字符替换为 '-'
+  // 截断到 100 字符
+  let base = (title || '')
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
   if (!base) base = 'post'
-  if (/[\u4e00-\u9fa5]/.test(base)) {
-    base = encodeURIComponent(base).replace(/%/g, '-')
+  if (base.length > 100) {
+    base = base.slice(0, 100).replace(/-+$/, '') || 'post'
   }
   return base
 }
