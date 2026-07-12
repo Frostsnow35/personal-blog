@@ -98,7 +98,7 @@
             <div class="font-semibold text-gray-900 dark:text-gray-100">{{ profileStore.displayName }}</div>
             <div class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ profileStore.displayBio }}</div>
             <div class="mt-4">
-              <PublicSocialLinks :links="profileStore.publicSocialLinks" :rss-url="rssUrl" />
+              <PublicSocialLinks :links="profileStore.publicSocialLinks" />
             </div>
           </div>
         </div>
@@ -184,7 +184,6 @@ interface Post {
 
 const route = useRoute()
 const profileStore = useProfileStore()
-const rssUrl = computed(() => (import.meta.env.DEV ? 'http://localhost:5000/rss.xml' : '/rss.xml'))
 const post = ref<Post | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)

@@ -25,7 +25,7 @@
               </div>
 
               <div class="mt-6 flex items-center justify-center">
-                <PublicSocialLinks :links="profileStore.publicSocialLinks" :rss-url="rssUrl" />
+                <PublicSocialLinks :links="profileStore.publicSocialLinks" />
               </div>
 
               <div v-if="profileStore.profile.email || profileStore.profile.location" class="mt-6 flex items-center justify-center gap-6 text-sm text-gray-500 dark:text-gray-400">
@@ -159,7 +159,6 @@ const logout = () => {
   router.push('/home')
 }
 
-const rssUrl = computed(() => (import.meta.env.DEV ? 'http://localhost:5000/rss.xml' : '/rss.xml'))
 
 const aboutHtml = computed(() => {
   const bio = profileStore.profile.bio || '这里会放置作者的自我介绍。'

@@ -201,7 +201,7 @@
           <div class="card mb-6">
             <div class="p-6">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">关注我</h3>
-              <PublicSocialLinks :links="profileStore.publicSocialLinks" :rss-url="rssUrl" />
+              <PublicSocialLinks :links="profileStore.publicSocialLinks" />
             </div>
           </div>
 
@@ -366,7 +366,6 @@ const POSTS_PER_PAGE = 10
 
 const totalPages = ref(1)
 const currentPage = ref(1)
-const rssUrl = computed(() => (import.meta.env.DEV ? 'http://localhost:5000/rss.xml' : '/rss.xml'))
 
 let searchDebounceTimer: number | undefined
 let activePostsController: AbortController | null = null
