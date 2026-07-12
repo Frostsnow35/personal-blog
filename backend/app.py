@@ -1,6 +1,5 @@
 from flask import Flask, jsonify, request
 import json
-import sys
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -269,37 +268,6 @@ def _ensure_upload_dir():
         pass
 
 # 数据模型
-class BlogPost(db.Model):
-    __tablename__ = 'blog_posts'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    excerpt = db.Column(db.String(500))
-    category = db.Column(db.String(100))
-    tags = db.Column(db.JSON)
-    publish_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    read_time = db.Column(db.Integer, default=5)
-    cover_image = db.Column(db.String(500))
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-
-class Category(db.Model):
-    __tablename__ = 'categories'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    description = db.Column(db.String(500))
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-
-class Tag(db.Model):
-    __tablename__ = 'tags'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-
-# 个人资料模型
 class Profile(db.Model):
     __tablename__ = 'profiles'
     
@@ -1241,57 +1209,6 @@ def sitemap():
     response.headers['Content-Type'] = 'application/xml'
     return response
 
-@app.route('/rss.xml')
-def rss():
-    """生成 RSS feed"""
-    from flask import make_response
-    import xml.etree.ElementTree as ET
-    
-    site_url = _get_site_url()
-
-    # 创建 RSS 根元素
-    rss = ET.Element('rss')
-    rss.set('version', '2.0')
-    
-    channel = ET.SubElement(rss, 'channel')
-    
-    # 频道信息
-    title = ET.SubElement(channel, 'title')
-    title.text = '霜雪旧曾谙的个人博客'
-    link = ET.SubElement(channel, 'link')
-    link.text = site_url
-    description = ET.SubElement(channel, 'description')
-    description.text = '计算机专业学生 | 二次元爱好者 | 海洋探索者 | 哲学思考者'
-    language = ET.SubElement(channel, 'language')
-    language.text = 'zh-CN'
-    
-    # 添加已发布的文章
-    published_posts = Post.query.filter_by(status='published').order_by(Post.published_at.desc()).limit(20).all()
-    for post in published_posts:
-        item = ET.SubElement(channel, 'item')
-        
-        item_title = ET.SubElement(item, 'title')
-        item_title.text = post.title
-        
-        item_link = ET.SubElement(item, 'link')
-        item_link.text = f'{site_url}/post/{post.slug}'
-        
-        item_description = ET.SubElement(item, 'description')
-        item_description.text = post.excerpt or post.content[:200] + '...' if len(post.content) > 200 else post.content
-        
-        item_pubDate = ET.SubElement(item, 'pubDate')
-        item_pubDate.text = post.published_at.strftime('%a, %d %b %Y %H:%M:%S %z') if post.published_at else ''
-        
-        item_guid = ET.SubElement(item, 'guid')
-        item_guid.text = f'{site_url}/post/{post.slug}'
-    
-    # 生成 XML 字符串
-    xml_str = ET.tostring(rss, encoding='unicode')
-    
-    response = make_response(xml_str)
-    response.headers['Content-Type'] = 'application/rss+xml'
-    return response
-
 # 用户模型（用于管理员登录）
 class User(db.Model):
     __tablename__ = 'users'
@@ -1415,49 +1332,6 @@ def create_access_token(username: str, role: str = 'admin', expires_minutes: int
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
 
 # API路由
-@app.route('/api/posts', methods=['GET'])
-def get_posts():
-    """获取博客文章列表"""
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
-    category = request.args.get('category')
-    tag = request.args.get('tag')
-    search = request.args.get('search')
-    
-    query = BlogPost.query
-    
-    if category:
-        query = query.filter(BlogPost.category == category)
-    if tag:
-        query = query.filter(BlogPost.tags.contains([tag]))
-    if search:
-        query = query.filter(
-            db.or_(
-                BlogPost.title.contains(search),
-                BlogPost.content.contains(search)
-            )
-        )
-    
-    posts = query.order_by(BlogPost.publish_date.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
-    
-    return json_response({
-        'posts': [{
-            'id': post.id,
-            'title': post.title,
-            'excerpt': post.excerpt,
-            'category': post.category,
-            'tags': post.tags,
-            'publish_date': post.publish_date.isoformat(),
-            'read_time': post.read_time,
-            'cover_image': post.cover_image
-        } for post in posts.items],
-        'total': posts.total,
-        'pages': posts.pages,
-        'current_page': page
-    })
-
 @app.route('/api/posts/published', methods=['GET'])
 def get_published_posts():
     """获取已发布的文章列表（用于前台展示）"""
@@ -1806,39 +1680,6 @@ def get_post_by_slug(slug):
         cursor.close()
         conn.close()
 
-@app.route('/api/categories', methods=['GET'])
-def get_categories():
-    if uses_sqlalchemy_queries():
-        categories = Category.query.order_by(Category.name).all()
-        return json_response([{
-            'id': category.id,
-            'name': category.name,
-            'description': category.description
-        } for category in categories])
-
-    """获取分类列表"""
-    # 使用直接SQL查询避免SQLAlchemy编码问题
-    import sqlite3
-    import os
-    
-    db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute("SELECT id, name, description FROM categories ORDER BY name")
-        categories = cursor.fetchall()
-        
-        return json_response([{
-            'id': cat[0],
-            'name': cat[1],
-            'description': cat[2]
-        } for cat in categories])
-        
-    finally:
-        cursor.close()
-        conn.close()
-
 @app.route('/api/categories/published', methods=['GET'])
 def get_published_categories():
     if uses_sqlalchemy_queries():
@@ -1886,36 +1727,6 @@ def get_published_categories():
         cursor.close()
         conn.close()
 
-@app.route('/api/tags', methods=['GET'])
-def get_tags():
-    if uses_sqlalchemy_queries():
-        tags = Tag.query.order_by(Tag.name).all()
-        return json_response([{
-            'id': tag.id,
-            'name': tag.name
-        } for tag in tags])
-
-    """获取标签列表"""
-    # 使用直接SQL查询避免SQLAlchemy编码问题
-    import sqlite3
-    import os
-    
-    db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute("SELECT id, name FROM tags ORDER BY name")
-        tags = cursor.fetchall()
-        
-        return json_response([{
-            'id': tag[0],
-            'name': tag[1]
-        } for tag in tags])
-        
-    finally:
-        cursor.close()
-        conn.close()
 
 @app.route('/api/tags/published', methods=['GET'])
 def get_published_tags():
@@ -2006,47 +1817,6 @@ def get_published_tags():
             'data': sorted(tags_with_count, key=lambda x: x['count'], reverse=True)
         }, cache_control='public, max-age=60, stale-while-revalidate=300')
 
-    finally:
-        cursor.close()
-        conn.close()
-
-@app.route('/api/stats', methods=['GET'])
-def get_stats():
-    if uses_sqlalchemy_queries():
-        return json_response({
-            'total_posts': Post.query.count(),
-            'total_categories': Category.query.count(),
-            'total_tags': Tag.query.count()
-        })
-
-    """获取博客统计信息"""
-    # 使用直接SQL查询避免SQLAlchemy编码问题
-    import sqlite3
-    import os
-    
-    db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    try:
-        # 统计文章数量
-        cursor.execute("SELECT COUNT(*) FROM posts")
-        total_posts = cursor.fetchone()[0]
-        
-        # 统计分类数量
-        cursor.execute("SELECT COUNT(*) FROM categories")
-        total_categories = cursor.fetchone()[0]
-        
-        # 统计标签数量
-        cursor.execute("SELECT COUNT(*) FROM tags")
-        total_tags = cursor.fetchone()[0]
-        
-        return json_response({
-            'total_posts': total_posts,
-            'total_categories': total_categories,
-            'total_tags': total_tags
-        })
-        
     finally:
         cursor.close()
         conn.close()
@@ -2478,11 +2248,6 @@ def json_response(data, status_code=200, cache_control=None):
     return response, status_code
 
 if __name__ == '__main__':
-    import sys
-    
-    if hasattr(sys, 'setdefaultencoding'):
-        sys.setdefaultencoding('utf-8')
-    
     try:
         locale.setlocale(locale.LC_ALL, 'zh_CN.UTF-8')
     except:
@@ -2490,7 +2255,7 @@ if __name__ == '__main__':
             locale.setlocale(locale.LC_ALL, 'C.UTF-8')
         except:
             pass
-    
+
     app.run(debug=False, host='0.0.0.0', port=5000)
 
 def bootstrap():

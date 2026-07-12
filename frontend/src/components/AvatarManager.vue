@@ -114,7 +114,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { useProfileStore } from '../stores/profile'
-import { showSuccess, showError } from '../utils/notifications'
+import { toast } from '../composables/useToast'
 import { http } from '../utils/http'
 
 // Props
@@ -163,13 +163,13 @@ const handleFileDrop = (event: DragEvent) => {
 const processSelectedFile = (file: File) => {
   // 验证文件类型
   if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
-    showError('文件格式错误', '请选择 JPG、PNG 或 WebP 格式的图片')
+    toast.error('文件格式错误', '请选择 JPG、PNG 或 WebP 格式的图片')
     return
   }
 
   // 验证文件大小 (5MB)
   if (file.size > 5 * 1024 * 1024) {
-    showError('文件过大', '图片大小不能超过 5MB')
+    toast.error('文件过大', '图片大小不能超过 5MB')
     return
   }
 
@@ -211,12 +211,12 @@ const applyAvatar = async () => {
     // 保存到后端
     await profileStore.saveProfile()
 
-    showSuccess('头像更新成功', '你的头像已经成功更新')
+    toast.success('头像更新成功', '你的头像已经成功更新')
     closeUploadDialog()
     resetSelection()
     
   } catch (error) {
-    showError('头像更新失败', '上传头像时出现错误，请重试')
+    toast.error('头像更新失败', '上传头像时出现错误，请重试')
   } finally {
     isProcessing.value = false
   }

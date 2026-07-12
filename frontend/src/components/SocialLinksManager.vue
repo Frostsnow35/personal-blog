@@ -176,7 +176,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useProfileStore } from '../stores/profile'
-import { showSuccess, showError } from '../utils/notifications'
+import { toast } from '../composables/useToast'
 import type { SocialLink } from '../types'
 
 // Store
@@ -250,9 +250,9 @@ const removeLink = async (index: number) => {
       // 保存到后端
       await profileStore.saveProfile()
       
-      showSuccess('链接已删除', '社交媒体链接已成功删除')
+      toast.success('链接已删除', '社交媒体链接已成功删除')
     } catch (error) {
-      showError('删除失败', '删除链接时出现错误，请重试')
+      toast.error('删除失败', '删除链接时出现错误，请重试')
     }
   }
 }
@@ -279,15 +279,15 @@ const saveLink = async () => {
     
     // 显示成功消息
     if (isEditing.value) {
-      showSuccess('链接已更新', '社交媒体链接已成功更新')
+      toast.success('链接已更新', '社交媒体链接已成功更新')
     } else {
-      showSuccess('链接已添加', '新的社交媒体链接已成功添加')
+      toast.success('链接已添加', '新的社交媒体链接已成功添加')
     }
     
     closeDialog()
     
   } catch (error) {
-    showError('操作失败', '保存链接时出现错误，请重试')
+    toast.error('操作失败', '保存链接时出现错误，请重试')
   }
 }
 
