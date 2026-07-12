@@ -66,7 +66,8 @@ const form = ref<any>({
 const tagsInput = ref('')
 
 function slugify(title: string): string {
-  let base = title.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '')
+  // 保留原大小写：alnum 字符直接保留，其他字符替换为 '-'
+  let base = title.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]+/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '')
   if (!base) base = 'post'
   if (/[\u4e00-\u9fa5]/.test(base)) {
     base = encodeURIComponent(base).replace(/%/g, '-')

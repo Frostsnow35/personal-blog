@@ -474,7 +474,8 @@ def jwt_required_admin(fn):
 
 
 def _slugify(title: str) -> str:
-    base = ''.join(ch.lower() if ch.isalnum() else '-' for ch in (title or '').strip())
+    # 保留原大小写：alnum 字符直接保留，其他字符替换为 '-'
+    base = ''.join(ch if ch.isalnum() else '-' for ch in (title or '').strip())
     while '--' in base:
         base = base.replace('--', '-')
     base = base.strip('-') or 'post'
@@ -566,8 +567,8 @@ def admin_create_post():
     if len(data.get('excerpt') or '') > 500:
         return jsonify({'success': False, 'message': '摘要过长(<=500)'}), 400
     import re
-    if not re.match(r'^[a-z0-9]+(?:-[a-z0-9]+)*$', slug):
-        return jsonify({'success': False, 'message': 'slug 格式仅允许小写字母、数字及中划线'}), 400
+    if not re.match(r'^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$', slug):
+        return jsonify({'success': False, 'message': 'slug 格式仅允许字母、数字及中划线'}), 400
     if Post.query.filter_by(slug=slug).first():
         return jsonify({'success': False, 'message': 'slug 已存在'}), 400
 
@@ -607,8 +608,8 @@ def admin_update_post(post_id):
         if 'slug' in data:
             new_slug = (data.get('slug') or '').strip() or _slugify(p.title)
             import re
-            if not re.match(r'^[a-z0-9]+(?:-[a-z0-9]+)*$', new_slug):
-                return jsonify({'success': False, 'message': 'slug 格式仅允许小写字母、数字及中划线'}), 400
+            if not re.match(r'^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$', new_slug):
+                return jsonify({'success': False, 'message': 'slug 格式仅允许字母、数字及中划线'}), 400
             if new_slug != p.slug and Post.query.filter_by(slug=new_slug).first():
                 return jsonify({'success': False, 'message': 'slug 已存在'}), 400
             p.slug = new_slug
