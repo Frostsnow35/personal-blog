@@ -1,10 +1,16 @@
 <template>
   <div id="app">
-    <router-view />
+    <router-view v-slot="{ Component, route }">
+      <Transition name="page" mode="out-in">
+        <component :is="Component" :key="route.fullPath" />
+      </Transition>
+    </router-view>
     <ThemeToggle />
     <CursorEffect v-if="showEffects" />
     <MusicPlayer v-if="showMusic" />
     <PerformanceMonitor v-if="showPerformance" />
+    <TopLoadingBar />
+    <ToastContainer />
   </div>
 </template>
 
@@ -16,6 +22,8 @@ import ThemeToggle from './components/ThemeToggle.vue'
 import CursorEffect from './components/CursorEffect.vue'
 import MusicPlayer from './components/MusicPlayer.vue'
 import PerformanceMonitor from './components/PerformanceMonitor.vue'
+import TopLoadingBar from './components/TopLoadingBar.vue'
+import ToastContainer from './components/ToastContainer.vue'
 
 const themeStore = useThemeStore()
 const route = useRoute()
