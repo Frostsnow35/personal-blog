@@ -265,6 +265,52 @@
           </div>
         </div>
 
+        <!-- 缓存管理 -->
+        <div class="card p-6 hover:shadow-lg transition-shadow">
+          <div class="flex items-center space-x-3 mb-4">
+            <div class="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">缓存管理</h3>
+          </div>
+          <div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
+              <div class="text-sm text-gray-500 dark:text-gray-400">缓存大小</div>
+              <div class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ formatSize(cacheStats.totalSize) }}</div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
+              <div class="text-sm text-gray-500 dark:text-gray-400">缓存项数</div>
+              <div class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ cacheStats.itemCount }}</div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
+              <div class="text-sm text-gray-500 dark:text-gray-400">最后清理</div>
+              <div class="text-xs font-medium text-gray-900 dark:text-gray-100 mt-1">{{ formatTime(cacheStats.lastCleanup) }}</div>
+            </div>
+          </div>
+          <div class="space-y-2">
+            <button
+              @click="handleCleanupExpiredCache"
+              class="block w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-center rounded-lg transition-colors"
+            >
+              🧹 清理过期缓存
+            </button>
+            <button
+              @click="handleClearAllCache"
+              class="block w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-center rounded-lg transition-colors"
+            >
+              🗑 清除全部缓存
+            </button>
+            <button
+              @click="refreshCacheStats"
+              class="block w-full px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white text-center rounded-lg transition-colors"
+            >
+              🔄 刷新统计
+            </button>
+          </div>
+        </div>
+
         <!-- 系统设置 -->
         <div class="card p-6 hover:shadow-lg transition-shadow">
           <div class="flex items-center space-x-3 mb-4">
@@ -298,11 +344,81 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from '../composables/useToast'
+import { blogCache, profileCache, getCacheStats, clearAllCache, cleanupCache, getCacheEntries } from '../utils/cache'
 
 const router = useRouter()
+
+// 缓存统计信息
+const cacheStats = ref({
+  totalSize: 0,
+  itemCount: 0,
+  lastCleanup: Date.now()
+})
+
+// 格式化文件大小
+const formatSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+// 格式化时间
+const formatTime = (timestamp: number): string => {
+  if (!timestamp) return '从未'
+  const date = new Date(timestamp)
+  return date.toLocaleString('zh-CN')
+}
+
+// 获取缓存统计信息
+const loadCacheStats = () => {
+  try {
+    cacheStats.value = getCacheStats()
+  } catch (error) {
+    console.error('加载缓存统计信息失败:', error)
+  }
+}
+
+// 清除全部缓存
+const handleClearAllCache = () => {
+  if (!confirm('确定要清除所有缓存吗？此操作不可恢复。')) {
+    return
+  }
+  try {
+    clearAllCache()
+    loadCacheStats()
+    toast.success('缓存已全部清除')
+  } catch (error) {
+    console.error('清除缓存失败:', error)
+    toast.error('清除缓存失败，请重试')
+  }
+}
+
+// 清理过期缓存
+const handleCleanupExpiredCache = () => {
+  try {
+    cleanupCache()
+    loadCacheStats()
+    toast.success('过期缓存已清理')
+  } catch (error) {
+    console.error('清理过期缓存失败:', error)
+    toast.error('清理过期缓存失败，请重试')
+  }
+}
+
+// 刷新缓存统计
+const refreshCacheStats = () => {
+  loadCacheStats()
+  toast.info('缓存统计已更新')
+}
+
+onMounted(() => {
+  loadCacheStats()
+})
 
 // 退出登录
 const logout = () => {

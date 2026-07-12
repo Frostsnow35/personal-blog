@@ -118,6 +118,51 @@ export class PerformanceBenchmark {
     this.metrics.get(name)!.push(value)
   }
   
+  // 计算有效指标（去掉最高最低值后的平均值）
+  private calculateValidMetric(values: number[]): { avg: number; min: number; max: number; median: number; samples: number; validSamples: number; droppedHigh: number; droppedLow: number } {
+    if (values.length === 0) {
+      return { avg: 0, min: 0, max: 0, median: 0, samples: 0, validSamples: 0, droppedHigh: 0, droppedLow: 0 }
+    }
+    
+    const sorted = [...values].sort((a, b) => a - b)
+    const totalSamples = sorted.length
+    
+    let validValues = sorted
+    let droppedHigh = 0
+    let droppedLow = 0
+    
+    if (totalSamples >= 3) {
+      validValues = sorted.slice(1, -1)
+      droppedHigh = sorted[sorted.length - 1]
+      droppedLow = sorted[0]
+    }
+    
+    const validSamples = validValues.length
+    const sum = validValues.reduce((a, b) => a + b, 0)
+    const avg = validSamples > 0 ? sum / validSamples : 0
+    const min = validSamples > 0 ? Math.min(...validValues) : 0
+    const max = validSamples > 0 ? Math.max(...validValues) : 0
+    
+    let median = 0
+    if (validSamples > 0) {
+      const mid = Math.floor(validSamples / 2)
+      median = validSamples % 2 === 0 
+        ? (validValues[mid - 1] + validValues[mid]) / 2 
+        : validValues[mid]
+    }
+    
+    return {
+      avg: Math.round(avg * 100) / 100,
+      min: Math.round(min * 100) / 100,
+      max: Math.round(max * 100) / 100,
+      median: Math.round(median * 100) / 100,
+      samples: totalSamples,
+      validSamples,
+      droppedHigh: Math.round(droppedHigh * 100) / 100 || 0,
+      droppedLow: Math.round(droppedLow * 100) / 100 || 0
+    }
+  }
+  
   // 生成性能报告
   generateReport() {
     const report: {
@@ -126,37 +171,31 @@ export class PerformanceBenchmark {
       metrics: Record<string, any>
       memory: any
       recommendations: string[]
+      testRuns: number
     } = {
       timestamp: new Date().toISOString(),
       totalDuration: performance.now() - this.startTime,
       metrics: {},
       memory: this.measureMemoryUsage(),
-      recommendations: []
+      recommendations: [],
+      testRuns: 5
     }
     
     // 分析各项指标
     for (const [key, values] of this.metrics) {
-      const avg = values.reduce((a, b) => a + b, 0) / values.length
-      const min = Math.min(...values)
-      const max = Math.max(...values)
-      
-      report.metrics[key] = { 
-        avg: Math.round(avg * 100) / 100, 
-        min: Math.round(min * 100) / 100, 
-        max: Math.round(max * 100) / 100, 
-        samples: values.length 
-      }
+      const result = this.calculateValidMetric(values)
+      report.metrics[key] = result
       
       // 生成优化建议
-      if (key === 'threejs_render' && avg > 16) {
+      if (key === 'threejs_render' && result.avg > 16) {
         report.recommendations.push('Three.js 渲染性能较低，建议优化粒子数量或使用 LOD')
       }
       
-      if (key === 'data_loading' && avg > 500) {
+      if (key === 'data_loading' && result.avg > 500) {
         report.recommendations.push('数据加载较慢，建议实现缓存机制')
       }
       
-      if (key === 'fps' && avg < 50) {
+      if (key === 'fps' && result.avg < 50) {
         report.recommendations.push('帧率较低，建议优化动画和渲染逻辑')
       }
     }
@@ -174,28 +213,22 @@ export class PerformanceBenchmark {
   }
 }
 
-// 使用示例
+// 运行完整基准测试（5次测试）
 export const runBenchmark = async () => {
-  
   const benchmark = new PerformanceBenchmark()
+  const testRuns = 5
   
   try {
-    // 测试 Three.js 性能
-    const threeJS = benchmark.measureThreeJS()
+    for (let i = 0; i < testRuns; i++) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      benchmark.measureThreeJS()
+      await benchmark.measureDataLoading()
+      benchmark.measureComponentRender('PostCard')
+      await benchmark.measureFrameRate(500)
+    }
     
-    // 测试数据加载性能
-    const dataLoading = await benchmark.measureDataLoading()
-    
-    // 测试组件渲染性能
-    const componentRender = benchmark.measureComponentRender('PostCard')
-    
-    // 测试帧率
-    const fps = await benchmark.measureFrameRate(2000) // 测试2秒
-    
-    // 生成报告
     const report = benchmark.generateReport()
-    
-    // 保存报告
     benchmark.saveReport(report)
     
     return report
@@ -205,7 +238,27 @@ export const runBenchmark = async () => {
   }
 }
 
-// 导出便捷函数
-export const quickBenchmark = () => {
-  return runBenchmark()
+// 快速测试（3次测试）
+export const quickBenchmark = async () => {
+  const benchmark = new PerformanceBenchmark()
+  const testRuns = 3
+  
+  try {
+    for (let i = 0; i < testRuns; i++) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      
+      benchmark.measureThreeJS()
+      await benchmark.measureDataLoading()
+      benchmark.measureComponentRender('PostCard')
+      await benchmark.measureFrameRate(300)
+    }
+    
+    const report = benchmark.generateReport()
+    benchmark.saveReport(report)
+    
+    return report
+    
+  } catch (error) {
+    return null
+  }
 }

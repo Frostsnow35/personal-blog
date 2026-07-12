@@ -66,6 +66,7 @@ import { ref, onMounted } from 'vue'
 import { http } from '../utils/http'
 import { useRouter } from 'vue-router'
 import { toast } from '../composables/useToast'
+import { blogCache } from '../utils/cache'
 
 const items = ref<any[]>([])
 const page = ref(1)
@@ -81,13 +82,33 @@ const load = async () => {
 }
 
 const publish = async (id: number) => {
-  await http.post(`/admin/posts/${id}/publish`)
-  await load()
+  try {
+    await http.post(`/admin/posts/${id}/publish`)
+    await load()
+    
+    try {
+      blogCache.clearBlogRelatedCache()
+    } catch {
+      // 缓存清理失败不影响主流程
+    }
+  } catch (err: any) {
+    toast.error('发布失败', err.message || '未知错误')
+  }
 }
 
 const unpublish = async (id: number) => {
-  await http.post(`/admin/posts/${id}/unpublish`)
-  await load()
+  try {
+    await http.post(`/admin/posts/${id}/unpublish`)
+    await load()
+    
+    try {
+      blogCache.clearBlogRelatedCache()
+    } catch {
+      // 缓存清理失败不影响主流程
+    }
+  } catch (err: any) {
+    toast.error('撤回失败', err.message || '未知错误')
+  }
 }
 
 const remove = async (id: number) => {
@@ -96,6 +117,12 @@ const remove = async (id: number) => {
     await http.delete<{ success: boolean; message?: string }>(`/admin/posts/${id}`)
     toast.success('已删除')
     await load()
+    
+    try {
+      blogCache.clearBlogRelatedCache()
+    } catch {
+      // 缓存清理失败不影响主流程
+    }
   } catch (err: any) {
     toast.error('删除失败', err.message || '未知错误')
   }

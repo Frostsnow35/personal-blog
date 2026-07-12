@@ -266,6 +266,53 @@ export const getCacheStats = (): CacheMeta => {
   return getCacheMeta()
 }
 
+// 缓存项详情接口
+export interface CacheEntry {
+  key: string
+  expiresAt: number
+  timestamp: number
+  version: string
+  size: number
+  isExpired: boolean
+}
+
+// 获取所有缓存项列表（用于调试和监控）
+export const getCacheEntries = (): CacheEntry[] => {
+  const entries: CacheEntry[] = []
+  const now = Date.now()
+
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const storageKey = localStorage.key(i)
+      if (!storageKey || !storageKey.startsWith(CACHE_PREFIX)) continue
+
+      try {
+        const cached = localStorage.getItem(storageKey)
+        if (!cached) continue
+
+        const cacheItem: CacheItem<any> = JSON.parse(cached)
+        const size = calculateDataSize(cacheItem)
+
+        entries.push({
+          key: storageKey.replace(CACHE_PREFIX, ''),
+          expiresAt: cacheItem.expiresAt,
+          timestamp: cacheItem.timestamp,
+          version: cacheItem.version,
+          size,
+          isExpired: now > cacheItem.expiresAt
+        })
+      } catch {
+        // 损坏的缓存项，跳过
+        continue
+      }
+    }
+  } catch {
+    // 静默处理错误
+  }
+
+  return entries
+}
+
 // 个人资料专用缓存函数
 export const profileCache = {
   // 缓存个人资料
@@ -320,6 +367,151 @@ export const blogCache = {
   // 获取缓存的标签数据
   getTags: (): any[] | null => {
     return getCache<any[]>('blog_tags')
+  },
+  
+  // 文章详情缓存（1小时）
+  setPostDetail: (postId: number | string, data: any): boolean => {
+    return setCache(`blog_post_detail_${postId}`, data, { maxAge: 60 * 60 * 1000 })
+  },
+  
+  getPostDetail: (postId: number | string): any | null => {
+    return getCache<any>(`blog_post_detail_${postId}`)
+  },
+  
+  removePostDetail: (postId: number | string): boolean => {
+    return removeCache(`blog_post_detail_${postId}`)
+  },
+  
+  // 相册缓存（24小时）
+  setAlbums: (albums: any[]): boolean => {
+    return setCache('blog_albums', albums, { maxAge: 24 * 60 * 60 * 1000 })
+  },
+  
+  getAlbums: (): any[] | null => {
+    return getCache<any[]>('blog_albums')
+  },
+  
+  // 相册详情缓存（24小时）
+  setAlbumDetail: (albumId: number | string, data: any): boolean => {
+    return setCache(`blog_album_detail_${albumId}`, data, { maxAge: 24 * 60 * 60 * 1000 })
+  },
+  
+  getAlbumDetail: (albumId: number | string): any | null => {
+    return getCache<any>(`blog_album_detail_${albumId}`)
+  },
+  
+  // 留言缓存（10分钟）
+  setComments: (comments: any[]): boolean => {
+    return setCache('blog_comments', comments, { maxAge: 10 * 60 * 1000 })
+  },
+  
+  getComments: (): any[] | null => {
+    return getCache<any[]>('blog_comments')
+  },
+  
+  // 搜索结果缓存（5分钟）
+  setSearchResults: (keyword: string, data: any[]): boolean => {
+    return setCache(`blog_search_${keyword}`, data, { maxAge: 5 * 60 * 1000 })
+  },
+  
+  getSearchResults: (keyword: string): any[] | null => {
+    return getCache<any[]>(`blog_search_${keyword}`)
+  },
+  
+  // 按标签批量清除缓存
+  clearCacheByTag: (tag: string): number => {
+    const keysToRemove: string[] = []
+    const prefix = getCacheKey(`blog_${tag}`)
+    
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith(prefix)) {
+        keysToRemove.push(key)
+      }
+    }
+    
+    keysToRemove.forEach(key => {
+      try {
+        const cached = localStorage.getItem(key)
+        if (cached) {
+          const dataSize = calculateDataSize(JSON.parse(cached))
+          localStorage.removeItem(key)
+          const meta = getCacheMeta()
+          updateCacheMeta({
+            totalSize: Math.max(0, meta.totalSize - dataSize),
+            itemCount: Math.max(0, meta.itemCount - 1)
+          })
+        }
+      } catch {
+        // 静默处理错误
+      }
+    })
+    
+    return keysToRemove.length
+  },
+  
+  // 清除所有博客相关缓存（文章列表、分类、标签、搜索结果、文章详情）
+  clearBlogRelatedCache: (): number => {
+    const keysToRemove: string[] = []
+    const blogPrefix = getCacheKey('blog_')
+    
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith(blogPrefix)) {
+        keysToRemove.push(key)
+      }
+    }
+    
+    keysToRemove.forEach(key => {
+      try {
+        const cached = localStorage.getItem(key)
+        if (cached) {
+          const dataSize = calculateDataSize(JSON.parse(cached))
+          localStorage.removeItem(key)
+          const meta = getCacheMeta()
+          updateCacheMeta({
+            totalSize: Math.max(0, meta.totalSize - dataSize),
+            itemCount: Math.max(0, meta.itemCount - 1)
+          })
+        }
+      } catch {
+        // 静默处理错误
+      }
+    })
+    
+    return keysToRemove.length
+  },
+  
+  // 清除留言相关缓存
+  clearCommentsCache: (): number => {
+    const keysToRemove: string[] = []
+    const commentsPrefix = getCacheKey('blog_comments')
+    
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith(commentsPrefix)) {
+        keysToRemove.push(key)
+      }
+    }
+    
+    keysToRemove.forEach(key => {
+      try {
+        const cached = localStorage.getItem(key)
+        if (cached) {
+          const dataSize = calculateDataSize(JSON.parse(cached))
+          localStorage.removeItem(key)
+          const meta = getCacheMeta()
+          updateCacheMeta({
+            totalSize: Math.max(0, meta.totalSize - dataSize),
+            itemCount: Math.max(0, meta.itemCount - 1)
+          })
+        }
+      } catch {
+        // 静默处理错误
+      }
+    })
+    
+    return keysToRemove.length
   }
 }
 

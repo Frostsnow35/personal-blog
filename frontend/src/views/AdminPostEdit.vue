@@ -53,6 +53,7 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { http } from '../utils/http'
 import { toast } from '../composables/useToast'
+import { blogCache } from '../utils/cache'
 import TiptapEditor from '../components/TiptapEditor.vue'
 import LoadingButton from '../components/LoadingButton.vue'
 
@@ -137,6 +138,12 @@ const save = async (status: 'draft'|'published') => {
     }
     clearAutoSave()
     toast.success('已保存', '文章已成功保存')
+    
+    try {
+      blogCache.clearBlogRelatedCache()
+    } catch {
+      // 缓存清理失败不影响主流程
+    }
   } catch (err: any) {
     toast.error('保存失败', err.message || '未知错误')
   } finally {

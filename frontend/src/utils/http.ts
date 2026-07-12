@@ -8,6 +8,28 @@ const BASE_URL =
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
+interface RequestCacheConfig {
+  enabled?: boolean
+  maxAge?: number
+}
+
+const defaultCacheConfig: RequestCacheConfig = {
+  enabled: true,
+  maxAge: 30 * 60 * 1000
+}
+
+function buildCacheKey(path: string): string {
+  const url = new URL(path, BASE_URL)
+  const params = Array.from(url.searchParams.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('&')
+  const pathname = url.pathname
+  return params ? `${pathname}?${params}` : pathname
+}
+
+import { setCache, getCache } from './cache'
+
 // 顶层 HTTP 加载追踪：用于顶部进度条
 let _active = 0
 let _showTimer: number | null = null
@@ -43,7 +65,17 @@ function withAuth(headers: HeadersInit = {}) {
   return token ? { ...headers, Authorization: `Bearer ${token}` } : headers
 }
 
-async function request<T>(path: string, method: HttpMethod, body?: any, signal?: AbortSignal): Promise<T> {
+async function request<T>(path: string, method: HttpMethod, body?: any, signal?: AbortSignal, cacheConfig?: RequestCacheConfig): Promise<T> {
+  const finalCacheConfig = { ...defaultCacheConfig, ...cacheConfig }
+
+  if (method === 'GET' && finalCacheConfig.enabled) {
+    const cacheKey = buildCacheKey(path)
+    const cached = getCache<T>(cacheKey, { maxAge: finalCacheConfig.maxAge })
+    if (cached !== null) {
+      return cached
+    }
+  }
+
   _bumpLoading(1)
   try {
     const isForm = body instanceof FormData
@@ -52,7 +84,6 @@ async function request<T>(path: string, method: HttpMethod, body?: any, signal?:
       headers: withAuth(isForm ? {} : { 'Content-Type': 'application/json' }),
       body: isForm ? body : body ? JSON.stringify(body) : undefined,
       signal,
-      // 添加缓存策略
       cache: method === 'GET' ? 'default' : 'no-cache'
     })
 
@@ -60,14 +91,12 @@ async function request<T>(path: string, method: HttpMethod, body?: any, signal?:
     let data: any = {}
     try { data = text ? JSON.parse(text) : {} } catch { data = {} }
 
-    // 统一处理 401/403：清理登录态并跳转登录页
     if (res.status === 401 || res.status === 403) {
       try {
         localStorage.removeItem('access_token')
         localStorage.removeItem('auth_user')
       } catch {}
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin-login')) {
-        // 保留原目标地址，登录成功后可返回（可选：加入 redirect 参数）
         window.location.href = '/admin-login'
       }
       throw new Error(data?.message || `HTTP ${res.status}`)
@@ -76,6 +105,12 @@ async function request<T>(path: string, method: HttpMethod, body?: any, signal?:
     if (!res.ok || (data && data.success === false)) {
       throw new Error(data?.message || `HTTP ${res.status}`)
     }
+
+    if (method === 'GET' && finalCacheConfig.enabled) {
+      const cacheKey = buildCacheKey(path)
+      setCache(cacheKey, data, { maxAge: finalCacheConfig.maxAge })
+    }
+
     return data as T
   } finally {
     _bumpLoading(-1)
@@ -83,7 +118,7 @@ async function request<T>(path: string, method: HttpMethod, body?: any, signal?:
 }
 
 export const http = {
-  get: <T>(path: string, signal?: AbortSignal) => request<T>(path, 'GET', undefined, signal),
+  get: <T>(path: string, signal?: AbortSignal, cacheConfig?: RequestCacheConfig) => request<T>(path, 'GET', undefined, signal, cacheConfig),
   post: <T>(path: string, body?: any, signal?: AbortSignal) => request<T>(path, 'POST', body, signal),
   put: <T>(path: string, body?: any, signal?: AbortSignal) => request<T>(path, 'PUT', body, signal),
   delete: <T>(path: string, body?: any, signal?: AbortSignal) => request<T>(path, 'DELETE', body, signal),

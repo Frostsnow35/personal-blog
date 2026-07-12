@@ -411,6 +411,13 @@ export const useProfileStore = defineStore('profile', () => {
       const data = await http.put<{ success: boolean; message?: string }>(`/profile`, payload)
 
       lastUpdated.value = Date.now()
+      
+      try {
+        profileCache.remove()
+      } catch {
+        // 清除旧缓存失败不影响主流程
+      }
+      
       profileCache.set(profile.value)
       isEditing.value = false
       validationErrors.value = []

@@ -67,6 +67,7 @@
 import { ref, onMounted } from 'vue'
 import { http } from '../utils/http'
 import { toast } from '../composables/useToast'
+import { blogCache } from '../utils/cache'
 
 interface Message {
   id: number
@@ -120,6 +121,12 @@ const approve = async (m: Message) => {
     if (r?.success) {
       toast.success('已通过')
       await load()
+      
+      try {
+        blogCache.clearCommentsCache()
+      } catch {
+        // 缓存清理失败不影响主流程
+      }
     } else {
       toast.error('操作失败', r?.message)
     }
@@ -135,6 +142,12 @@ const del = async (m: Message) => {
     if (r?.success) {
       toast.success('已删除')
       await load()
+      
+      try {
+        blogCache.clearCommentsCache()
+      } catch {
+        // 缓存清理失败不影响主流程
+      }
     } else {
       toast.error('删除失败', r?.message)
     }

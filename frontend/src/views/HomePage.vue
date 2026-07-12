@@ -319,7 +319,6 @@ import { useProfileStore } from '../stores/profile'
 import SiteNav from '../components/SiteNav.vue'
 import PublicSocialLinks from '../components/PublicSocialLinks.vue'
 import { http } from '../utils/http'
-import { blogCache } from '../utils/cache'
 
 interface PublishedPost {
   id: number
@@ -525,8 +524,6 @@ const fetchPublishedPosts = async () => {
       posts.value = newPosts
       totalPages.value = Number(result?.data?.pages || 1) || 1
       currentPage.value = Number(result?.data?.current_page || page) || page
-      // 写回缓存（仅缓存当前页的 items）
-      blogCache.setPosts(newPosts)
     }
   } catch (err) {
     if ((err as any)?.name === 'AbortError') return
@@ -545,11 +542,8 @@ const fetchPublishedPosts = async () => {
 const fetchPublishedCategories = async () => {
   try {
     const result = await http.get<any>('/categories/published')
-
     if (result.success) {
       categories.value = result.data
-      // 写回缓存
-      blogCache.setCategories(result.data)
     }
   } catch (err) {
     // 静默处理错误
@@ -559,11 +553,8 @@ const fetchPublishedCategories = async () => {
 const fetchPublishedTags = async () => {
   try {
     const result = await http.get<any>('/tags/published')
-
     if (result.success) {
       tags.value = result.data
-      // 写回缓存
-      blogCache.setTags(result.data)
     }
   } catch (err) {
     // 静默处理错误
@@ -571,19 +562,6 @@ const fetchPublishedTags = async () => {
 }
 
 onMounted(async () => {
-  // 同步读取缓存：命中即赋值，让 UI 跳过 loading 闪烁
-  const cachedPosts = blogCache.getPosts()
-  const cachedCategories = blogCache.getCategories()
-  const cachedTags = blogCache.getTags()
-  if (cachedPosts) {
-    // 注意：缓存里只是当前页的数据，不要清空 totalPages 标记
-    posts.value = cachedPosts
-    // 缓存命中时主动重置 loading，避免 watch(immediate) 触发的 fetch 期间的骨架屏闪烁
-    loading.value = false
-  }
-  if (cachedCategories) categories.value = cachedCategories
-  if (cachedTags) tags.value = cachedTags
-
   // 并行加载数据，优化性能
   const promises = [
     profileStore.loadProfile(),

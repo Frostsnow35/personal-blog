@@ -306,7 +306,7 @@ const fetchNavigationContext = async () => {
   if (!post.value) return
   try {
     const { http } = await import('../utils/http')
-    const res = await http.get<any>(`/posts/published?per_page=1000`)
+    const res = await http.get<any>(`/posts/published?per_page=1000`, undefined, { maxAge: 30 * 60 * 1000 })
     const items: Post[] = Array.isArray(res?.data?.items) ? res.data.items : []
     all_posts.value = items.slice()
 

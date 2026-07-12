@@ -40,12 +40,47 @@
             </div>
           </div>
 
-          <router-link
-            v-if="isAuthenticated"
-            to="/admin/dashboard"
-            class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors"
-            active-class="text-ocean-600 dark:text-ocean-400 font-medium"
-          >后台</router-link>
+          <div v-if="isAuthenticated" class="relative" @mouseenter="adminOpen = true" @mouseleave="adminOpen = false">
+            <button
+              class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors flex items-center gap-1"
+              :class="{ 'text-ocean-600 dark:text-ocean-400 font-medium': isAdminRoute }"
+            >
+              后台
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div
+              v-show="adminOpen"
+              class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-50"
+            >
+              <router-link
+                to="/admin/dashboard"
+                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                @click="adminOpen = false"
+              >📊 数据统计</router-link>
+              <router-link
+                to="/admin/posts"
+                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                @click="adminOpen = false"
+              >📝 文章管理</router-link>
+              <router-link
+                to="/admin/posts/new"
+                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                @click="adminOpen = false"
+              >➕ 新建文章</router-link>
+              <router-link
+                to="/admin/guestbook"
+                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                @click="adminOpen = false"
+              >💌 留言管理</router-link>
+              <router-link
+                to="/admin/albums"
+                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                @click="adminOpen = false"
+              >🖼 相册管理</router-link>
+            </div>
+          </div>
         </div>
 
         <!-- 移动端汉堡按钮 -->
@@ -98,6 +133,7 @@ import { useRoute } from 'vue-router'
 const route = useRoute()
 const mobileOpen = ref(false)
 const treasureOpen = ref(false)
+const adminOpen = ref(false)
 
 const topLevelItems = [
   { path: '/home', label: '首页' },
@@ -116,6 +152,7 @@ const treasureItems = [
 ]
 
 const isTreasureActive = computed(() => route.path.startsWith('/treasure'))
+const isAdminRoute = computed(() => route.path.startsWith('/admin'))
 
 const isAuthenticated = computed(() => {
   try { return !!localStorage.getItem('access_token') } catch { return false }

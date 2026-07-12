@@ -112,18 +112,30 @@
                     <span class="text-sm text-gray-500">{{ (metric as any).samples }} 次测试</span>
                   </div>
                   
-                  <div class="grid grid-cols-3 gap-4 text-sm">
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <span class="text-gray-500">平均值:</span>
-                      <span class="font-medium text-gray-900 dark:text-gray-100 ml-2">{{ (metric as any).avg }}</span>
+                      <span class="text-gray-500">有效平均值:</span>
+                      <span class="font-medium text-ocean-600 ml-2">{{ (metric as any).avg }}</span>
+                    </div>
+                    <div>
+                      <span class="text-gray-500">中位数:</span>
+                      <span class="font-medium text-gray-900 dark:text-gray-100 ml-2">{{ (metric as any).median }}</span>
                     </div>
                     <div>
                       <span class="text-gray-500">最小值:</span>
-                      <span class="font-medium text-gray-900 dark:text-gray-100 ml-2">{{ (metric as any).min }}</span>
+                      <span class="font-medium text-green-600 ml-2">{{ (metric as any).min }}</span>
                     </div>
                     <div>
                       <span class="text-gray-500">最大值:</span>
-                      <span class="font-medium text-gray-900 dark:text-gray-100 ml-2">{{ (metric as any).max }}</span>
+                      <span class="font-medium text-red-600 ml-2">{{ (metric as any).max }}</span>
+                    </div>
+                  </div>
+                  
+                  <div v-if="(metric as any).validSamples !== (metric as any).samples" class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div class="text-xs text-gray-500">
+                      <span>有效样本: {{ (metric as any).validSamples }} / {{ (metric as any).samples }}</span>
+                      <span class="ml-4">去除最高: {{ (metric as any).droppedHigh }}</span>
+                      <span class="ml-4">去除最低: {{ (metric as any).droppedLow }}</span>
                     </div>
                   </div>
                 </div>
