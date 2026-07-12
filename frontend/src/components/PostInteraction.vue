@@ -91,6 +91,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { http } from '../utils/http'
+import { toast } from '../composables/useToast'
 
 const props = defineProps<{
   postId: number
@@ -170,7 +171,7 @@ const shareToPlatform = (platform: { name: string }) => {
   switch (platform.name) {
     case 'wechat':
       showShareMenu.value = false
-      alert('请使用浏览器分享功能或复制链接发送给好友')
+      toast.info('分享提示', '请使用浏览器分享功能或复制链接发送给好友')
       return
     case 'weibo':
       shareUrl = `https://service.weibo.com/share/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`
@@ -193,7 +194,7 @@ const copyLink = async () => {
   try {
     await navigator.clipboard.writeText(window.location.href)
     showShareMenu.value = false
-    alert('链接已复制到剪贴板')
+    toast.success('链接已复制')
   } catch {
     const textarea = document.createElement('textarea')
     textarea.value = window.location.href
@@ -202,7 +203,7 @@ const copyLink = async () => {
     document.execCommand('copy')
     document.body.removeChild(textarea)
     showShareMenu.value = false
-    alert('链接已复制到剪贴板')
+    toast.success('链接已复制')
   }
 }
 
