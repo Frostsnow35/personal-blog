@@ -63,15 +63,28 @@ const form = ref<any>({
 })
 const tagsInput = ref('')
 
+function djb2(s: string): number {
+  // 32-bit djb2 哈希，与后端 _djb2 保持一致
+  let h = 5381
+  const bytes = new TextEncoder().encode(s || '')
+  for (const b of bytes) {
+    h = ((h * 33) + b) & 0xffffffff
+  }
+  return h >>> 0
+}
+
 function slugify(title: string): string {
   // 与后端 _slugify 保持一致：
-  // 保留 Unicode 字母/数字（含中文），其它字符替换为 '-'
-  // 截断到 100 字符
+  // 仅保留 ASCII 字母/数字（剥离中文/全角），其他字符替为 '-'
   let base = (title || '')
-    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '')
-  if (!base) base = 'post'
+  if (!base) {
+    // 全部为非 ASCII（如纯中文），用 djb2 哈希生成稳定的短后缀
+    const h = djb2((title || '').trim())
+    base = `post-${h.toString(16).padStart(6, '0')}`
+  }
   if (base.length > 100) {
     base = base.slice(0, 100).replace(/-+$/, '') || 'post'
   }

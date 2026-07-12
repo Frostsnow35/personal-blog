@@ -1,6 +1,6 @@
 <template>
   <div class="tiptap-editor-wrapper">
-    <div class="flex items-center gap-2 p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-t-lg">
+    <div class="flex flex-wrap items-center gap-1 p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-t-lg">
       <button
         v-for="tool in tools"
         :key="tool.name"
@@ -17,11 +17,10 @@
           <path :d="tool.icon" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
         </svg>
       </button>
-      <div class="flex-1"></div>
       <button
         @click="toggleMarkdownMode"
         :class="[
-          'px-3 py-1 text-sm rounded transition-colors',
+          'ml-auto px-3 py-1 text-sm rounded transition-colors shrink-0',
           markdownMode ? 'bg-ocean-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
         ]"
       >

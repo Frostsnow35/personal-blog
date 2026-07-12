@@ -474,12 +474,15 @@ def jwt_required_admin(fn):
 
 
 def _slugify(title: str) -> str:
-    # 保留 Unicode 字母/数字（含中文），其它字符替换为 '-'
-    # Python 3 的 str.isalnum() 已 Unicode 感知，自动处理中文/日文/韩文等
-    base = ''.join(ch if str.isalnum(ch) else '-' for ch in (title or '').strip())
+    # 仅保留 ASCII 字母/数字（剥离 CJK / 全角字符），其他字符替换为 '-'
+    base = ''.join(ch if (ch.isascii() and ch.isalnum()) else '-' for ch in (title or '').strip())
     while '--' in base:
         base = base.replace('--', '-')
-    base = base.strip('-') or 'post'
+    base = base.strip('-')
+    if not base:
+        # 全部为非 ASCII 时（如纯中文），使用 djb2 哈希生成稳定的短后缀
+        h = _djb2((title or '').strip())
+        base = f'post-{h:06x}'
     # 截断到 100 字符（DB 字段 220，保留余量）
     if len(base) > 100:
         base = base[:100].rstrip('-') or 'post'
@@ -492,6 +495,14 @@ def _slugify(title: str) -> str:
         # 拼上后缀再截断，确保总长不超 220
         candidate = f"{base[: 220 - len(suffix)]}{suffix}"
     return candidate
+
+
+def _djb2(s: str) -> int:
+    """32-bit djb2 哈希，与前端 slugify 保持一致，用于非 ASCII 标题的稳定后缀"""
+    h = 5381
+    for c in (s or '').encode('utf-8'):
+        h = ((h * 33) + c) & 0xFFFFFFFF
+    return h
 
 
 # 管理文章列表
@@ -573,8 +584,8 @@ def admin_create_post():
     if len(data.get('excerpt') or '') > 500:
         return jsonify({'success': False, 'message': '摘要过长(<=500)'}), 400
     import re
-    if not re.match(r'^[^\W_]+(?:-[^\W_]+)*$', slug):
-        return jsonify({'success': False, 'message': 'slug 格式仅允许字母、数字及中划线'}), 400
+    if not re.match(r'^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$', slug):
+        return jsonify({'success': False, 'message': 'slug 格式仅允许字母、数字及中划线（不可含中文）'}), 400
     if Post.query.filter_by(slug=slug).first():
         return jsonify({'success': False, 'message': 'slug 已存在'}), 400
 
@@ -614,8 +625,8 @@ def admin_update_post(post_id):
         if 'slug' in data:
             new_slug = (data.get('slug') or '').strip() or _slugify(p.title)
             import re
-            if not re.match(r'^[^\W_]+(?:-[^\W_]+)*$', new_slug):
-                return jsonify({'success': False, 'message': 'slug 格式仅允许字母、数字及中划线'}), 400
+            if not re.match(r'^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$', new_slug):
+                return jsonify({'success': False, 'message': 'slug 格式仅允许字母、数字及中划线（不可含中文）'}), 400
             if new_slug != p.slug and Post.query.filter_by(slug=new_slug).first():
                 return jsonify({'success': False, 'message': 'slug 已存在'}), 400
             p.slug = new_slug
