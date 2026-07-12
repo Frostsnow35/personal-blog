@@ -300,6 +300,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { toast } from '../composables/useToast'
 
 const router = useRouter()
 
@@ -314,42 +315,42 @@ const logout = () => {
 // 显示性能监控
 const showPerformanceMonitor = () => {
   window.dispatchEvent(new CustomEvent('showPerformanceMonitor'))
-  alert('性能监控已显示！')
+  toast.success('性能监控已显示')
 }
 
 // 检查系统状态
 const checkSystemStatus = () => {
-  alert('系统状态检查功能开发中...')
+  toast.info('功能开发中', '该功能即将上线')
 }
 
 // 导出性能数据
 const exportPerformanceData = () => {
   // 这里可以调用性能监控系统导出数据
-  alert('性能数据导出功能开发中...')
+  toast.info('功能开发中', '该功能即将上线')
 }
 
 // 修改密码
 const changePassword = () => {
-  alert('修改密码功能开发中...')
+  toast.info('功能开发中', '该功能即将上线')
 }
 
 // 查看统计数据
 const viewAnalytics = () => {
-  alert('数据统计功能开发中...')
+  toast.info('功能开发中', '该功能即将上线')
 }
 
 // 生成报告
 const generateReport = () => {
-  alert('报告生成功能开发中...')
+  toast.info('功能开发中', '该功能即将上线')
 }
 
 // 打开设置
 const openSettings = () => {
-  alert('系统设置功能开发中...')
+  toast.info('功能开发中', '该功能即将上线')
 }
 
 // 备份数据
 const backupData = () => {
-  alert('数据备份功能开发中...')
+  toast.info('功能开发中', '该功能即将上线')
 }
 </script>
