@@ -43,11 +43,12 @@
           ></textarea>
           <div class="flex items-center justify-between">
             <span class="text-xs text-gray-500 dark:text-gray-400">{{ form.content.length }} / 1000</span>
-            <button
-              :disabled="submitting"
+            <LoadingButton
+              :loading="submitting"
+              loading-text="提交中…"
               @click="submit"
-              class="px-5 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg transition-colors disabled:opacity-50"
-            >{{ submitting ? '提交中…' : '提交留言' }}</button>
+              class="px-5 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg transition-colors"
+            >提交留言</LoadingButton>
           </div>
         </div>
       </div>
@@ -103,7 +104,9 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
 import { http } from '../utils/http'
+import { toast } from '../composables/useToast'
 import SiteNav from '../components/SiteNav.vue'
+import LoadingButton from '../components/LoadingButton.vue'
 
 interface Message {
   id: number
@@ -163,11 +166,11 @@ const loadPostOptions = async () => {
 const submit = async () => {
   if (submitting.value) return
   if (!form.author_name.trim()) {
-    alert('请填写昵称')
+    toast.warning('请填写昵称')
     return
   }
   if (!form.content.trim()) {
-    alert('请填写留言内容')
+    toast.warning('请填写留言内容')
     return
   }
   submitting.value = true
@@ -179,14 +182,14 @@ const submit = async () => {
       referenced_post_id: form.referenced_post_id,
     })
     if (r?.success) {
-      alert(r.message || '留言已提交，等待审核')
+      toast.success('留言已提交', r.message || '等待审核中')
       form.content = ''
       form.referenced_post_id = null
     } else {
-      alert(r?.message || '提交失败')
+      toast.error('提交失败', r?.message || '请稍后重试')
     }
   } catch (e: any) {
-    alert(e?.message || '提交失败')
+    toast.error('提交失败', e?.message || '请稍后重试')
   } finally {
     submitting.value = false
   }
