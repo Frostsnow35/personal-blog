@@ -78,6 +78,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { http } from '../utils/http'
+import { toast } from '../composables/useToast'
 
 interface FriendLink {
   id: number
@@ -114,7 +115,7 @@ const openEdit = (f: FriendLink) => {
 
 const save = async () => {
   if (!editing.value.name?.trim() || !editing.value.url?.trim()) {
-    alert('名称和链接必填')
+    toast.warning('名称和链接必填')
     return
   }
   const payload = {
@@ -134,9 +135,9 @@ const save = async () => {
       r = await http.post<any>('/admin/friend-links', payload)
     }
     if (r?.success) { editing.value = null; await load() }
-    else alert(r?.message || '保存失败')
+    else toast.error('保存失败', r?.message)
   } catch (e: any) {
-    alert(e?.message || '保存失败')
+    toast.error('保存失败', e?.message)
   }
 }
 
@@ -144,10 +145,10 @@ const del = async (f: FriendLink) => {
   if (!confirm(`删除 "${f.name}"？`)) return
   try {
     const r = await http.delete<any>(`/admin/friend-links/${f.id}`)
-    if (r?.success) await load()
-    else alert(r?.message || '删除失败')
+    if (r?.success) { toast.success('已删除'); await load() }
+    else toast.error('删除失败', r?.message)
   } catch (e: any) {
-    alert(e?.message || '删除失败')
+    toast.error('删除失败', e?.message)
   }
 }
 
