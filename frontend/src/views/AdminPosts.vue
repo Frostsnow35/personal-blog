@@ -65,6 +65,7 @@
 import { ref, onMounted } from 'vue'
 import { http } from '../utils/http'
 import { useRouter } from 'vue-router'
+import { toast } from '../composables/useToast'
 
 const items = ref<any[]>([])
 const page = ref(1)
@@ -93,10 +94,10 @@ const remove = async (id: number) => {
   if (!confirm('确认删除该文章？此操作不可撤销。')) return
   try {
     await http.delete<{ success: boolean; message?: string }>(`/admin/posts/${id}`)
-    alert('删除成功')
+    toast.success('已删除')
     await load()
   } catch (err: any) {
-    alert(`删除失败：${err.message || '未知错误'}`)
+    toast.error('删除失败', err.message || '未知错误')
   }
 }
 
