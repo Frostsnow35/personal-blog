@@ -6,12 +6,25 @@
       <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 text-center">📷 相册</h1>
       <p class="text-center text-gray-500 dark:text-gray-400 mb-8">记录生活的瞬间</p>
 
-      <div v-if="loading" class="text-center py-12 text-gray-500">加载中…</div>
+      <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div
+          v-for="i in 6"
+          :key="`skeleton-album-${i}`"
+          class="card overflow-hidden"
+        >
+          <div class="skeleton w-full" style="aspect-ratio: 4/3;"></div>
+          <div class="p-4 space-y-2">
+            <div class="skeleton h-5 w-2/3"></div>
+            <div class="skeleton h-4 w-full"></div>
+            <div class="skeleton h-3 w-1/3"></div>
+          </div>
+        </div>
+      </div>
       <div v-else-if="!albums.length" class="text-center py-16 text-gray-500 dark:text-gray-400">
         <p class="text-5xl mb-2">🖼️</p>
         <p>暂无相册</p>
       </div>
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <TransitionGroup v-else name="list" tag="div" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <router-link
           v-for="a in albums"
           :key="a.id"
@@ -34,7 +47,7 @@
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">📸 {{ a.photo_count }} 张</p>
           </div>
         </router-link>
-      </div>
+      </TransitionGroup>
     </div>
   </div>
 </template>
