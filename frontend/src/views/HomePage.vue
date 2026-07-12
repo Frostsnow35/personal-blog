@@ -27,11 +27,41 @@
 
           <!-- 文章列表 -->
           <div class="space-y-6">
-            <article 
-              v-for="post in filteredPosts" 
-              :key="post.id"
-              class="card hover:shadow-xl transition-all duration-300 group"
+            <!-- 加载骨架屏 -->
+            <div
+              v-for="i in (loading && posts.length === 0 ? 3 : 0)"
+              :key="`skeleton-post-${i}`"
+              class="card"
             >
+              <div class="skeleton w-full rounded-t-xl" style="aspect-ratio: 16/9;"></div>
+              <div class="p-6 space-y-4">
+                <div class="skeleton h-7 w-3/4"></div>
+                <div class="space-y-2">
+                  <div class="skeleton h-4 w-full"></div>
+                  <div class="skeleton h-4 w-5/6"></div>
+                </div>
+                <div class="flex items-center justify-between pt-2">
+                  <div class="flex items-center gap-4">
+                    <div class="skeleton h-4 w-20"></div>
+                    <div class="skeleton h-4 w-16"></div>
+                    <div class="skeleton h-4 w-12"></div>
+                    <div class="skeleton h-4 w-10"></div>
+                  </div>
+                  <div class="skeleton h-6 w-16"></div>
+                </div>
+                <div class="flex gap-2">
+                  <div class="skeleton h-5 w-12"></div>
+                  <div class="skeleton h-5 w-16"></div>
+                </div>
+              </div>
+            </div>
+
+            <TransitionGroup name="list" tag="div" class="space-y-6">
+              <article
+                v-for="post in filteredPosts"
+                :key="post.id"
+                class="card hover:shadow-xl transition-all duration-300 group"
+              >
               <!-- 封面图（有则显示），懒加载，保持比例避免布局抖动 -->
               <div v-if="post.cover_url" class="w-full overflow-hidden rounded-t-xl">
                 <div class="relative w-full" style="aspect-ratio: 16/9;">
@@ -106,6 +136,7 @@
                 </div>
               </div>
             </article>
+            </TransitionGroup>
 
             <div
               v-if="!loading && !error && filteredPosts.length > 0 && totalPages > 1"
@@ -148,12 +179,6 @@
               >
                 清除筛选
               </button>
-            </div>
-
-            <!-- 加载状态 -->
-            <div v-if="loading" class="text-center py-12">
-              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-ocean-600 mx-auto"></div>
-              <p class="mt-4 text-gray-600 dark:text-gray-400">正在加载文章...</p>
             </div>
 
             <!-- 错误状态 -->
@@ -225,7 +250,7 @@
           <div class="card mb-6">
             <div class="p-6">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">分类</h3>
-              <div class="space-y-2">
+              <TransitionGroup name="list" tag="div" class="space-y-2">
                 <button
                   v-for="category in categories"
                   :key="category.name"
@@ -244,7 +269,7 @@
                     </span>
                   </span>
                 </button>
-              </div>
+              </TransitionGroup>
             </div>
           </div>
 
@@ -252,7 +277,7 @@
           <div class="card mb-6">
             <div class="p-6">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">标签</h3>
-              <div class="flex flex-wrap gap-2">
+              <TransitionGroup name="list" tag="div" class="flex flex-wrap gap-2">
                 <button
                   v-for="tag in tags"
                   :key="tag.name"
@@ -266,7 +291,7 @@
                 >
                   {{ tag.name }}
                 </button>
-              </div>
+              </TransitionGroup>
             </div>
           </div>
 
