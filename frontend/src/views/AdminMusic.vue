@@ -54,6 +54,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { http } from '../utils/http'
+import { toast } from '../composables/useToast'
 
 interface Music {
   id: number
@@ -91,7 +92,7 @@ const openEdit = (m: Music) => {
 
 const save = async () => {
   if (!editing.value.title?.trim() || !editing.value.source_url?.trim()) {
-    alert('标题和链接必填')
+    toast.warning('标题和链接必填')
     return
   }
   const tags = (editing.value.tagsText || '').split(',').map((s: string) => s.trim()).filter(Boolean)
@@ -113,9 +114,9 @@ const save = async () => {
       r = await http.post<any>('/admin/music-favorites', payload)
     }
     if (r?.success) { editing.value = null; await load() }
-    else alert(r?.message || '保存失败')
+    else toast.error('保存失败', r?.message)
   } catch (e: any) {
-    alert(e?.message || '保存失败')
+    toast.error('保存失败', e?.message)
   }
 }
 
@@ -123,10 +124,10 @@ const del = async (m: Music) => {
   if (!confirm(`删除 "${m.title}"？`)) return
   try {
     const r = await http.delete<any>(`/admin/music-favorites/${m.id}`)
-    if (r?.success) await load()
-    else alert(r?.message || '删除失败')
+    if (r?.success) { toast.success('已删除'); await load() }
+    else toast.error('删除失败', r?.message)
   } catch (e: any) {
-    alert(e?.message || '删除失败')
+    toast.error('删除失败', e?.message)
   }
 }
 
