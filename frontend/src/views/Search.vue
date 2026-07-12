@@ -41,7 +41,8 @@
           </div>
 
           <div class="space-y-6">
-            <article v-for="post in results" :key="post.id" class="card hover:shadow-xl transition-all duration-300 group">
+            <TransitionGroup name="list" tag="div" class="space-y-6">
+              <article v-for="post in results" :key="post.id" class="card hover:shadow-xl transition-all duration-300 group">
               <div v-if="post.cover_url" class="w-full overflow-hidden rounded-t-xl">
                 <div class="relative w-full" style="aspect-ratio: 16/9;">
                   <img
@@ -96,6 +97,34 @@
                 </div>
               </div>
             </article>
+            </TransitionGroup>
+
+            <div
+              v-if="loading && results.length === 0"
+              class="space-y-6"
+            >
+              <div
+                v-for="i in 3"
+                :key="`skeleton-search-${i}`"
+                class="card"
+              >
+                <div class="skeleton w-full rounded-t-xl" style="aspect-ratio: 16/9;"></div>
+                <div class="p-6 space-y-4">
+                  <div class="skeleton h-7 w-3/4"></div>
+                  <div class="space-y-2">
+                    <div class="skeleton h-4 w-full"></div>
+                    <div class="skeleton h-4 w-5/6"></div>
+                  </div>
+                  <div class="flex items-center justify-between pt-2">
+                    <div class="flex items-center gap-4">
+                      <div class="skeleton h-4 w-20"></div>
+                      <div class="skeleton h-4 w-16"></div>
+                    </div>
+                    <div class="skeleton h-6 w-16"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div v-if="!loading && !error && results.length > 0 && totalPages > 1" class="flex items-center justify-between pt-2">
               <button
@@ -134,11 +163,6 @@
               </button>
             </div>
 
-            <div v-if="loading" class="text-center py-12">
-              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-ocean-600 mx-auto"></div>
-              <p class="mt-4 text-gray-600 dark:text-gray-400">正在搜索...</p>
-            </div>
-
             <div v-if="error && !loading" class="text-center py-12">
               <div class="text-red-500 text-6xl mb-4">⚠️</div>
               <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">搜索失败</h2>
@@ -154,7 +178,7 @@
           <div class="card mb-6">
             <div class="p-6">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">分类</h3>
-              <div class="space-y-2">
+              <TransitionGroup name="list" tag="div" class="space-y-2">
                 <button
                   v-for="c in categories"
                   :key="c.name"
@@ -171,14 +195,14 @@
                     <span class="text-xs bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-full">{{ c.count }}</span>
                   </span>
                 </button>
-              </div>
+              </TransitionGroup>
             </div>
           </div>
 
           <div class="card mb-6">
             <div class="p-6">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">标签</h3>
-              <div class="flex flex-wrap gap-2">
+              <TransitionGroup name="list" tag="div" class="flex flex-wrap gap-2">
                 <button
                   v-for="t in tags"
                   :key="t.name"
@@ -190,7 +214,7 @@
                 >
                   {{ t.name }}
                 </button>
-              </div>
+              </TransitionGroup>
             </div>
           </div>
 
