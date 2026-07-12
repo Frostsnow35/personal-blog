@@ -54,12 +54,30 @@
       </div>
 
       <!-- 留言列表 -->
-      <div v-if="loading" class="text-center py-10 text-gray-500">加载中…</div>
+      <div v-if="loading" class="space-y-4">
+        <div
+          v-for="i in 3"
+          :key="`skeleton-message-${i}`"
+          class="card p-5"
+        >
+          <div class="flex items-start gap-3">
+            <div class="skeleton w-10 h-10 rounded-full flex-shrink-0"></div>
+            <div class="flex-1 min-w-0 space-y-2">
+              <div class="flex items-center gap-2">
+                <div class="skeleton h-4 w-20"></div>
+                <div class="skeleton h-3 w-24"></div>
+              </div>
+              <div class="skeleton h-4 w-full"></div>
+              <div class="skeleton h-4 w-5/6"></div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div v-else-if="!messages.length" class="text-center py-12 text-gray-500 dark:text-gray-400">
         <p class="text-4xl mb-2">💭</p>
         <p>还没有留言，来说第一句吧～</p>
       </div>
-      <div v-else class="space-y-4">
+      <TransitionGroup v-else name="list" tag="div" class="space-y-4">
         <div
           v-for="m in messages"
           :key="m.id"
@@ -83,19 +101,19 @@
             </div>
           </div>
         </div>
-        <div v-if="total > perPage" class="flex justify-center gap-2 pt-2">
-          <button
-            :disabled="page <= 1"
-            @click="page--; load()"
-            class="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded disabled:opacity-50"
-          >上一页</button>
-          <span class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400">{{ page }} / {{ Math.ceil(total / perPage) }}</span>
-          <button
-            :disabled="page * perPage >= total"
-            @click="page++; load()"
-            class="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded disabled:opacity-50"
-          >下一页</button>
-        </div>
+      </TransitionGroup>
+      <div v-if="total > perPage" class="flex justify-center gap-2 pt-2">
+        <button
+          :disabled="page <= 1"
+          @click="page--; load()"
+          class="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded disabled:opacity-50"
+        >上一页</button>
+        <span class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400">{{ page }} / {{ Math.ceil(total / perPage) }}</span>
+        <button
+          :disabled="page * perPage >= total"
+          @click="page++; load()"
+          class="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded disabled:opacity-50"
+        >下一页</button>
       </div>
     </div>
   </div>
