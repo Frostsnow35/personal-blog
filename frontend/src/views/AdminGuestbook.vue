@@ -66,6 +66,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { http } from '../utils/http'
+import { toast } from '../composables/useToast'
 
 interface Message {
   id: number
@@ -117,12 +118,13 @@ const approve = async (m: Message) => {
   try {
     const r = await http.put<any>(`/admin/guestbook/messages/${m.id}/approve`)
     if (r?.success) {
+      toast.success('已通过')
       await load()
     } else {
-      alert(r?.message || '操作失败')
+      toast.error('操作失败', r?.message)
     }
   } catch (e: any) {
-    alert(e?.message || '操作失败')
+    toast.error('操作失败', e?.message)
   }
 }
 
@@ -131,12 +133,13 @@ const del = async (m: Message) => {
   try {
     const r = await http.delete<any>(`/admin/guestbook/messages/${m.id}`)
     if (r?.success) {
+      toast.success('已删除')
       await load()
     } else {
-      alert(r?.message || '删除失败')
+      toast.error('删除失败', r?.message)
     }
   } catch (e: any) {
-    alert(e?.message || '删除失败')
+    toast.error('删除失败', e?.message)
   }
 }
 
