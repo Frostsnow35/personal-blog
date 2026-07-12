@@ -29,19 +29,23 @@
             </button>
             <div
               v-show="treasureOpen"
-              class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-50"
+              class="absolute right-0 top-full pt-2 w-48 z-50"
             >
-              <router-link
-                v-for="item in treasureItems"
-                :key="item.path"
-                :to="item.path"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-              >{{ item.label }}</router-link>
+              <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
+                <router-link
+                  v-for="item in treasureItems"
+                  :key="item.path"
+                  :to="item.path"
+                  class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                  @click="treasureOpen = false"
+                >{{ item.label }}</router-link>
+              </div>
             </div>
           </div>
 
           <div v-if="isAuthenticated" class="relative" @mouseenter="adminOpen = true" @mouseleave="adminOpen = false">
             <button
+              @click="goAdmin"
               class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors flex items-center gap-1"
               :class="{ 'text-ocean-600 dark:text-ocean-400 font-medium': isAdminRoute }"
             >
@@ -52,33 +56,35 @@
             </button>
             <div
               v-show="adminOpen"
-              class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-50"
+              class="absolute right-0 top-full pt-2 w-48 z-50"
             >
-              <router-link
-                to="/admin/dashboard"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                @click="adminOpen = false"
-              >📊 数据统计</router-link>
-              <router-link
-                to="/admin/posts"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                @click="adminOpen = false"
-              >📝 文章管理</router-link>
-              <router-link
-                to="/admin/posts/new"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                @click="adminOpen = false"
-              >➕ 新建文章</router-link>
-              <router-link
-                to="/admin/guestbook"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                @click="adminOpen = false"
-              >💌 留言管理</router-link>
-              <router-link
-                to="/admin/albums"
-                class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                @click="adminOpen = false"
-              >🖼 相册管理</router-link>
+              <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
+                <router-link
+                  to="/admin/dashboard"
+                  class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                  @click="adminOpen = false"
+                >📊 数据统计</router-link>
+                <router-link
+                  to="/admin/posts"
+                  class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                  @click="adminOpen = false"
+                >📝 文章管理</router-link>
+                <router-link
+                  to="/admin/posts/new"
+                  class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                  @click="adminOpen = false"
+                >➕ 新建文章</router-link>
+                <router-link
+                  to="/admin/guestbook"
+                  class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                  @click="adminOpen = false"
+                >💌 留言管理</router-link>
+                <router-link
+                  to="/admin/albums"
+                  class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                  @click="adminOpen = false"
+                >🖼 相册管理</router-link>
+              </div>
             </div>
           </div>
         </div>
@@ -128,12 +134,18 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const mobileOpen = ref(false)
 const treasureOpen = ref(false)
 const adminOpen = ref(false)
+
+const goAdmin = () => {
+  adminOpen.value = false
+  router.push('/admin/dashboard')
+}
 
 const topLevelItems = [
   { path: '/home', label: '首页' },
