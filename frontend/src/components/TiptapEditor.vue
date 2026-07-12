@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, watch, onBeforeUnmount, computed } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
@@ -76,54 +76,77 @@ const emit = defineEmits<{
   (e: 'save'): void
 }>()
 
-const editor = ref<any>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const markdownMode = ref(false)
 const markdownContent = ref(props.modelValue)
 const saveStatus = ref('')
 
-const markdown = computed({
-  get: () => props.modelValue,
-  set: (value: string) => {
-    emit('update:modelValue', value)
-  }
+const editor = useEditor({
+  content: props.modelValue,
+  extensions: [
+    StarterKit,
+    Link.configure({
+      openOnClick: false,
+    }),
+    Image.configure({
+      inline: true,
+    }),
+    Placeholder.configure({
+      placeholder: '在此输入内容...',
+    }),
+    Markdown.configure({
+      html: true,
+    }),
+  ],
+  onUpdate: ({ editor }) => {
+    if (!markdownMode.value) {
+      const mdStorage = (editor.storage as any).markdown
+      if (mdStorage?.getMarkdown) {
+        emit('update:modelValue', mdStorage.getMarkdown())
+      } else {
+        emit('update:modelValue', editor.getHTML())
+      }
+      emit('save')
+    }
+  },
 })
 
 const tools = computed(() => {
-  if (!editor.value) return []
+  const ed = editor.value
+  if (!ed) return []
   return [
-    { name: 'h1', title: '标题1', icon: 'M17 8h2a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V10a2 2 0 012-2h2m2 4h6m2 4H9m-8 4h10', action: () => editor.value.chain().focus().toggleHeading({ level: 1 }).run(), active: editor.value.isActive('heading', { level: 1 }) },
-    { name: 'h2', title: '标题2', icon: 'M17 8h2a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V10a2 2 0 012-2h2m2 4h6m2 4H9m-8 4h10', action: () => editor.value.chain().focus().toggleHeading({ level: 2 }).run(), active: editor.value.isActive('heading', { level: 2 }) },
-    { name: 'h3', title: '标题3', icon: 'M17 8h2a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V10a2 2 0 012-2h2m2 4h6m2 4H9m-8 4h10', action: () => editor.value.chain().focus().toggleHeading({ level: 3 }).run(), active: editor.value.isActive('heading', { level: 3 }) },
-    { name: 'bold', title: '粗体', icon: 'M14 17h5m-5 4v-5m-5 4h5m-1 5v-1a3 3 0 01-3-3H6a3 3 0 01-3-3V8a3 3 0 013-3h7a3 3 0 013 3v8a3 3 0 01-3 3h-1', action: () => editor.value.chain().focus().toggleBold().run(), active: editor.value.isActive('bold') },
-    { name: 'italic', title: '斜体', icon: 'M14 17h5m-5 4v-5m-5 4h5m-1 5v-1a3 3 0 01-3-3H6a3 3 0 01-3-3V8a3 3 0 013-3h7a3 3 0 013 3v8a3 3 0 01-3 3h-1', action: () => editor.value.chain().focus().toggleItalic().run(), active: editor.value.isActive('italic') },
-    { name: 'strike', title: '删除线', icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4', action: () => editor.value.chain().focus().toggleStrike().run(), active: editor.value.isActive('strike') },
-    { name: 'bullet', title: '无序列表', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16', action: () => editor.value.chain().focus().toggleBulletList().run(), active: editor.value.isActive('bulletList') },
-    { name: 'numbered', title: '有序列表', icon: 'M12 6v6m0 0v6m0-6h6m-6 0H6', action: () => editor.value.chain().focus().toggleOrderedList().run(), active: editor.value.isActive('orderedList') },
-    { name: 'blockquote', title: '引用', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', action: () => editor.value.chain().focus().toggleBlockquote().run(), active: editor.value.isActive('blockquote') },
-    { name: 'code', title: '代码', icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4', action: () => editor.value.chain().focus().toggleCode().run(), active: editor.value.isActive('code') },
-    { name: 'codeblock', title: '代码块', icon: 'M14 5l7 7m0 0l-7 7m7-7H3', action: () => editor.value.chain().focus().toggleCodeBlock().run(), active: editor.value.isActive('codeBlock') },
+    { name: 'h1', title: '标题1', icon: 'M17 8h2a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V10a2 2 0 012-2h2m2 4h6m2 4H9m-8 4h10', action: () => ed.chain().focus().toggleHeading({ level: 1 }).run(), active: ed.isActive('heading', { level: 1 }) },
+    { name: 'h2', title: '标题2', icon: 'M17 8h2a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V10a2 2 0 012-2h2m2 4h6m2 4H9m-8 4h10', action: () => ed.chain().focus().toggleHeading({ level: 2 }).run(), active: ed.isActive('heading', { level: 2 }) },
+    { name: 'h3', title: '标题3', icon: 'M17 8h2a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V10a2 2 0 012-2h2m2 4h6m2 4H9m-8 4h10', action: () => ed.chain().focus().toggleHeading({ level: 3 }).run(), active: ed.isActive('heading', { level: 3 }) },
+    { name: 'bold', title: '粗体', icon: 'M14 17h5m-5 4v-5m-5 4h5m-1 5v-1a3 3 0 01-3-3H6a3 3 0 01-3-3V8a3 3 0 013-3h7a3 3 0 013 3v8a3 3 0 01-3 3h-1', action: () => ed.chain().focus().toggleBold().run(), active: ed.isActive('bold') },
+    { name: 'italic', title: '斜体', icon: 'M14 17h5m-5 4v-5m-5 4h5m-1 5v-1a3 3 0 01-3-3H6a3 3 0 01-3-3V8a3 3 0 013-3h7a3 3 0 013 3v8a3 3 0 01-3 3h-1', action: () => ed.chain().focus().toggleItalic().run(), active: ed.isActive('italic') },
+    { name: 'strike', title: '删除线', icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4', action: () => ed.chain().focus().toggleStrike().run(), active: ed.isActive('strike') },
+    { name: 'bullet', title: '无序列表', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16', action: () => ed.chain().focus().toggleBulletList().run(), active: ed.isActive('bulletList') },
+    { name: 'numbered', title: '有序列表', icon: 'M12 6v6m0 0v6m0-6h6m-6 0H6', action: () => ed.chain().focus().toggleOrderedList().run(), active: ed.isActive('orderedList') },
+    { name: 'blockquote', title: '引用', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', action: () => ed.chain().focus().toggleBlockquote().run(), active: ed.isActive('blockquote') },
+    { name: 'code', title: '代码', icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4', action: () => ed.chain().focus().toggleCode().run(), active: ed.isActive('code') },
+    { name: 'codeblock', title: '代码块', icon: 'M14 5l7 7m0 0l-7 7m7-7H3', action: () => ed.chain().focus().toggleCodeBlock().run(), active: ed.isActive('codeBlock') },
     { name: 'image', title: '插入图片', icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z', action: () => fileInput.value?.click() },
     { name: 'link', title: '插入链接', icon: 'M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14', action: () => {
-      const previousUrl = editor.value.getAttributes('link').href
+      const previousUrl = ed.getAttributes('link').href
       const url = window.prompt('请输入链接地址', previousUrl)
       if (url === null) return
       if (url === '') {
-        editor.value.chain().focus().extendMarkRange('link').unsetLink().run()
+        ed.chain().focus().extendMarkRange('link').unsetLink().run()
         return
       }
-      editor.value.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
-    }, active: editor.value.isActive('link') },
-    { name: 'hr', title: '分割线', icon: 'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z', action: () => editor.value.chain().focus().setHorizontalRule().run() },
-    { name: 'undo', title: '撤销', icon: 'M3 10h10a5 5 0 015 5v2M3 10l6 6m-6-6l6-6', action: () => editor.value.chain().focus().undo().run() },
-    { name: 'redo', title: '重做', icon: 'M21 10h-10a5 5 0 00-5 5v2M21 10l-6 6m6-6l-6-6', action: () => editor.value.chain().focus().redo().run() },
+      ed.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    }, active: ed.isActive('link') },
+    { name: 'hr', title: '分割线', icon: 'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z', action: () => ed.chain().focus().setHorizontalRule().run() },
+    { name: 'undo', title: '撤销', icon: 'M3 10h10a5 5 0 015 5v2M3 10l6 6m-6-6l6-6', action: () => ed.chain().focus().undo().run() },
+    { name: 'redo', title: '重做', icon: 'M21 10h-10a5 5 0 00-5 5v2M21 10l-6 6m6-6l-6-6', action: () => ed.chain().focus().redo().run() },
   ]
 })
 
 const toggleMarkdownMode = () => {
   markdownMode.value = !markdownMode.value
   if (!markdownMode.value && editor.value) {
-    editor.value.commands.setContent(markdownContent.value)
+    editor.value.commands.setContent(markdownContent.value || '')
   }
 }
 
@@ -143,7 +166,7 @@ const handleImageUpload = async (event: Event) => {
     fd.append('file', file)
     const res = await http.upload<{ success: boolean; data: { url: string } }>('/admin/upload', fd)
     if (res.success && res.data?.url) {
-      editor.value.chain().focus().setImage({ src: res.data.url }).run()
+      editor.value?.chain().focus().setImage({ src: res.data.url }).run()
       saveStatus.value = '图片上传成功'
     } else {
       saveStatus.value = '图片上传失败'
@@ -155,43 +178,12 @@ const handleImageUpload = async (event: Event) => {
   input.value = ''
 }
 
-onMounted(() => {
-  editor.value = useEditor({
-    content: props.modelValue,
-    extensions: [
-      StarterKit,
-      Link.configure({
-        openOnClick: false,
-      }),
-      Image.configure({
-        inline: true,
-      }),
-      Placeholder.configure({
-        placeholder: '在此输入内容...',
-      }),
-      Markdown.configure({
-        html: true,
-      }),
-    ],
-    onUpdate: ({ editor }) => {
-      if (!markdownMode.value) {
-        const markdownStorage = (editor.storage as any).markdown
-        if (markdownStorage?.getMarkdown) {
-          markdown.value = markdownStorage.getMarkdown()
-        } else {
-          markdown.value = editor.getHTML()
-        }
-        emit('save')
-      }
-    },
-  })
-})
-
 watch(() => props.modelValue, (newValue) => {
   if (editor.value && !markdownMode.value) {
-    const current = editor.value.getMarkdown()
+    const mdStorage = (editor.value.storage as any).markdown
+    const current = mdStorage?.getMarkdown ? mdStorage.getMarkdown() : editor.value.getHTML()
     if (newValue !== current) {
-      editor.value.commands.setContent(newValue)
+      editor.value.commands.setContent(newValue || '')
     }
   }
 })
