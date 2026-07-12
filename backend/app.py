@@ -13,6 +13,7 @@ import jwt
 from sqlalchemy.pool import NullPool
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
+from concurrent.futures import ThreadPoolExecutor
 
 # 加载环境变量
 load_dotenv()
@@ -157,6 +158,77 @@ def uses_sqlalchemy_queries() -> bool:
 
 def _iso_or_none(value):
     return value.isoformat() if value else None
+
+
+# 浏览量异步写库线程池（单例，模块级创建）
+_view_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='view-counter')
+
+
+def _async_increment_view(post_id):
+    """后台线程：增加文章浏览量，独立 app context 避免跨线程问题"""
+    try:
+        with app.app_context():
+            p = Post.query.get(post_id)
+            if p is not None:
+                p.views = (p.views or 0) + 1
+                db.session.commit()
+    except Exception as e:
+        app.logger.error(f"Async view increment failed for post {post_id}: {e}")
+
+
+# 列表接口字段顺序（与 with_entities / 原生 SQL SELECT 一致）
+_POST_LIST_FIELDS = (
+    'id', 'title', 'slug', 'excerpt', 'category', 'tags',
+    'cover_url', 'read_time', 'views', 'likes',
+    'published_at', 'created_at'
+)
+
+
+def _build_post_summary_item(row):
+    """从 12 字段元组/Row 构造列表项，views/likes 兜底 None；published_at/created_at 兼容 datetime 或 str"""
+    tags_value = row[5] or []
+    if isinstance(tags_value, str):
+        try:
+            tags_value = json.loads(tags_value)
+        except Exception:
+            tags_value = []
+    if not isinstance(tags_value, list):
+        tags_value = []
+    # 兼容 SQLAlchemy Row（可按名访问）与 sqlite3 tuple（按索引）
+    def _field(idx, key=None):
+        if key is not None:
+            try:
+                return row._mapping[key]
+            except (AttributeError, KeyError):
+                return row[idx]
+        return row[idx]
+
+    published_at = _field(10, 'published_at')
+    created_at = _field(11, 'created_at')
+    if published_at is not None and not isinstance(published_at, str):
+        try:
+            published_at = published_at.isoformat()
+        except AttributeError:
+            published_at = str(published_at)
+    if created_at is not None and not isinstance(created_at, str):
+        try:
+            created_at = created_at.isoformat()
+        except AttributeError:
+            created_at = str(created_at)
+    return {
+        'id': row[0],
+        'title': row[1],
+        'slug': row[2],
+        'excerpt': row[3],
+        'category': row[4],
+        'tags': tags_value,
+        'cover_url': row[6],
+        'read_time': row[7],
+        'views': row[8] or 0,
+        'likes': row[9] or 0,
+        'published_at': published_at,
+        'created_at': created_at
+    }
 
 
 def _serialize_post_summary(post):
@@ -1378,7 +1450,7 @@ def get_published_posts():
     search = request.args.get('search')
     
     query = Post.query.filter_by(status='published')
-    
+
     if category:
         query = query.filter(Post.category == category)
     if tag:
@@ -1390,35 +1462,41 @@ def get_published_posts():
             Post.category.ilike(like),
             Post.tags.contains([search])
         ))
-    
-    posts = query.order_by(Post.published_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
 
     if uses_sqlalchemy_queries():
+        # SQLAlchemy 路径：用 with_entities 限制只取列表所需 12 个字段，避免加载 content
+        query = query.with_entities(
+            Post.id, Post.title, Post.slug, Post.excerpt, Post.category, Post.tags,
+            Post.cover_url, Post.read_time, Post.views, Post.likes,
+            Post.published_at, Post.created_at
+        )
+        posts = query.order_by(Post.published_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        items = [_build_post_summary_item(r) for r in posts.items]
         return json_response({
             'success': True,
             'data': {
-                'items': [_serialize_post_summary(p) for p in posts.items],
+                'items': items,
                 'total': posts.total,
                 'pages': posts.pages,
                 'current_page': page
             }
         })
-    
+
     # 使用直接SQL查询避免SQLAlchemy编码问题
     import sqlite3
     import os
-    
+
     db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
+
     try:
         # 构建查询条件
         where_conditions = ["status = 'published'"]
         params = []
-        
+
         if category:
             where_conditions.append("category = ?")
             params.append(category)
@@ -1426,65 +1504,37 @@ def get_published_posts():
         if tag:
             where_conditions.append("tags LIKE ?")
             params.append(f'%"{tag}"%')
-        
+
         if search:
             where_conditions.append("(title LIKE ? OR category LIKE ? OR tags LIKE ?)")
             search_pattern = f'%{search}%'
             params.extend([search_pattern, search_pattern, search_pattern])
-        
+
         # 构建SQL查询
         where_clause = " AND ".join(where_conditions)
         count_sql = f"SELECT COUNT(*) FROM posts WHERE {where_clause}"
         cursor.execute(count_sql, params)
         total = cursor.fetchone()[0]
-        
-        # 分页查询
+
+        # 分页查询：仅 SELECT 列表所需 12 字段，不加载 content
         offset = (page - 1) * per_page
         query_sql = f"""
-            SELECT id, title, slug, excerpt, category, tags, cover_url, read_time, 
-                   published_at, created_at
-            FROM posts 
+            SELECT id, title, slug, excerpt, category, tags, cover_url, read_time,
+                   views, likes, published_at, created_at
+            FROM posts
             WHERE {where_clause}
             ORDER BY published_at DESC, created_at DESC
             LIMIT ? OFFSET ?
         """
         cursor.execute(query_sql, params + [per_page, offset])
         posts = cursor.fetchall()
-        
+
         # 构建响应数据
-        items = []
-        for post in posts:
-            post_id, title, slug, excerpt, category, tags, cover_url, read_time, published_at, created_at = post
-            
-            # 处理tags字段（JSON字符串）
-            try:
-                if tags and isinstance(tags, str):
-                    tags_list = json.loads(tags)
-                else:
-                    tags_list = []
-            except:
-                tags_list = []
-            
-            # 处理日期字段
-            published_at_str = published_at if published_at else None
-            created_at_str = created_at if created_at else None
-            
-            items.append({
-                'id': post_id,
-                'title': title,
-                'slug': slug,
-                'excerpt': excerpt,
-                'category': category,
-                'tags': tags_list,
-                'cover_url': cover_url,
-                'read_time': read_time,
-                'published_at': published_at_str,
-                'created_at': created_at_str
-            })
-        
+        items = [_build_post_summary_item(post) for post in posts]
+
         # 计算总页数
         pages = (total + per_page - 1) // per_page
-        
+
         return json_response({
             'success': True,
             'data': {
@@ -1494,7 +1544,7 @@ def get_published_posts():
                 'current_page': page
             }
         })
-        
+
     finally:
         cursor.close()
         conn.close()
@@ -1851,21 +1901,43 @@ def get_tags():
 
 @app.route('/api/tags/published', methods=['GET'])
 def get_published_tags():
+    """获取已发布文章的标签列表（带文章数量），优先使用 SQL 原生聚合"""
     if uses_sqlalchemy_queries():
-        rows = Post.query.with_entities(Post.tags).filter(
-            Post.status == 'published',
-            Post.tags.isnot(None)
-        ).all()
+        # SQLAlchemy 路径（MySQL/PostgreSQL）：优先用 text() 执行 JSON_TABLE，失败回退 Python 聚合
         tag_counts = {}
-        for row in rows:
-            tags_value = row[0] or []
-            if isinstance(tags_value, str):
-                try:
-                    tags_value = json.loads(tags_value)
-                except Exception:
-                    tags_value = []
-            for tag in tags_value:
-                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        try:
+            if 'mysql' in db_uri:
+                # MySQL 8+: JSON_TABLE 拆分 tags JSON 数组后 GROUP BY
+                sql = text(
+                    "SELECT jt.tag AS tag, COUNT(*) AS cnt "
+                    "FROM posts, JSON_TABLE(posts.tags, '$[*]' "
+                    "  COLUMNS (tag VARCHAR(100) PATH '$')) AS jt "
+                    "WHERE posts.status = 'published' AND posts.tags IS NOT NULL "
+                    "GROUP BY jt.tag "
+                    "ORDER BY cnt DESC"
+                )
+                rows = db.session.execute(sql).fetchall()
+            else:
+                # PostgreSQL 等其他：fallback 到 Python 聚合（暂无 JSON_TABLE 通用方案）
+                raise RuntimeError('JSON_TABLE not supported on this dialect')
+            for row in rows:
+                tag_counts[row.tag] = int(row.cnt)
+        except Exception as e:
+            app.logger.warning(f"SQL tag aggregation failed, falling back to Python: {e}")
+            # Fallback: 加载已发布文章的 tags 字段后在 Python 聚合
+            rows = Post.query.with_entities(Post.tags).filter(
+                Post.status == 'published',
+                Post.tags.isnot(None)
+            ).all()
+            for row in rows:
+                tags_value = row[0] or []
+                if isinstance(tags_value, str):
+                    try:
+                        tags_value = json.loads(tags_value)
+                    except Exception:
+                        tags_value = []
+                for tag in (tags_value or []):
+                    tag_counts[str(tag)] = tag_counts.get(str(tag), 0) + 1
 
         tags_with_count = [{'name': tag, 'count': count} for tag, count in tag_counts.items()]
         return json_response({
@@ -1874,39 +1946,48 @@ def get_published_tags():
         }, cache_control='public, max-age=60, stale-while-revalidate=300')
 
     """获取已发布文章的标签列表（带文章数量）"""
-    # 使用直接SQL查询避免SQLAlchemy编码问题
+    # 直接 SQLite 路径：使用 SQLite 原生 json_each 完成拆分 + 聚合
     import sqlite3
     import os
-    import json
-    
+
     db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
+
     try:
-        # 获取所有已发布文章的标签
-        cursor.execute("SELECT tags FROM posts WHERE status = 'published' AND tags IS NOT NULL AND tags != ''")
-        posts_with_tags = cursor.fetchall()
-        
-        tag_counts = {}
-        for post in posts_with_tags:
-            tags_str = post[0]
-            if tags_str:
-                try:
-                    tags_list = json.loads(tags_str)
-                    for tag in tags_list:
-                        tag_counts[tag] = tag_counts.get(tag, 0) + 1
-                except:
-                    # 如果JSON解析失败，跳过
-                    continue
-        
-        tags_with_count = [{'name': tag, 'count': count} for tag, count in tag_counts.items()]
-        
+        # SQLite 3.38+ 内置 json_each，单条 SQL 完成 tag 拆分 + GROUP BY + COUNT
+        cursor.execute(
+            "SELECT j.value AS tag, COUNT(*) AS cnt "
+            "FROM posts, json_each(posts.tags) j "
+            "WHERE posts.status = 'published' AND posts.tags IS NOT NULL "
+            "GROUP BY j.value "
+            "ORDER BY cnt DESC"
+        )
+        tag_rows = cursor.fetchall()
+
+        # 当 json_each 不可用（极老 SQLite < 3.38）时回退到 Python 聚合
+        if not tag_rows:
+            cursor.execute("SELECT tags FROM posts WHERE status = 'published' AND tags IS NOT NULL AND tags != ''")
+            posts_with_tags = cursor.fetchall()
+            tag_counts = {}
+            for post in posts_with_tags:
+                tags_str = post[0]
+                if tags_str:
+                    try:
+                        tags_list = json.loads(tags_str)
+                        for tag in (tags_list or []):
+                            tag_counts[str(tag)] = tag_counts.get(str(tag), 0) + 1
+                    except Exception:
+                        continue
+            tags_with_count = [{'name': tag, 'count': count} for tag, count in tag_counts.items()]
+        else:
+            tags_with_count = [{'name': row[0], 'count': int(row[1])} for row in tag_rows]
+
         return json_response({
             'success': True,
             'data': sorted(tags_with_count, key=lambda x: x['count'], reverse=True)
-        })
-        
+        }, cache_control='public, max-age=60, stale-while-revalidate=300')
+
     finally:
         cursor.close()
         conn.close()
@@ -2135,19 +2216,18 @@ def get_like_status(post_id):
 
 @app.route('/api/posts/<int:post_id>/view', methods=['POST'])
 def view_post(post_id):
-    """记录阅读（公开接口）异步返回 202，不阻塞主流程"""
-    post = Post.query.get_or_404(post_id)
+    """记录阅读（公开接口）：主请求立即返回 202，写库推到线程池异步执行"""
+    # 主线程不查 DB、不 commit，立即入队后台任务
     try:
-        post.views = (post.views or 0) + 1
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+        _view_executor.submit(_async_increment_view, post_id)
+    except Exception as e:
+        app.logger.error(f"Failed to submit view task: {e}")
     return json_response({
         'success': True,
         'data': {
-            'views': post.views or 0
+            'views': 'pending'
         }
-    }), 202
+    }, status_code=202)
 
 
 # 留言 XSS 过滤
@@ -2347,6 +2427,15 @@ def internal_error(error):
 
 @app.errorhandler(Exception)
 def handle_exception(error):
+    import traceback
+    tb = traceback.format_exc()
+    print('=== HANDLE EXCEPTION ===', flush=True)
+    print(tb, flush=True)
+    try:
+        with open('e:/train/personal-blog/backend/error.log', 'a', encoding='utf-8') as f:
+            f.write(tb + '\n---\n')
+    except Exception:
+        pass
     try:
         app.logger.exception(error)
     except Exception:
