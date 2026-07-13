@@ -130,7 +130,7 @@ const load = async () => {
 
 const getPlayUrl = async (songId: string | number): Promise<string | null> => {
   try {
-    const r = await http.get<any>(`/api/music?id=${songId}&br=320000`)
+    const r = await http.get<any>(`/music?id=${songId}&br=320000`)
     if (r?.success && r.data?.data?.[0]?.url) {
       return r.data.data[0].url
     }

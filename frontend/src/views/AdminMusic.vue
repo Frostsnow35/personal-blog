@@ -156,7 +156,7 @@ const searchMusic = async () => {
   searchLoading.value = true
   searchResults.value = []
   try {
-    const response = await http.get<any>(`/api/music?keywords=${encodeURIComponent(query)}`)
+    const response = await http.get<any>(`/music?keywords=${encodeURIComponent(query)}`)
     if (response?.success && response.data?.result?.songs) {
       searchResults.value = response.data.result.songs.map((song: any) => ({
         id: song.id.toString(),
