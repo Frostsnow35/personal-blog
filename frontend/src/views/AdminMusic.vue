@@ -156,9 +156,17 @@ const searchMusic = async () => {
   searchLoading.value = true
   searchResults.value = []
   try {
-    const response = await http.get<any>(`/proxy/music/search?keywords=${encodeURIComponent(query)}&platform=${platform.value}&limit=10`)
-    if (response?.success && response.data?.result?.songs) {
-      searchResults.value = response.data.result.songs.map((song: any) => {
+    const apiUrl = `https://music.163.com/api/search/get/web?csrf_token=&hlpretag=&hlposttag=&s=${encodeURIComponent(query)}&type=1&offset=0&total=true&limit=10`
+    const res = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://music.163.com/',
+        'Origin': 'https://music.163.com'
+      }
+    })
+    const data = await res.json()
+    if (data?.result?.songs) {
+      searchResults.value = data.result.songs.map((song: any) => {
         const artist = song.artists && song.artists.length > 0 ? song.artists[0].name : '未知歌手'
         const albumName = song.album ? song.album.name : '未知专辑'
         const cover = song.album && song.album.picUrl ? `${song.album.picUrl}?param=300x300` : ''
@@ -171,12 +179,12 @@ const searchMusic = async () => {
         }
       }).filter((m: any) => m.cover)
     }
-    if (!searchResults.value.length && response?.success) {
+    if (!searchResults.value.length) {
       toast.warning('未找到相关歌曲')
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('搜索失败:', error)
-    toast.error('搜索失败')
+    toast.error('搜索失败', error?.message || String(error))
   } finally {
     searchLoading.value = false
   }

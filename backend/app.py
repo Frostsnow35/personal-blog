@@ -1339,6 +1339,7 @@ def proxy_netease_hot():
 
 def _music_request(url: str) -> tuple:
     import ssl
+    import traceback
     try:
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
@@ -1353,14 +1354,20 @@ def _music_request(url: str) -> tuple:
                 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
             }
         )
+        app.logger.info(f'Music API request: {url}')
         with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
             data = json.loads(resp.read().decode('utf-8'))
+            app.logger.info(f'Music API response status: {resp.status}')
             return True, data
     except urllib.error.HTTPError as e:
+        app.logger.error(f'HTTP Error {e.code}: {e.reason} for {url}')
         return False, f'HTTP Error {e.code}: {e.reason}'
     except urllib.error.URLError as e:
+        app.logger.error(f'URL Error: {str(e.reason)} for {url}')
         return False, f'URL Error: {str(e.reason)}'
     except Exception as e:
+        app.logger.error(f'Unknown Error: {str(e)} for {url}')
+        app.logger.error(traceback.format_exc())
         return False, f'Unknown Error: {str(e)}'
 
 
@@ -1373,16 +1380,20 @@ def proxy_music_search():
         return jsonify({'success': False, 'message': '搜索关键词不能为空'}), 400
 
     if platform == 'netease':
-        url = f'https://music.163.com/api/search/get/web?csrf_token=&hlpretag=&hlposttag=&s={urllib.parse.quote(keywords)}&type=1&offset=0&total=true&limit={limit}'
-        success, data = _music_request(url)
-        if success:
-            result = {
-                'result': {
-                    'songs': data.get('result', {}).get('songs', [])
-                }
-            }
-            return json_response({'success': True, 'data': result})
-        return jsonify({'success': False, 'message': f'搜索失败: {data}'}), 500
+        api_urls = [
+            f'https://music.163.com/api/search/get/web?csrf_token=&hlpretag=&hlposttag=&s={urllib.parse.quote(keywords)}&type=1&offset=0&total=true&limit={limit}',
+            f'https://api.music.163.com/api/search/get/web?csrf_token=&hlpretag=&hlposttag=&s={urllib.parse.quote(keywords)}&type=1&offset=0&total=true&limit={limit}'
+        ]
+        
+        for url in api_urls:
+            success, data = _music_request(url)
+            if success:
+                songs = data.get('result', {}).get('songs', [])
+                if songs:
+                    result = {'result': {'songs': songs}}
+                    return json_response({'success': True, 'data': result})
+        
+        return jsonify({'success': False, 'message': f'搜索失败: 无法连接到音乐API'}), 500
     else:
         return jsonify({'success': False, 'message': '暂不支持该平台'}), 400
 

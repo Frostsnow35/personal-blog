@@ -130,9 +130,16 @@ const load = async () => {
 
 const getPlayUrl = async (songId: string | number): Promise<string | null> => {
   try {
-    const r = await http.get<any>(`/proxy/music/url?id=${songId}&platform=netease`)
-    if (r?.success && r.data?.data?.[0]?.url) {
-      return r.data.data[0].url
+    const res = await fetch(`https://music.163.com/api/song/enhance/player/url?csrf_token=&ids=[${songId}]&br=320000`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://music.163.com/',
+        'Origin': 'https://music.163.com'
+      }
+    })
+    const data = await res.json()
+    if (data?.data?.[0]?.url) {
+      return data.data[0].url
     }
     return null
   } catch {
