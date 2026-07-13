@@ -68,6 +68,7 @@
             <p class="text-sm text-gray-500 dark:text-gray-400 truncate">
               {{ currentItem.artist }}{{ currentItem.album ? ' · ' + currentItem.album : '' }}
             </p>
+            <p v-if="playError" class="text-xs text-red-500 truncate">{{ playError }}</p>
           </div>
           <div class="flex items-center gap-3">
             <button @click="prev" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
@@ -89,7 +90,8 @@
               class="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none cursor-pointer"
             />
           </div>
-          <div class="w-48 flex-shrink-0">
+          <div v-if="useIframe" class="w-48 flex-shrink-0">
+            <div class="text-xs text-gray-500 mb-1">请点击播放器播放</div>
             <iframe
               :key="iframeKey"
               :src="currentIframeUrl"
@@ -98,14 +100,19 @@
               style="height: 66px;"
             ></iframe>
           </div>
+          <div v-else class="text-xs text-gray-500">
+            {{ durationText }}
+          </div>
         </div>
       </div>
     </div>
+
+    <audio ref="audioRef" @timeupdate="onTimeUpdate" @ended="onEnded" @error="onAudioError" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { http } from '../utils/http'
 import SiteNav from '../components/SiteNav.vue'
 
@@ -125,16 +132,30 @@ const loading = ref(false)
 const currentIndex = ref(-1)
 const isPlaying = ref(false)
 const progress = ref(0)
+const duration = ref(0)
+const currentTime = ref(0)
+const playError = ref('')
+const useIframe = ref(false)
 const iframeKey = ref(0)
 
 let progressInterval: number | null = null
+const audioRef = ref<HTMLAudioElement | null>(null)
 
 const currentItem = computed(() => items.value[currentIndex.value] || null)
 
 const currentIframeUrl = computed(() => {
   if (!currentItem.value) return ''
   const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id
-  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=1&height=66`
+  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=0&height=66`
+})
+
+const durationText = computed(() => {
+  const format = (s: number) => {
+    const m = Math.floor(s / 60)
+    const sec = Math.floor(s % 60)
+    return `${m}:${sec.toString().padStart(2, '0')}`
+  }
+  return `${format(currentTime.value)} / ${format(duration.value)}`
 })
 
 const load = async () => {
@@ -145,26 +166,82 @@ const load = async () => {
   } finally { loading.value = false }
 }
 
-const play = (index: number) => {
+const getPlayUrl = async (songId: number | string): Promise<string | null> => {
+  try {
+    const response = await fetch(`/api/music?id=${songId}`)
+    const data = await response.json()
+    if (data.success && data.data?.url) {
+      return data.data.url
+    }
+  } catch (error) {
+    console.error('获取播放链接失败:', error)
+  }
+  return null
+}
+
+const play = async (index: number) => {
   if (currentIndex.value === index && isPlaying.value) {
     togglePlay()
     return
   }
 
   currentIndex.value = index
-  isPlaying.value = true
-  progress.value = 0
-  iframeKey.value++
+  playError.value = ''
+  useIframe.value = false
 
-  if (progressInterval) {
-    clearInterval(progressInterval)
+  const item = items.value[index]
+  if (!item) return
+
+  const songId = item.source_url?.split('=')?.[1] || item.id
+  
+  const audioUrl = await getPlayUrl(songId)
+  
+  if (audioUrl) {
+    await nextTick()
+    if (audioRef.value) {
+      audioRef.value.src = audioUrl
+      audioRef.value.load()
+      try {
+        await audioRef.value.play()
+        isPlaying.value = true
+        progress.value = 0
+      } catch (error) {
+        console.error('播放失败:', error)
+        useIframe.value = true
+        iframeKey.value++
+        isPlaying.value = true
+      }
+    }
+  } else {
+    useIframe.value = true
+    iframeKey.value++
+    isPlaying.value = true
+    playError.value = '该歌曲受版权保护，使用外链播放器'
+    
+    if (progressInterval) {
+      clearInterval(progressInterval)
+    }
+    progressInterval = window.setInterval(() => {
+      progress.value = (progress.value + 0.1) % 100
+    }, 100)
   }
-  progressInterval = window.setInterval(() => {
-    progress.value = (progress.value + 0.1) % 100
-  }, 100)
 }
 
-const togglePlay = () => {
+const togglePlay = async () => {
+  if (!audioRef.value || useIframe.value) {
+    isPlaying.value = !isPlaying.value
+    return
+  }
+
+  if (isPlaying.value) {
+    audioRef.value.pause()
+  } else {
+    try {
+      await audioRef.value.play()
+    } catch (error) {
+      console.error('播放失败:', error)
+    }
+  }
   isPlaying.value = !isPlaying.value
 }
 
@@ -180,9 +257,32 @@ const next = () => {
   play(newIndex)
 }
 
+const onTimeUpdate = () => {
+  if (audioRef.value) {
+    currentTime.value = audioRef.value.currentTime
+    duration.value = audioRef.value.duration || 0
+    progress.value = duration.value > 0 ? (currentTime.value / duration.value) * 100 : 0
+  }
+}
+
+const onEnded = () => {
+  isPlaying.value = false
+  next()
+}
+
+const onAudioError = () => {
+  playError.value = '音频播放失败，已切换到外链播放器'
+  useIframe.value = true
+  iframeKey.value++
+}
+
 onUnmounted(() => {
   if (progressInterval) {
     clearInterval(progressInterval)
+  }
+  if (audioRef.value) {
+    audioRef.value.pause()
+    audioRef.value.src = ''
   }
 })
 
