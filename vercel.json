@@ -11,6 +11,11 @@
   "rewrites": [
     { "source": "/api/music", "destination": "/api/music.js" },
     { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/music-favorites/:path*", "destination": "/api/index" },
+    { "source": "/movie-favorites/:path*", "destination": "/api/index" },
+    { "source": "/friend-links/:path*", "destination": "/api/index" },
+    { "source": "/albums/:path*", "destination": "/api/index" },
+    { "source": "/uploads/:path*", "destination": "/api/index" },
     { "source": "/((?!api/|assets/|js/|.*\\..*).*)", "destination": "/index.html" }
   ]
 }
