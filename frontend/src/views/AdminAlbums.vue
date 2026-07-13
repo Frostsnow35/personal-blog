@@ -2,7 +2,10 @@
   <div class="min-h-screen py-10 px-4">
     <div class="max-w-6xl mx-auto">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">相册管理</h1>
+        <div class="flex items-center gap-4">
+          <button @click="$router.push('/admin/dashboard')" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">← 返回</button>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">相册管理</h1>
+        </div>
         <button @click="openCreate" class="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg">+ 新建相册</button>
       </div>
 

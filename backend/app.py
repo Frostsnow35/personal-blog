@@ -957,11 +957,11 @@ def list_music_favorites():
 def daily_music_favorite():
     rows = MusicFavorite.query.all()
     if not rows:
-        return json_response({'success': True, 'data': None})
+        return json_response({'success': True, 'data': []})
     today = datetime.now(timezone.utc).date().isoformat()
     random.seed(today)
-    selected = random.choice(rows)
-    return json_response({'success': True, 'data': _music_to_dict(selected)})
+    shuffled = random.sample(rows, min(len(rows), 10))
+    return json_response({'success': True, 'data': [_music_to_dict(m) for m in shuffled]})
 
 
 @app.route('/api/admin/music-favorites', methods=['POST'])
@@ -1328,6 +1328,92 @@ def proxy_netease_hot():
             return json_response({'success': True, 'data': data})
     except Exception as e:
         return jsonify({'success': False, 'message': f'无法连接到网易云音乐: {str(e)}'}), 500
+
+
+MUSIC_API_BASE_URL = os.environ.get('MUSIC_API_BASE_URL', 'https://ghcr.io/tlyanyu/multiplatformmusicapi:latest')
+
+@app.route('/api/proxy/music/search', methods=['GET'])
+def proxy_music_search():
+    keywords = request.args.get('keywords', '')
+    platform = request.args.get('platform', 'netease')
+    limit = request.args.get('limit', '10')
+    if not keywords:
+        return jsonify({'success': False, 'message': '搜索关键词不能为空'}), 400
+    
+    url = f'{MUSIC_API_BASE_URL}/search?keywords={urllib.parse.quote(keywords)}&platform={platform}&limit={limit}'
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            return json_response({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'无法连接到音乐API: {str(e)}'}), 500
+
+
+@app.route('/api/proxy/music/song/detail', methods=['GET'])
+def proxy_music_song_detail():
+    ids = request.args.get('ids', '')
+    platform = request.args.get('platform', 'netease')
+    if not ids:
+        return jsonify({'success': False, 'message': '歌曲ID不能为空'}), 400
+    
+    url = f'{MUSIC_API_BASE_URL}/song/detail?ids={ids}&platform={platform}'
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            return json_response({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'无法连接到音乐API: {str(e)}'}), 500
+
+
+@app.route('/api/proxy/music/toplist', methods=['GET'])
+def proxy_music_toplist():
+    platform = request.args.get('platform', 'netease')
+    url = f'{MUSIC_API_BASE_URL}/toplist?platform={platform}'
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            return json_response({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'无法连接到音乐API: {str(e)}'}), 500
+
+
+@app.route('/api/proxy/music/url', methods=['GET'])
+def proxy_music_url():
+    id = request.args.get('id', '')
+    platform = request.args.get('platform', 'netease')
+    br = request.args.get('br', '320000')
+    if not id:
+        return jsonify({'success': False, 'message': '歌曲ID不能为空'}), 400
+    
+    url = f'{MUSIC_API_BASE_URL}/song/url?id={id}&platform={platform}&br={br}'
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            return json_response({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'无法连接到音乐API: {str(e)}'}), 500
+
+
+@app.route('/api/proxy/music/playlist', methods=['GET'])
+def proxy_music_playlist():
+    id = request.args.get('id', '')
+    platform = request.args.get('platform', 'netease')
+    if not id:
+        return jsonify({'success': False, 'message': '歌单ID不能为空'}), 400
+    
+    url = f'{MUSIC_API_BASE_URL}/playlist/detail?id={id}&platform={platform}'
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            return json_response({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'无法连接到音乐API: {str(e)}'}), 500
+
 
 def _get_site_url() -> str:
     site_url = (os.getenv('SITE_URL') or '').strip()

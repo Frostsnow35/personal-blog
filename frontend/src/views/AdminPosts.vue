@@ -2,7 +2,10 @@
   <div class="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-sea-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">文章管理</h1>
+        <div class="flex items-center gap-4">
+          <button @click="$router.push('/admin/dashboard')" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">← 返回</button>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">文章管理</h1>
+        </div>
         <router-link to="/admin/posts/new" class="px-4 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700">新建文章</router-link>
       </div>
 
