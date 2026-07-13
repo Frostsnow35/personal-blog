@@ -1,5 +1,8 @@
 from flask import Flask, jsonify, request
 import json
+import random
+import urllib.request
+import urllib.error
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -768,6 +771,18 @@ def list_albums():
     return json_response({'success': True, 'data': [_album_to_dict(a, include_photos=False) for a in rows]})
 
 
+@app.route('/api/albums/daily', methods=['GET'])
+def daily_album():
+    """公开：每日精选相册"""
+    rows = Album.query.all()
+    if not rows:
+        return json_response({'success': True, 'data': None})
+    today = datetime.now(timezone.utc).date().isoformat()
+    random.seed(today)
+    selected = random.choice(rows)
+    return json_response({'success': True, 'data': _album_to_dict(selected, include_photos=True)})
+
+
 @app.route('/api/albums/<int:album_id>', methods=['GET'])
 def get_album(album_id):
     """公开：相册详情（含照片）"""
@@ -936,6 +951,17 @@ def list_music_favorites():
     return json_response({'success': True, 'data': [_music_to_dict(m) for m in rows]})
 
 
+@app.route('/api/music-favorites/daily', methods=['GET'])
+def daily_music_favorite():
+    rows = MusicFavorite.query.all()
+    if not rows:
+        return json_response({'success': True, 'data': None})
+    today = datetime.now(timezone.utc).date().isoformat()
+    random.seed(today)
+    selected = random.choice(rows)
+    return json_response({'success': True, 'data': _music_to_dict(selected)})
+
+
 @app.route('/api/admin/music-favorites', methods=['POST'])
 @jwt_required_admin
 def admin_create_music():
@@ -1001,6 +1027,17 @@ def admin_delete_music(mid):
 def list_movie_favorites():
     rows = MovieFavorite.query.order_by(MovieFavorite.sort_order.asc(), MovieFavorite.id.desc()).all()
     return json_response({'success': True, 'data': [_movie_to_dict(m) for m in rows]})
+
+
+@app.route('/api/movie-favorites/daily', methods=['GET'])
+def daily_movie_favorite():
+    rows = MovieFavorite.query.all()
+    if not rows:
+        return json_response({'success': True, 'data': None})
+    today = datetime.now(timezone.utc).date().isoformat()
+    random.seed(today)
+    selected = random.choice(rows)
+    return json_response({'success': True, 'data': _movie_to_dict(selected)})
 
 
 @app.route('/api/admin/movie-favorites', methods=['POST'])
@@ -1080,6 +1117,17 @@ def list_friend_links():
     return json_response({'success': True, 'data': [_friend_to_dict(f) for f in rows]})
 
 
+@app.route('/api/friend-links/daily', methods=['GET'])
+def daily_friend_link():
+    rows = FriendLink.query.all()
+    if not rows:
+        return json_response({'success': True, 'data': None})
+    today = datetime.now(timezone.utc).date().isoformat()
+    random.seed(today)
+    selected = random.choice(rows)
+    return json_response({'success': True, 'data': _friend_to_dict(selected)})
+
+
 @app.route('/api/admin/friend-links', methods=['POST'])
 @jwt_required_admin
 def admin_create_friend():
@@ -1157,6 +1205,79 @@ def admin_upload():
 def serve_uploads(filename):
     from flask import send_from_directory
     return send_from_directory(UPLOAD_DIR, filename)
+
+
+# --- 外部 API 代理 ---
+@app.route('/api/proxy/douban/movie/search', methods=['GET'])
+def proxy_douban_search():
+    q = request.args.get('q', '')
+    count = request.args.get('count', '8')
+    if not q:
+        return jsonify({'success': False, 'message': '搜索关键词不能为空'}), 400
+    
+    urls = [
+        f'https://api.douban.com/v2/movie/search?q={urllib.parse.quote(q)}&count={count}',
+        f'https://douban.uieee.cn/v2/movie/search?q={urllib.parse.quote(q)}&count={count}'
+    ]
+    
+    for url in urls:
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+                return json_response({'success': True, 'data': data})
+        except Exception:
+            continue
+    
+    return jsonify({'success': False, 'message': '无法连接到豆瓣电影'}), 500
+
+
+@app.route('/api/proxy/douban/movie/hot', methods=['GET'])
+def proxy_douban_hot():
+    urls = [
+        'https://api.douban.com/v2/movie/in_theaters',
+        'https://douban.uieee.cn/v2/movie/in_theaters'
+    ]
+    
+    for url in urls:
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+                return json_response({'success': True, 'data': data})
+        except Exception:
+            continue
+    
+    return jsonify({'success': False, 'message': '无法连接到豆瓣电影'}), 500
+
+
+@app.route('/api/proxy/netease/music/search', methods=['GET'])
+def proxy_netease_search():
+    q = request.args.get('q', '')
+    limit = request.args.get('limit', '6')
+    if not q:
+        return jsonify({'success': False, 'message': '搜索关键词不能为空'}), 400
+    
+    url = f'https://api.imjad.cn/cloudmusic/?type=search&s={urllib.parse.quote(q)}&limit={limit}'
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            return json_response({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'无法连接到网易云音乐: {str(e)}'}), 500
+
+
+@app.route('/api/proxy/netease/music/hot', methods=['GET'])
+def proxy_netease_hot():
+    url = 'https://api.imjad.cn/cloudmusic/?type=playlist&id=3778678'
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            return json_response({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'无法连接到网易云音乐: {str(e)}'}), 500
 
 def _get_site_url() -> str:
     site_url = (os.getenv('SITE_URL') or '').strip()

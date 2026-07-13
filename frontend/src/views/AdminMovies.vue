@@ -29,6 +29,41 @@
         </div>
       </div>
 
+      <!-- 推荐列表 -->
+      <div v-if="recommendResults.length" class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">🎬 豆瓣推荐（热映电影）</h3>
+          <button @click="fetchRecommend" :disabled="recommendLoading" class="text-sm text-ocean-600 hover:text-ocean-700 disabled:text-gray-400">
+            {{ recommendLoading ? '刷新中...' : '刷新推荐' }}
+          </button>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div
+            v-for="item in recommendResults"
+            :key="item.id"
+            class="card overflow-hidden"
+          >
+            <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 2/3;">
+              <img :src="item.cover" :alt="item.title" class="absolute inset-0 w-full h-full object-cover" />
+              <div v-if="item.rating" class="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-500 text-white text-xs rounded">★ {{ item.rating }}</div>
+            </div>
+            <div class="p-3">
+              <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-1">{{ item.title }}</h3>
+              <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                <span v-if="item.director">{{ item.director }}</span>
+                <span v-if="item.year"> · {{ item.year }}</span>
+              </p>
+              <button
+                @click="addFromSearch(item)"
+                class="mt-2 w-full px-3 py-1.5 bg-ocean-600 hover:bg-ocean-700 text-white text-sm rounded transition-colors"
+              >
+                + 添加到收藏
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 搜索结果 -->
       <div v-if="searchResults.length" class="mb-8">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">搜索结果（来自豆瓣电影）</h3>
@@ -145,6 +180,8 @@ const editing = ref<any>(null)
 const searchQuery = ref('')
 const searchResults = ref<SearchResult[]>([])
 const searchLoading = ref(false)
+const recommendResults = ref<SearchResult[]>([])
+const recommendLoading = ref(false)
 
 const load = async () => {
   loading.value = true
@@ -154,6 +191,31 @@ const load = async () => {
   } catch (e) {
     console.error(e)
   } finally { loading.value = false }
+}
+
+const fetchRecommend = async () => {
+  recommendLoading.value = true
+  recommendResults.value = []
+  try {
+    const response = await http.get<any>('/proxy/douban/movie/hot')
+    if (response?.success && response.data?.subjects) {
+      recommendResults.value = response.data.subjects.map((movie: any) => ({
+        id: movie.id,
+        title: movie.title,
+        director: movie.directors?.[0]?.name || '未知导演',
+        year: movie.year || '',
+        cover: movie.images?.large || movie.images?.medium || '',
+        rating: movie.rating?.average?.toString() || '',
+        url: movie.alt || '',
+        description: movie.summary?.substring(0, 100) || ''
+      }))
+    }
+  } catch (error) {
+    console.error('推荐加载失败:', error)
+    toast.error('推荐加载失败', '无法连接到豆瓣电影')
+  } finally {
+    recommendLoading.value = false
+  }
 }
 
 const openCreate = () => {
@@ -213,15 +275,9 @@ const searchMovie = async () => {
   searchLoading.value = true
   searchResults.value = []
   try {
-    const response = await fetch(`https://api.douban.com/v2/movie/search?q=${encodeURIComponent(query)}&count=8`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      }
-    })
-    const data = await response.json()
-    
-    if (data?.subjects) {
-      searchResults.value = data.subjects.map((movie: any) => ({
+    const response = await http.get<any>(`/proxy/douban/movie/search?q=${encodeURIComponent(query)}&count=8`)
+    if (response?.success && response.data?.subjects) {
+      searchResults.value = response.data.subjects.map((movie: any) => ({
         id: movie.id,
         title: movie.title,
         director: movie.directors?.[0]?.name || '未知导演',
@@ -234,25 +290,7 @@ const searchMovie = async () => {
     }
   } catch (error) {
     console.error('搜索失败:', error)
-    try {
-      const fallbackResponse = await fetch(`https://douban.uieee.cn/v2/movie/search?q=${encodeURIComponent(query)}&count=8`)
-      const fallbackData = await fallbackResponse.json()
-      if (fallbackData?.subjects) {
-        searchResults.value = fallbackData.subjects.map((movie: any) => ({
-          id: movie.id,
-          title: movie.title,
-          director: movie.directors?.[0]?.name || '未知导演',
-          year: movie.year || '',
-          cover: movie.images?.large || movie.images?.medium || '',
-          rating: movie.rating?.average?.toString() || '',
-          url: movie.alt || '',
-          description: movie.summary?.substring(0, 100) || ''
-        }))
-      }
-    } catch (fallbackError) {
-      console.error('备用API搜索失败:', fallbackError)
-      toast.error('搜索失败', '无法连接到豆瓣电影')
-    }
+    toast.error('搜索失败', '无法连接到豆瓣电影')
   } finally {
     searchLoading.value = false
   }
@@ -284,5 +322,8 @@ const addFromSearch = async (item: SearchResult) => {
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  await load()
+  await fetchRecommend()
+})
 </script>

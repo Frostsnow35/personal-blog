@@ -3,51 +3,42 @@
     <SiteNav />
 
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 text-center">📷 相册</h1>
-      <p class="text-center text-gray-500 dark:text-gray-400 mb-8">记录生活的瞬间</p>
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 text-center">📷 今日相册</h1>
+      <p class="text-center text-gray-500 dark:text-gray-400 mb-8">每日精选 · 今日博主推荐</p>
 
-      <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div
-          v-for="i in 6"
-          :key="`skeleton-album-${i}`"
-          class="card overflow-hidden"
-        >
-          <div class="skeleton w-full" style="aspect-ratio: 4/3;"></div>
-          <div class="p-4 space-y-2">
-            <div class="skeleton h-5 w-2/3"></div>
-            <div class="skeleton h-4 w-full"></div>
-            <div class="skeleton h-3 w-1/3"></div>
+      <div v-if="loading" class="text-center py-12 text-gray-500">加载中…</div>
+      <div v-else-if="!album" class="text-center py-16 text-gray-500 dark:text-gray-400">
+        <p class="text-5xl mb-2">🖼️</p>
+        <p>暂无相册</p>
+        <p class="text-sm mt-2">管理员可在后台添加相册</p>
+      </div>
+      <div v-else class="space-y-6">
+        <div class="card overflow-hidden">
+          <div class="relative w-full" style="aspect-ratio: 16/9;">
+            <img v-if="album.cover_url" :src="album.cover_url" :alt="album.name" class="absolute inset-0 w-full h-full object-cover" />
+            <div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 text-6xl">📷</div>
+          </div>
+          <div class="p-6">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ album.name }}</h2>
+            <p v-if="album.description" class="text-gray-500 dark:text-gray-400 mt-2">{{ album.description }}</p>
+            <p class="text-sm text-gray-400 mt-2">� {{ album.photo_count }} 张照片</p>
+          </div>
+        </div>
+        
+        <div v-if="album.photos?.length" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div
+            v-for="photo in album.photos"
+            :key="photo.id"
+            class="relative w-full bg-gray-200 dark:bg-gray-700 overflow-hidden rounded-lg group"
+            style="aspect-ratio: 1/1;"
+          >
+            <img :src="photo.url" :alt="photo.name || album.name" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            <div v-if="photo.name" class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
+              <p class="text-white text-xs truncate">{{ photo.name }}</p>
+            </div>
           </div>
         </div>
       </div>
-      <div v-else-if="!albums.length" class="text-center py-16 text-gray-500 dark:text-gray-400">
-        <p class="text-5xl mb-2">🖼️</p>
-        <p>暂无相册</p>
-      </div>
-      <TransitionGroup v-else name="list" tag="div" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <router-link
-          v-for="a in albums"
-          :key="a.id"
-          :to="`/albums/${a.id}`"
-          class="card overflow-hidden hover:shadow-xl transition-all duration-300 group"
-        >
-          <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 4/3;">
-            <img
-              v-if="a.cover_url"
-              :src="a.cover_url"
-              :alt="a.name"
-              class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              loading="lazy"
-            />
-            <div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 text-5xl">📷</div>
-          </div>
-          <div class="p-4">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ a.name }}</h3>
-            <p v-if="a.description" class="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{{ a.description }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">📸 {{ a.photo_count }} 张</p>
-          </div>
-        </router-link>
-      </TransitionGroup>
     </div>
   </div>
 </template>
@@ -57,6 +48,12 @@ import { ref, onMounted } from 'vue'
 import { http } from '../utils/http'
 import SiteNav from '../components/SiteNav.vue'
 
+interface Photo {
+  id: number
+  url: string
+  name: string | null
+}
+
 interface Album {
   id: number
   name: string
@@ -64,18 +61,17 @@ interface Album {
   description: string | null
   cover_url: string | null
   photo_count: number
+  photos: Photo[]
 }
 
-const albums = ref<Album[]>([])
+const album = ref<Album | null>(null)
 const loading = ref(false)
 
 const load = async () => {
   loading.value = true
   try {
-    const r = await http.get<any>('/albums')
-    if (r?.success) {
-      albums.value = r.data || []
-    }
+    const r = await http.get<any>('/albums/daily')
+    if (r?.success) album.value = r.data || null
   } catch (e) {
     console.error(e)
   } finally {

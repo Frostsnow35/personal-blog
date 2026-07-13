@@ -96,7 +96,7 @@ const albums = ref<Album[]>([])
 const loading = ref(false)
 const editing = ref<any>(null)
 const photoMgr = ref<any>(null)
-const uploading = ref(false)
+const uploading = ref<boolean>(false)
 
 const load = async () => {
   loading.value = true

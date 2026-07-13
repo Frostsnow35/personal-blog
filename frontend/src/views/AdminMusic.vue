@@ -29,6 +29,37 @@
         </div>
       </div>
 
+      <!-- 推荐列表 -->
+      <div v-if="recommendResults.length" class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">🎵 网易云推荐（热门歌曲）</h3>
+          <button @click="fetchRecommend" :disabled="recommendLoading" class="text-sm text-ocean-600 hover:text-ocean-700 disabled:text-gray-400">
+            {{ recommendLoading ? '刷新中...' : '刷新推荐' }}
+          </button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            v-for="item in recommendResults"
+            :key="item.id"
+            class="card overflow-hidden"
+          >
+            <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 1/1;">
+              <img :src="item.cover" :alt="item.name" class="absolute inset-0 w-full h-full object-cover" />
+            </div>
+            <div class="p-3">
+              <h3 class="font-semibold text-gray-900 dark:text-gray-100 line-clamp-1">{{ item.name }}</h3>
+              <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{{ item.artist }} · {{ item.album }}</p>
+              <button
+                @click="addFromSearch(item)"
+                class="mt-2 w-full px-3 py-1.5 bg-ocean-600 hover:bg-ocean-700 text-white text-sm rounded transition-colors"
+              >
+                + 添加到收藏
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 搜索结果 -->
       <div v-if="searchResults.length" class="mb-8">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">搜索结果（来自网易云音乐）</h3>
@@ -131,6 +162,8 @@ const editing = ref<any>(null)
 const searchQuery = ref('')
 const searchResults = ref<SearchResult[]>([])
 const searchLoading = ref(false)
+const recommendResults = ref<SearchResult[]>([])
+const recommendLoading = ref(false)
 
 const load = async () => {
   loading.value = true
@@ -191,6 +224,28 @@ const del = async (m: Music) => {
   }
 }
 
+const fetchRecommend = async () => {
+  recommendLoading.value = true
+  recommendResults.value = []
+  try {
+    const response = await http.get<any>('/proxy/netease/music/hot')
+    if (response?.success && response.data?.playlist?.tracks) {
+      recommendResults.value = response.data.playlist.tracks.slice(0, 6).map((song: any) => ({
+        id: song.id,
+        name: song.name,
+        artist: song.ar?.[0]?.name || '未知歌手',
+        album: song.al?.name || '未知专辑',
+        cover: song.al?.picUrl ? `${song.al.picUrl}?param=300x300` : ''
+      }))
+    }
+  } catch (error) {
+    console.error('推荐加载失败:', error)
+    toast.error('推荐加载失败', '无法连接到网易云音乐')
+  } finally {
+    recommendLoading.value = false
+  }
+}
+
 const searchMusic = async () => {
   const query = searchQuery.value.trim()
   if (!query) return
@@ -198,11 +253,9 @@ const searchMusic = async () => {
   searchLoading.value = true
   searchResults.value = []
   try {
-    const response = await fetch(`https://api.imjad.cn/cloudmusic/?type=search&s=${encodeURIComponent(query)}&limit=6`)
-    const data = await response.json()
-    
-    if (data?.result?.songs) {
-      searchResults.value = data.result.songs.map((song: any) => ({
+    const response = await http.get<any>(`/proxy/netease/music/search?q=${encodeURIComponent(query)}&limit=6`)
+    if (response?.success && response.data?.result?.songs) {
+      searchResults.value = response.data.result.songs.map((song: any) => ({
         id: song.id,
         name: song.name,
         artist: song.artists?.[0]?.name || '未知歌手',
@@ -243,5 +296,8 @@ const addFromSearch = async (item: SearchResult) => {
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  await load()
+  await fetchRecommend()
+})
 </script>
