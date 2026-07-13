@@ -6,16 +6,19 @@
   "functions": {
     "api/music.js": {
       "runtime": "@vercel/node@3.2.0"
+    },
+    "api/index.py": {
+      "runtime": "python3.12"
     }
   },
   "rewrites": [
     { "source": "/api/music", "destination": "/api/music.js" },
-    { "source": "/api/:path*", "destination": "/api/index" },
-    { "source": "/music-favorites/:path*", "destination": "/api/index" },
-    { "source": "/movie-favorites/:path*", "destination": "/api/index" },
-    { "source": "/friend-links/:path*", "destination": "/api/index" },
-    { "source": "/albums/:path*", "destination": "/api/index" },
-    { "source": "/uploads/:path*", "destination": "/api/index" },
+    { "source": "/api/:path*", "destination": "/api/index.py" },
+    { "source": "/music-favorites/:path*", "destination": "/api/index.py" },
+    { "source": "/movie-favorites/:path*", "destination": "/api/index.py" },
+    { "source": "/friend-links/:path*", "destination": "/api/index.py" },
+    { "source": "/albums/:path*", "destination": "/api/index.py" },
+    { "source": "/uploads/:path*", "destination": "/api/index.py" },
     { "source": "/((?!api/|assets/|js/|.*\\..*).*)", "destination": "/index.html" }
   ]
 }
