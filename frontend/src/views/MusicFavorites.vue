@@ -45,60 +45,19 @@
           </div>
         </div>
 
-        <div v-if="currentItem" class="h-32"></div>
-      </div>
-    </div>
-
-    <div v-if="currentItem" class="fixed bottom-0 left-0 right-0 z-50">
-      <div class="bg-white dark:bg-gray-800 border-t dark:border-gray-700 shadow-lg">
-        <div class="max-w-6xl mx-auto px-4 py-3">
-          <div class="flex items-center gap-4">
-            <div class="relative w-14 h-14 flex-shrink-0">
-              <img v-if="currentItem.cover_url" :src="currentItem.cover_url" :alt="currentItem.title" class="w-full h-full object-cover rounded-lg" />
-              <div v-else class="w-full h-full bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-400">🎵</div>
-              <div v-if="isPlaying" class="absolute inset-0 flex items-center justify-center">
-                <div class="flex gap-0.5">
-                  <span class="w-1 bg-white dark:bg-gray-300 h-3 rounded-full animate-[bounce_0.5s_ease-in-out_infinite]"></span>
-                  <span class="w-1 bg-white dark:bg-gray-300 h-5 rounded-full animate-[bounce_0.5s_ease-in-out_infinite_0.1s]"></span>
-                  <span class="w-1 bg-white dark:bg-gray-300 h-3 rounded-full animate-[bounce_0.5s_ease-in-out_infinite_0.2s]"></span>
-                </div>
-              </div>
-            </div>
-            <div class="flex-1 min-w-0">
-              <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate">{{ currentItem.title }}</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 truncate">
-                {{ currentItem.artist }}{{ currentItem.album ? ' · ' + currentItem.album : '' }}
-              </p>
-            </div>
-            <div class="flex items-center gap-3">
-              <button @click="prev" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                ⏮️
-              </button>
-              <button @click="togglePlay" class="p-3 bg-ocean-600 hover:bg-ocean-700 text-white rounded-full transition-colors">
-                {{ isPlaying ? '⏸️' : '▶️' }}
-              </button>
-              <button @click="next" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                ⏭️
-              </button>
-            </div>
-            <div class="hidden sm:block w-48">
-              <input
-                type="range"
-                v-model="progress"
-                min="0"
-                max="100"
-                class="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none cursor-pointer"
-              />
-            </div>
+        <div class="mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+          <div class="p-4 border-b dark:border-gray-700">
+            <h3 class="font-semibold text-gray-900 dark:text-gray-100">🎧 网易云音乐播放器</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">请点击播放器中的播放按钮开始播放音乐</p>
           </div>
-          <div class="mt-3">
-            <div class="text-xs text-gray-500 mb-1">网易云音乐播放器 - 请点击播放按钮</div>
+          <div class="p-4">
             <iframe
-              :key="iframeKey"
-              :src="currentIframeUrl"
+              :key="playlistIframeKey"
+              :src="playlistIframeUrl"
               frameborder="0"
               class="w-full"
-              style="height: 80px;"
+              style="height: 400px;"
+              allow="autoplay; fullscreen"
             ></iframe>
           </div>
         </div>
@@ -108,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { http } from '../utils/http'
 import SiteNav from '../components/SiteNav.vue'
 
@@ -127,17 +86,20 @@ const items = ref<Music[]>([])
 const loading = ref(false)
 const currentIndex = ref(-1)
 const isPlaying = ref(false)
-const progress = ref(0)
-const iframeKey = ref(0)
-
-let progressInterval: number | null = null
+const playlistIframeKey = ref(0)
 
 const currentItem = computed(() => items.value[currentIndex.value] || null)
 
-const currentIframeUrl = computed(() => {
-  if (!currentItem.value) return ''
-  const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id
-  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=0&height=80`
+const songIds = computed(() => {
+  return items.value.map(item => {
+    const id = item.source_url?.split('=')?.[1] || item.id
+    return id
+  }).join(',')
+})
+
+const playlistIframeUrl = computed(() => {
+  if (!songIds.value) return ''
+  return `https://music.163.com/outchain/player?type=0&id=${songIds.value}&auto=0&height=400`
 })
 
 const load = async () => {
@@ -150,44 +112,13 @@ const load = async () => {
 
 const play = (index: number) => {
   if (currentIndex.value === index && isPlaying.value) {
-    togglePlay()
+    isPlaying.value = false
     return
   }
 
   currentIndex.value = index
   isPlaying.value = true
-  progress.value = 0
-  iframeKey.value++
-
-  if (progressInterval) {
-    clearInterval(progressInterval)
-  }
-  progressInterval = window.setInterval(() => {
-    progress.value = (progress.value + 0.1) % 100
-  }, 100)
 }
-
-const togglePlay = () => {
-  isPlaying.value = !isPlaying.value
-}
-
-const prev = () => {
-  if (items.value.length === 0) return
-  const newIndex = currentIndex.value <= 0 ? items.value.length - 1 : currentIndex.value - 1
-  play(newIndex)
-}
-
-const next = () => {
-  if (items.value.length === 0) return
-  const newIndex = currentIndex.value >= items.value.length - 1 ? 0 : currentIndex.value + 1
-  play(newIndex)
-}
-
-onUnmounted(() => {
-  if (progressInterval) {
-    clearInterval(progressInterval)
-  }
-})
 
 onMounted(load)
 </script>
