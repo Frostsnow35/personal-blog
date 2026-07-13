@@ -161,9 +161,9 @@ const searchMusic = async () => {
       searchResults.value = response.data.result.songs.map((song: any) => ({
         id: song.id.toString(),
         name: song.name,
-        artist: song.artists && song.artists.length > 0 ? song.artists[0].name : '未知歌手',
-        album: song.album ? song.album.name : '未知专辑',
-        cover: song.album && song.album.picUrl ? `${song.album.picUrl}?param=300x300` : ''
+        artist: song.ar && song.ar.length > 0 ? song.ar[0].name : '未知歌手',
+        album: song.al ? song.al.name : '未知专辑',
+        cover: song.al && song.al.picUrl ? `${song.al.picUrl}?param=300x300` : ''
       })).filter((m: any) => m.cover)
     }
     if (!searchResults.value.length && response?.success) {

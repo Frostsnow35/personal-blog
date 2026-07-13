@@ -151,6 +151,7 @@ const play = async (index: number) => {
   
   const playUrl = await getPlayUrl(item.source_url?.split('=')?.[1] || item.id)
   if (!playUrl) {
+    alert('该歌曲暂无播放链接，请点击网易云音乐链接收听')
     return
   }
 
