@@ -11,6 +11,7 @@
   "rewrites": [
     { "source": "/api/music", "destination": "/api/music.js" },
     { "source": "/api/:path*", "destination": "/api/index.py" },
+    { "source": "/music-favorites", "destination": "/api/index.py" },
     { "source": "/music-favorites/:path*", "destination": "/api/index.py" },
     { "source": "/movie-favorites/:path*", "destination": "/api/index.py" },
     { "source": "/friend-links/:path*", "destination": "/api/index.py" },
