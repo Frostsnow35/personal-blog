@@ -143,20 +143,18 @@
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProfileStore } from '../stores/profile'
+import { useAuthStore } from '../stores/auth'
 import PublicSocialLinks from '../components/PublicSocialLinks.vue'
 import { render_markdown_html } from '../utils/markdown'
 import SiteNav from '../components/SiteNav.vue'
 
 const profileStore = useProfileStore()
+const authStore = useAuthStore()
 const router = useRouter()
-const isAuthenticated = computed(() => !!localStorage.getItem('access_token'))
+const isAuthenticated = computed(() => authStore.isAuthenticated)
 
 const logout = () => {
-  try {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('auth_user')
-  } catch {}
-  router.push('/home')
+  authStore.logout()
 }
 
 

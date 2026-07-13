@@ -166,8 +166,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const navRef = ref<HTMLElement | null>(null)
 const mobileOpen = ref(false)
 const treasureOpen = ref(false)
@@ -276,8 +278,5 @@ const treasureItems = [
 
 const isTreasureActive = computed(() => route.path.startsWith('/treasure'))
 const isAdminRoute = computed(() => route.path.startsWith('/admin'))
-
-const isAuthenticated = computed(() => {
-  try { return !!localStorage.getItem('access_token') } catch { return false }
-})
+const isAuthenticated = computed(() => authStore.isAuthenticated)
 </script>

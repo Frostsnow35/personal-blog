@@ -347,9 +347,11 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from '../composables/useToast'
+import { useAuthStore } from '../stores/auth'
 import { blogCache, profileCache, getCacheStats, clearAllCache, cleanupCache, getCacheEntries } from '../utils/cache'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // 缓存统计信息
 const cacheStats = ref({
@@ -422,10 +424,7 @@ onMounted(() => {
 
 // 退出登录
 const logout = () => {
-  localStorage.removeItem('admin_token')
-  localStorage.removeItem('access_token')
-  localStorage.removeItem('auth_user')
-  router.push('/home')
+  authStore.logout()
 }
 
 // 显示性能监控

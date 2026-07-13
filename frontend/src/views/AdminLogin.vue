@@ -28,33 +28,34 @@
 
   <script setup lang="ts">
   import { ref } from 'vue'
-  import { useRouter } from 'vue-router'
-  import { toast } from '../composables/useToast'
-  import LoadingButton from '../components/LoadingButton.vue'
+import { useRouter } from 'vue-router'
+import { toast } from '../composables/useToast'
+import { useAuthStore } from '../stores/auth'
+import LoadingButton from '../components/LoadingButton.vue'
 
-  const username = ref('')
-  const password = ref('')
-  const loading = ref(false)
-  const errorMsg = ref('')
-  const router = useRouter()
+const username = ref('')
+const password = ref('')
+const loading = ref(false)
+const errorMsg = ref('')
+const router = useRouter()
+const authStore = useAuthStore()
 
-  const onSubmit = async () => {
-    errorMsg.value = ''
-    loading.value = true
-    try {
-      const { http } = await import('../utils/http')
-      const data = await http.post<any>('/auth/login', { username: username.value, password: password.value })
-      localStorage.setItem('access_token', data.access_token)
-      localStorage.setItem('auth_user', JSON.stringify(data.user))
-      router.push('/profile')
-    } catch (e: any) {
-      const msg = e?.message || '登录失败'
-      errorMsg.value = msg
-      toast.error('登录失败', msg)
-    } finally {
-      loading.value = false
-    }
+const onSubmit = async () => {
+  errorMsg.value = ''
+  loading.value = true
+  try {
+    const { http } = await import('../utils/http')
+    const data = await http.post<any>('/auth/login', { username: username.value, password: password.value })
+    authStore.login(data.access_token, data.user)
+    router.push('/admin/dashboard')
+  } catch (e: any) {
+    const msg = e?.message || '登录失败'
+    errorMsg.value = msg
+    toast.error('登录失败', msg)
+  } finally {
+    loading.value = false
   }
+}
   </script>
 
 
