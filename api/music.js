@@ -1,4 +1,35 @@
 const https = require('https');
+const crypto = require('crypto');
+
+const ENCRYPTION_KEY = '0CoJUm6Qyw8W8jud';
+const IV = '0102030405060708';
+
+const decrypt = (data) => {
+  try {
+    const decoded = Buffer.from(data, 'base64');
+    const cipher = crypto.createDecipheriv('aes-128-cbc', ENCRYPTION_KEY, IV);
+    let decrypted = cipher.update(decoded, 'binary', 'utf8');
+    decrypted += cipher.final('utf8');
+    return JSON.parse(decrypted);
+  } catch (e) {
+    return null;
+  }
+};
+
+const decryptData = (data) => {
+  try {
+    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    if (parsed.result && typeof parsed.result === 'string') {
+      const decrypted = decrypt(parsed.result);
+      if (decrypted) {
+        return { ...parsed, result: decrypted };
+      }
+    }
+    return parsed;
+  } catch (e) {
+    return data;
+  }
+};
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -64,10 +95,16 @@ module.exports = async (req, res) => {
     
     if (responseData.status === 200) {
       try {
-        const jsonData = JSON.parse(responseData.body);
+        let jsonData = JSON.parse(responseData.body);
+        jsonData = decryptData(jsonData);
         res.status(200).json({ success: true, data: jsonData });
       } catch (e) {
-        res.status(500).json({ success: false, message: '解析响应失败', rawBody: responseData.body.substring(0, 500) });
+        res.status(500).json({ 
+          success: false, 
+          message: '解析响应失败', 
+          rawBodyLength: responseData.body.length,
+          error: e.message 
+        });
       }
     } else {
       res.status(responseData.status).json({ success: false, message: `上游服务返回 ${responseData.status}`, rawBody: responseData.body.substring(0, 500) });
