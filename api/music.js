@@ -1,7 +1,9 @@
 const https = require('https');
+const http = require('http');
 
 async function fetchUrl(targetUrl, headers = {}) {
   const urlObj = new URL(targetUrl);
+  const protocol = urlObj.protocol === 'https:' ? https : http;
   
   const defaultHeaders = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -17,11 +19,11 @@ async function fetchUrl(targetUrl, headers = {}) {
     path: urlObj.pathname + urlObj.search,
     method: 'GET',
     headers: defaultHeaders,
-    timeout: 10000
+    timeout: 15000
   };
   
   return new Promise((resolve, reject) => {
-    const proxyReq = https.request(requestOptions, (proxyRes) => {
+    const proxyReq = protocol.request(requestOptions, (proxyRes) => {
       let data = '';
       proxyRes.on('data', (chunk) => {
         data += chunk;
@@ -85,13 +87,14 @@ module.exports = async (req, res) => {
     const apiUrls = [
       `https://music.163.com/api/song/enhance/player/url/v1?csrf_token=&ids=[${id}]&level=standard&encodeType=mp3&br=${br}`,
       `https://music.163.com/api/song/enhance/player/url?csrf_token=&ids=[${id}]&br=${br}`,
-    ];
-    
-    const thirdPartyApis = [
-      `https://api.imjad.cn/cloudmusic/?type=song&id=${id}&br=${br}`,
-      `https://netease-cloud-music-api-brown.vercel.app/song/url?id=${id}`,
-      `https://netease-cloud-music-api-omega.vercel.app/song/url?id=${id}`,
-      `https://netease-cloud-music-api-lac.vercel.app/song/url?id=${id}`,
+      `https://api.injahow.cn/meting/api?server=netease&type=song&id=${id}`,
+      `https://api.itooi.cn/music/netease/playUrl?id=${id}&quality=high`,
+      `https://music.api.mucang.cn/netease/url/${id}`,
+      `https://api.liuzhijin.cn/music/netease/song?id=${id}`,
+      `https://api.bzqll.com/music/netease/song?id=${id}&type=json`,
+      `https://api.samirchen.com/netease/song?id=${id}`,
+      `https://api.geekzu.org/api/netease/song?id=${id}`,
+      `https://music.666ccc.com/api/netease/song?id=${id}`,
     ];
     
     for (const url of apiUrls) {
@@ -100,36 +103,24 @@ module.exports = async (req, res) => {
         if (responseData.status === 200) {
           try {
             const jsonData = JSON.parse(responseData.body);
-            const data = jsonData.data || jsonData;
-            if (Array.isArray(data) && data.length > 0) {
-              const songData = data[0];
-              if (songData.url) {
-                res.status(200).json({ success: true, data: { url: songData.url, ...songData } });
-                return;
-              }
+            
+            let audioUrl = null;
+            
+            if (jsonData.data && Array.isArray(jsonData.data) && jsonData.data.length > 0) {
+              audioUrl = jsonData.data[0].url || jsonData.data[0].mp3Url || jsonData.data[0].audio;
+            } else if (jsonData.url) {
+              audioUrl = jsonData.url;
+            } else if (jsonData.data && jsonData.data.url) {
+              audioUrl = jsonData.data.url;
+            } else if (jsonData.songs && Array.isArray(jsonData.songs) && jsonData.songs.length > 0) {
+              audioUrl = jsonData.songs[0].url || jsonData.songs[0].mp3Url;
+            } else if (jsonData.result && jsonData.result.url) {
+              audioUrl = jsonData.result.url;
             }
-          } catch (e) {
-            continue;
-          }
-        }
-      } catch (e) {
-        continue;
-      }
-    }
-    
-    for (const url of thirdPartyApis) {
-      try {
-        const responseData = await fetchUrl(url);
-        if (responseData.status === 200) {
-          try {
-            const jsonData = JSON.parse(responseData.body);
-            const data = jsonData.data || jsonData;
-            if (Array.isArray(data) && data.length > 0) {
-              const songData = data[0];
-              if (songData.url) {
-                res.status(200).json({ success: true, data: { url: songData.url, ...songData } });
-                return;
-              }
+            
+            if (audioUrl && audioUrl.startsWith('http')) {
+              res.status(200).json({ success: true, data: { url: audioUrl } });
+              return;
             }
           } catch (e) {
             continue;
