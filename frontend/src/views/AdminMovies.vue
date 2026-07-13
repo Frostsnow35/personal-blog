@@ -6,6 +6,59 @@
         <button @click="openCreate" class="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg">+ 新增电影</button>
       </div>
 
+      <!-- 搜索区域 -->
+      <div class="mb-6 card p-4">
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-gray-600 dark:text-gray-400">🔍 搜索豆瓣电影：</span>
+          <div class="flex-1 relative">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="输入电影名..."
+              @keydown.enter="searchMovie"
+              class="w-full pl-4 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            />
+            <button
+              @click="searchMovie"
+              :disabled="!searchQuery.trim() || searchLoading"
+              class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-ocean-600 hover:bg-ocean-700 disabled:bg-gray-400 text-white rounded text-sm transition-colors"
+            >
+              {{ searchLoading ? '搜索中...' : '搜索' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 搜索结果 -->
+      <div v-if="searchResults.length" class="mb-8">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">搜索结果（来自豆瓣电影）</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div
+            v-for="item in searchResults"
+            :key="item.id"
+            class="card overflow-hidden"
+          >
+            <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 2/3;">
+              <img :src="item.cover" :alt="item.title" class="absolute inset-0 w-full h-full object-cover" />
+              <div v-if="item.rating" class="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-500 text-white text-xs rounded">★ {{ item.rating }}</div>
+            </div>
+            <div class="p-3">
+              <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-1">{{ item.title }}</h3>
+              <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                <span v-if="item.director">{{ item.director }}</span>
+                <span v-if="item.year"> · {{ item.year }}</span>
+              </p>
+              <button
+                @click="addFromSearch(item)"
+                class="mt-2 w-full px-3 py-1.5 bg-ocean-600 hover:bg-ocean-700 text-white text-sm rounded transition-colors"
+              >
+                + 添加到收藏
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div v-if="loading" class="text-center py-10 text-gray-500">加载中…</div>
       <div v-else-if="!items.length" class="text-center py-10 text-gray-500">暂无电影</div>
       <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -75,9 +128,22 @@ interface Movie {
   sort_order: number
 }
 
+interface SearchResult {
+  id: string
+  title: string
+  director: string
+  year: string
+  cover: string
+  rating: string
+  url: string
+}
+
 const items = ref<Movie[]>([])
 const loading = ref(false)
 const editing = ref<any>(null)
+const searchQuery = ref('')
+const searchResults = ref<SearchResult[]>([])
+const searchLoading = ref(false)
 
 const load = async () => {
   loading.value = true
@@ -136,6 +202,82 @@ const del = async (m: Movie) => {
     else toast.error('删除失败', r?.message)
   } catch (e: any) {
     toast.error('删除失败', e?.message)
+  }
+}
+
+const searchMovie = async () => {
+  const query = searchQuery.value.trim()
+  if (!query) return
+
+  searchLoading.value = true
+  searchResults.value = []
+  try {
+    const response = await fetch(`https://api.douban.com/v2/movie/search?q=${encodeURIComponent(query)}&count=8`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    })
+    const data = await response.json()
+    
+    if (data?.subjects) {
+      searchResults.value = data.subjects.map((movie: any) => ({
+        id: movie.id,
+        title: movie.title,
+        director: movie.directors?.[0]?.name || '未知导演',
+        year: movie.year || '',
+        cover: movie.images?.large || movie.images?.medium || '',
+        rating: movie.rating?.average?.toString() || '',
+        url: movie.alt || ''
+      }))
+    }
+  } catch (error) {
+    console.error('搜索失败:', error)
+    try {
+      const fallbackResponse = await fetch(`https://douban.uieee.cn/v2/movie/search?q=${encodeURIComponent(query)}&count=8`)
+      const fallbackData = await fallbackResponse.json()
+      if (fallbackData?.subjects) {
+        searchResults.value = fallbackData.subjects.map((movie: any) => ({
+          id: movie.id,
+          title: movie.title,
+          director: movie.directors?.[0]?.name || '未知导演',
+          year: movie.year || '',
+          cover: movie.images?.large || movie.images?.medium || '',
+          rating: movie.rating?.average?.toString() || '',
+          url: movie.alt || ''
+        }))
+      }
+    } catch (fallbackError) {
+      console.error('备用API搜索失败:', fallbackError)
+      toast.error('搜索失败', '无法连接到豆瓣电影')
+    }
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+const addFromSearch = async (item: SearchResult) => {
+  const payload: any = {
+    title: item.title,
+    director: item.director,
+    year: item.year ? parseInt(item.year) : null,
+    cover_url: item.cover || null,
+    source_url: item.url || null,
+    description: null,
+    rating: item.rating ? parseFloat(item.rating) : null,
+    tags: [],
+    sort_order: 0
+  }
+  try {
+    const r = await http.post<any>('/admin/movie-favorites', payload)
+    if (r?.success) {
+      toast.success('添加成功')
+      searchResults.value = searchResults.value.filter(s => s.id !== item.id)
+      await load()
+    } else {
+      toast.error('添加失败', r?.message)
+    }
+  } catch (e: any) {
+    toast.error('添加失败', e?.message)
   }
 }
 

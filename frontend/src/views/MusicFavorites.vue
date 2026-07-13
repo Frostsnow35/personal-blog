@@ -73,11 +73,13 @@
             <a
               :href="m.source_url"
               target="_blank"
-              class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+              rel="noopener"
+              class="absolute inset-0 flex flex-col items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300"
             >
-              <span class="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center">
+              <span class="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center mb-3 transform group-hover:scale-110 transition-transform">
                 <span class="text-2xl">▶</span>
               </span>
+              <span class="text-white text-sm font-medium">点击跳转到网易云音乐</span>
             </a>
           </div>
           <div class="p-4">
