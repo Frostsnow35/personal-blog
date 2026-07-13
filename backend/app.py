@@ -964,6 +964,13 @@ def daily_music_favorite():
     return json_response({'success': True, 'data': [_music_to_dict(m) for m in shuffled]})
 
 
+@app.route('/api/admin/music-favorites', methods=['GET'])
+@jwt_required_admin
+def admin_list_music():
+    rows = MusicFavorite.query.order_by(MusicFavorite.sort_order.asc(), MusicFavorite.id.desc()).all()
+    return json_response({'success': True, 'data': [_music_to_dict(m) for m in rows]})
+
+
 @app.route('/api/admin/music-favorites', methods=['POST'])
 @jwt_required_admin
 def admin_create_music():
