@@ -1330,7 +1330,7 @@ def proxy_netease_hot():
         return jsonify({'success': False, 'message': f'无法连接到网易云音乐: {str(e)}'}), 500
 
 
-MUSIC_API_BASE_URL = os.environ.get('MUSIC_API_BASE_URL', 'https://ghcr.io/tlyanyu/multiplatformmusicapi:latest')
+MUSIC_API_BASE_URL = os.environ.get('MUSIC_API_BASE_URL', 'https://neteasecloudmusicapi.js.org')
 
 @app.route('/api/proxy/music/search', methods=['GET'])
 def proxy_music_search():

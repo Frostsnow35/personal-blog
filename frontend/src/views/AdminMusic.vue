@@ -38,36 +38,7 @@
         </div>
       </div>
 
-      <div v-if="recommendResults.length" class="mb-8">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">🎵 热门推荐</h2>
-          <button @click="fetchRecommend" :disabled="recommendLoading" class="text-sm text-ocean-600 hover:text-ocean-700 disabled:text-gray-400 font-medium">
-            {{ recommendLoading ? '刷新中...' : '刷新推荐' }}
-          </button>
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          <div
-            v-for="item in recommendResults"
-            :key="item.id"
-            class="card overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-            @click="addFromSearch(item)"
-          >
-            <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 1/1;">
-              <img :src="item.cover" :alt="item.name" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                <span class="opacity-0 group-hover:opacity-100 text-white font-semibold bg-ocean-600 px-4 py-2 rounded-lg transition-opacity">
-                  + 添加
-                </span>
-              </div>
-            </div>
-            <div class="p-3">
-              <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-1">{{ item.name }}</h3>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ item.artist }}</p>
-              <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{{ item.album }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      
 
       <div v-if="searchResults.length" class="mb-8">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">搜索结果</h2>
@@ -154,8 +125,6 @@ const loading = ref(false)
 const searchQuery = ref('')
 const searchResults = ref<SearchResult[]>([])
 const searchLoading = ref(false)
-const recommendResults = ref<SearchResult[]>([])
-const recommendLoading = ref(false)
 const platform = ref('netease')
 const searchInput = ref<HTMLInputElement | null>(null)
 
@@ -177,36 +146,6 @@ const scrollToSearch = async () => {
   }
   if (searchInput.value) {
     searchInput.value.focus()
-  }
-}
-
-const fetchRecommend = async () => {
-  recommendLoading.value = true
-  recommendResults.value = []
-  try {
-    const response = await http.get<any>(`/proxy/music/toplist?platform=${platform.value}`)
-    if (response?.success && response.data?.playlist?.tracks) {
-      recommendResults.value = response.data.playlist.tracks.slice(0, 10).map((song: any) => ({
-        id: song.id.toString(),
-        name: song.name,
-        artist: song.ar?.[0]?.name || song.artists?.[0]?.name || '未知歌手',
-        album: song.al?.name || song.album?.name || '未知专辑',
-        cover: song.al?.picUrl ? `${song.al.picUrl}?param=300x300` : song.album?.picUrl ? `${song.album.picUrl}?param=300x300` : ''
-      })).filter((m: any) => m.cover)
-    } else if (response?.success && response.data?.list) {
-      recommendResults.value = response.data.list.slice(0, 10).map((song: any) => ({
-        id: song.id.toString(),
-        name: song.name,
-        artist: song.singer?.[0]?.name || '未知歌手',
-        album: song.album?.name || '未知专辑',
-        cover: song.album?.mid ? `https://y.qq.com/music/photo_new/T002R300x300M000${song.album.mid}.jpg` : ''
-      })).filter((m: any) => m.cover)
-    }
-  } catch (error) {
-    console.error('推荐加载失败:', error)
-    toast.error('推荐加载失败')
-  } finally {
-    recommendLoading.value = false
   }
 }
 
@@ -259,7 +198,6 @@ const addFromSearch = async (item: SearchResult) => {
     if (r?.success) {
       toast.success('添加成功')
       searchResults.value = searchResults.value.filter(s => s.id !== item.id)
-      recommendResults.value = recommendResults.value.filter(s => s.id !== item.id)
       await load()
     } else {
       toast.error('添加失败', r?.message)
@@ -282,6 +220,5 @@ const del = async (m: Music) => {
 
 onMounted(async () => {
   await load()
-  await fetchRecommend()
 })
 </script>
