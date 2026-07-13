@@ -3,14 +3,9 @@
   "installCommand": "pip install --break-system-packages -r requirements.txt && cd frontend && npm install",
   "buildCommand": "cd frontend && npm run build:prod",
   "outputDirectory": "frontend/dist",
-  "build": {
-    "env": {
-      "VERCEL_NODE_RUNTIME": "nodejs18.x"
-    }
-  },
   "functions": {
     "api/music.js": {
-      "runtime": "@vercel/node@3.1.4"
+      "runtime": "@vercel/node@3.2.0"
     }
   },
   "rewrites": [
