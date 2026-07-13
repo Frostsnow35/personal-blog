@@ -964,6 +964,16 @@ def daily_music_favorite():
     return json_response({'success': True, 'data': [_music_to_dict(m) for m in shuffled]})
 
 
+@app.route('/music-favorites', methods=['GET'])
+def list_music_favorites_public():
+    return list_music_favorites()
+
+
+@app.route('/music-favorites/daily', methods=['GET'])
+def daily_music_favorite_public():
+    return daily_music_favorite()
+
+
 @app.route('/api/admin/music-favorites', methods=['GET'])
 @jwt_required_admin
 def admin_list_music():
