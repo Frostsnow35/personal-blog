@@ -404,6 +404,7 @@ class MovieFavorite(db.Model):
     rating = db.Column(db.Integer)  # 1-10
     tags = db.Column(db.JSON)
     sort_order = db.Column(db.Integer, default=0, index=True)
+    tier = db.Column(db.String(10), default='S', index=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -928,6 +929,7 @@ def _movie_to_dict(m: MovieFavorite) -> dict:
         'rating': m.rating,
         'tags': m.tags or [],
         'sort_order': m.sort_order,
+        'tier': getattr(m, 'tier', 'S'),
         'created_at': m.created_at.isoformat() if m.created_at else None,
     }
 
@@ -1059,6 +1061,7 @@ def admin_create_movie():
         rating=int(data['rating']) if data.get('rating') else None,
         tags=data.get('tags') or [],
         sort_order=int(data.get('sort_order') or 0),
+        tier=(data.get('tier') or 'S').strip()[:10] or 'S',
     )
     db.session.add(m)
     db.session.commit()
@@ -1089,6 +1092,8 @@ def admin_update_movie(mid):
     if 'sort_order' in data:
         try: m.sort_order = int(data.get('sort_order') or 0)
         except (TypeError, ValueError): pass
+    if 'tier' in data:
+        m.tier = (data.get('tier') or 'S').strip()[:10] or 'S'
     db.session.commit()
     return jsonify({'success': True, 'data': _movie_to_dict(m)})
 

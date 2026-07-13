@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen py-10 px-4">
+  <div class="min-h-screen py-8 px-4">
     <div class="max-w-6xl mx-auto">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">🎬 电影管理</h1>
-        <button @click="openCreate" class="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg">+ 新增电影</button>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">🎬 电影分级管理</h1>
+        <div class="text-sm text-gray-500 dark:text-gray-400">点击电影卡片添加到收藏（默认 S 级）</div>
       </div>
 
       <!-- 搜索区域 -->
@@ -29,115 +29,105 @@
         </div>
       </div>
 
-      <!-- 推荐列表 -->
-      <div v-if="recommendResults.length" class="mb-8">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">🎬 豆瓣推荐（热映电影）</h3>
-          <button @click="fetchRecommend" :disabled="recommendLoading" class="text-sm text-ocean-600 hover:text-ocean-700 disabled:text-gray-400">
-            {{ recommendLoading ? '刷新中...' : '刷新推荐' }}
-          </button>
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          <div
-            v-for="item in recommendResults"
-            :key="item.id"
-            class="card overflow-hidden"
-          >
-            <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 2/3;">
-              <img :src="item.cover" :alt="item.title" class="absolute inset-0 w-full h-full object-cover" />
-              <div v-if="item.rating" class="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-500 text-white text-xs rounded">★ {{ item.rating }}</div>
-            </div>
-            <div class="p-3">
-              <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-1">{{ item.title }}</h3>
-              <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                <span v-if="item.director">{{ item.director }}</span>
-                <span v-if="item.year"> · {{ item.year }}</span>
-              </p>
-              <button
-                @click="addFromSearch(item)"
-                class="mt-2 w-full px-3 py-1.5 bg-ocean-600 hover:bg-ocean-700 text-white text-sm rounded transition-colors"
-              >
-                + 添加到收藏
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- 搜索结果 -->
-      <div v-if="searchResults.length" class="mb-8">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">搜索结果（来自豆瓣电影）</h3>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div v-if="searchResults.length" class="mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">🔍 搜索结果</h3>
+          <button @click="searchResults = []" class="text-sm text-gray-500 hover:text-gray-700">清空</button>
+        </div>
+        <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
           <div
             v-for="item in searchResults"
             :key="item.id"
-            class="card overflow-hidden"
+            @click="addFromSearch(item)"
+            class="flex-shrink-0 w-32 cursor-pointer group"
           >
-            <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 2/3;">
-              <img :src="item.cover" :alt="item.title" class="absolute inset-0 w-full h-full object-cover" />
-              <div v-if="item.rating" class="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-500 text-white text-xs rounded">★ {{ item.rating }}</div>
+            <div class="relative w-full bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden shadow-md group-hover:shadow-xl transition-shadow" style="aspect-ratio: 2/3;">
+              <img :src="item.cover" :alt="item.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+              <div v-if="item.rating" class="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-500 text-white text-xs rounded font-medium">★ {{ item.rating }}</div>
+              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                <span class="text-white text-xl opacity-0 group-hover:opacity-100 transition-opacity">+</span>
+              </div>
             </div>
-            <div class="p-3">
-              <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-1">{{ item.title }}</h3>
-              <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                <span v-if="item.director">{{ item.director }}</span>
-                <span v-if="item.year"> · {{ item.year }}</span>
-              </p>
-              <button
-                @click="addFromSearch(item)"
-                class="mt-2 w-full px-3 py-1.5 bg-ocean-600 hover:bg-ocean-700 text-white text-sm rounded transition-colors"
-              >
-                + 添加到收藏
-              </button>
+            <div class="mt-2 text-center">
+              <h4 class="font-medium text-sm text-gray-900 dark:text-gray-100 line-clamp-1">{{ item.title }}</h4>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ item.year }}</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="loading" class="text-center py-10 text-gray-500">加载中…</div>
-      <div v-else-if="!items.length" class="text-center py-10 text-gray-500">暂无电影</div>
-      <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-        <div v-for="m in items" :key="m.id" class="card overflow-hidden">
-          <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 2/3;">
-            <img v-if="m.cover_url" :src="m.cover_url" :alt="m.title" class="absolute inset-0 w-full h-full object-cover" />
-            <div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 text-3xl">🎬</div>
-            <div v-if="m.rating" class="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-500 text-white text-xs rounded">★ {{ m.rating }}</div>
-          </div>
-          <div class="p-3">
-            <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-1">{{ m.title }}</h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-              <span v-if="m.director">{{ m.director }}</span>
-              <span v-if="m.year"> · {{ m.year }}</span>
-            </p>
-            <div class="mt-2 flex gap-1 flex-wrap">
-              <button @click="openEdit(m)" class="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded">编辑</button>
-              <button @click="del(m)" class="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded">删除</button>
+      <!-- 推荐区域 -->
+      <div v-if="recommendResults.length" class="mb-8">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">🎬 豆瓣热映推荐</h3>
+          <button @click="fetchRecommend" :disabled="recommendLoading" class="text-sm text-ocean-600 hover:text-ocean-700 disabled:text-gray-400">
+            {{ recommendLoading ? '刷新中...' : '刷新' }}
+          </button>
+        </div>
+        <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+          <div
+            v-for="item in recommendResults"
+            :key="item.id"
+            @click="addFromSearch(item)"
+            class="flex-shrink-0 w-32 cursor-pointer group"
+          >
+            <div class="relative w-full bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden shadow-md group-hover:shadow-xl transition-shadow" style="aspect-ratio: 2/3;">
+              <img :src="item.cover" :alt="item.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+              <div v-if="item.rating" class="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-500 text-white text-xs rounded font-medium">★ {{ item.rating }}</div>
+              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                <span class="text-white text-xl opacity-0 group-hover:opacity-100 transition-opacity">+</span>
+              </div>
+            </div>
+            <div class="mt-2 text-center">
+              <h4 class="font-medium text-sm text-gray-900 dark:text-gray-100 line-clamp-1">{{ item.title }}</h4>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ item.year }}</p>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 新增/编辑 Modal -->
-      <div v-if="editing !== null" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" @click.self="editing = null">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">{{ editing.id ? '编辑电影' : '新增电影' }}</h2>
-          <div class="space-y-3">
-            <input v-model="editing.title" placeholder="片名 *" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800" />
-            <input v-model="editing.director" placeholder="导演" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800" />
-            <input v-model.number="editing.year" type="number" placeholder="上映年份" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800" />
-            <input v-model="editing.cover_url" placeholder="海报 URL" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800" />
-            <input v-model="editing.source_url" placeholder="外链 URL（B站/豆瓣/IMDB）" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800" />
-            <div class="flex items-center gap-2">
-              <label class="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">评分（1-10）：</label>
-              <input v-model.number="editing.rating" type="number" min="1" max="10" placeholder="1-10" class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800" />
+      <!-- Tier List -->
+      <div class="space-y-4">
+        <div
+          v-for="tier in tiers"
+          :key="tier.level"
+          class="card p-4"
+        >
+          <div class="flex items-center gap-4">
+            <div
+              class="w-12 h-12 rounded-lg flex items-center justify-center text-white text-xl font-bold flex-shrink-0"
+              :class="tier.color"
+            >
+              {{ tier.level }}
             </div>
-            <textarea v-model="editing.description" placeholder="简介" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"></textarea>
-            <input v-model="editing.tagsText" placeholder="标签（逗号分隔）" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800" />
-            <input v-model.number="editing.sort_order" type="number" placeholder="排序" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800" />
-          </div>
-          <div class="mt-4 flex justify-end gap-2">
-            <button @click="editing = null" class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">取消</button>
-            <button @click="save" class="px-4 py-2 text-sm bg-ocean-600 hover:bg-ocean-700 text-white rounded">保存</button>
+            <div class="flex-1">
+              <div v-if="getMoviesByTier(tier.level).length === 0" class="text-gray-400 text-sm py-4">
+                暂无电影，点击上方搜索或推荐中的电影添加到此处
+              </div>
+              <div v-else class="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                <div
+                  v-for="m in getMoviesByTier(tier.level)"
+                  :key="m.id"
+                  class="flex-shrink-0 w-32 relative group"
+                >
+                  <div class="relative w-full bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden shadow-md" style="aspect-ratio: 2/3;">
+                    <img v-if="m.cover_url" :src="m.cover_url" :alt="m.title" class="w-full h-full object-cover" />
+                    <div v-else class="w-full h-full flex items-center justify-center text-gray-400 text-3xl">🎬</div>
+                    <div v-if="m.rating" class="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-500 text-white text-xs rounded font-medium">★ {{ m.rating }}</div>
+                    <!-- 删除按钮 -->
+                    <button
+                      @click.stop="del(m)"
+                      class="absolute top-1 left-1 w-6 h-6 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    >×</button>
+                  </div>
+                  <div class="mt-2 text-center">
+                    <h4 class="font-medium text-sm text-gray-900 dark:text-gray-100 line-clamp-1">{{ m.title }}</h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ m.year }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -161,6 +151,7 @@ interface Movie {
   rating: number | null
   tags: string[] | null
   sort_order: number
+  tier: string
 }
 
 interface SearchResult {
@@ -174,9 +165,16 @@ interface SearchResult {
   description: string
 }
 
+const tiers = [
+  { level: 'S', color: 'bg-gradient-to-br from-red-500 to-red-700' },
+  { level: 'A', color: 'bg-gradient-to-br from-orange-500 to-orange-700' },
+  { level: 'B', color: 'bg-gradient-to-br from-yellow-500 to-yellow-700' },
+  { level: 'C', color: 'bg-gradient-to-br from-green-500 to-green-700' },
+  { level: 'D', color: 'bg-gradient-to-br from-gray-500 to-gray-700' },
+]
+
 const items = ref<Movie[]>([])
 const loading = ref(false)
-const editing = ref<any>(null)
 const searchQuery = ref('')
 const searchResults = ref<SearchResult[]>([])
 const searchLoading = ref(false)
@@ -218,54 +216,8 @@ const fetchRecommend = async () => {
   }
 }
 
-const openCreate = () => {
-  editing.value = { title: '', director: '', year: null, cover_url: '', source_url: '', description: '', rating: null, tagsText: '', sort_order: 0 }
-}
-
-const openEdit = (m: Movie) => {
-  editing.value = { ...m, tagsText: (m.tags || []).join(', ') }
-}
-
-const save = async () => {
-  if (!editing.value.title?.trim()) {
-    toast.warning('片名必填')
-    return
-  }
-  const tags = (editing.value.tagsText || '').split(',').map((s: string) => s.trim()).filter(Boolean)
-  const payload: any = {
-    title: editing.value.title.trim(),
-    director: editing.value.director?.trim() || null,
-    year: editing.value.year || null,
-    cover_url: editing.value.cover_url?.trim() || null,
-    source_url: editing.value.source_url?.trim() || null,
-    description: editing.value.description?.trim() || null,
-    rating: editing.value.rating || null,
-    tags,
-    sort_order: editing.value.sort_order || 0
-  }
-  try {
-    let r
-    if (editing.value.id) {
-      r = await http.put<any>(`/admin/movie-favorites/${editing.value.id}`, payload)
-    } else {
-      r = await http.post<any>('/admin/movie-favorites', payload)
-    }
-    if (r?.success) { editing.value = null; await load() }
-    else toast.error('保存失败', r?.message)
-  } catch (e: any) {
-    toast.error('保存失败', e?.message)
-  }
-}
-
-const del = async (m: Movie) => {
-  if (!confirm(`删除 "${m.title}"？`)) return
-  try {
-    const r = await http.delete<any>(`/admin/movie-favorites/${m.id}`)
-    if (r?.success) { toast.success('已删除'); await load() }
-    else toast.error('删除失败', r?.message)
-  } catch (e: any) {
-    toast.error('删除失败', e?.message)
-  }
+const getMoviesByTier = (tier: string) => {
+  return items.value.filter(m => m.tier === tier)
 }
 
 const searchMovie = async () => {
@@ -275,7 +227,7 @@ const searchMovie = async () => {
   searchLoading.value = true
   searchResults.value = []
   try {
-    const response = await http.get<any>(`/proxy/douban/movie/search?q=${encodeURIComponent(query)}&count=8`)
+    const response = await http.get<any>(`/proxy/douban/movie/search?q=${encodeURIComponent(query)}&count=12`)
     if (response?.success && response.data?.subjects) {
       searchResults.value = response.data.subjects.map((movie: any) => ({
         id: movie.id,
@@ -306,19 +258,32 @@ const addFromSearch = async (item: SearchResult) => {
     description: item.description || null,
     rating: item.rating ? parseFloat(item.rating) : null,
     tags: [],
-    sort_order: 0
+    sort_order: 0,
+    tier: 'S'
   }
   try {
     const r = await http.post<any>('/admin/movie-favorites', payload)
     if (r?.success) {
       toast.success('添加成功')
       searchResults.value = searchResults.value.filter(s => s.id !== item.id)
+      recommendResults.value = recommendResults.value.filter(s => s.id !== item.id)
       await load()
     } else {
       toast.error('添加失败', r?.message)
     }
   } catch (e: any) {
     toast.error('添加失败', e?.message)
+  }
+}
+
+const del = async (m: Movie) => {
+  if (!confirm(`删除 "${m.title}"？`)) return
+  try {
+    const r = await http.delete<any>(`/admin/movie-favorites/${m.id}`)
+    if (r?.success) { toast.success('已删除'); await load() }
+    else toast.error('删除失败', r?.message)
+  } catch (e: any) {
+    toast.error('删除失败', e?.message)
   }
 }
 
