@@ -70,17 +70,14 @@
           <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 1/1;">
             <img v-if="m.cover_url" :src="m.cover_url" :alt="m.title" class="absolute inset-0 w-full h-full object-cover" loading="lazy" />
             <div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 text-5xl">🎵</div>
-            <a
-              :href="m.source_url"
-              target="_blank"
-              rel="noopener"
-              class="absolute inset-0 flex flex-col items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300"
+            <div
+              class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300 p-4"
             >
-              <span class="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center mb-3 transform group-hover:scale-110 transition-transform">
-                <span class="text-2xl">▶</span>
-              </span>
-              <span class="text-white text-sm font-medium">点击跳转到网易云音乐</span>
-            </a>
+              <p v-if="m.description" class="text-white text-xs text-center line-clamp-4">{{ m.description }}</p>
+              <div v-if="m.tags?.length" class="mt-2 flex flex-wrap justify-center gap-1">
+                <span v-for="tag in m.tags" :key="tag" class="px-2 py-0.5 bg-white/20 text-white text-xs rounded">{{ tag }}</span>
+              </div>
+            </div>
           </div>
           <div class="p-4">
             <h3 class="font-semibold text-gray-900 dark:text-gray-100 line-clamp-1">{{ m.title }}</h3>

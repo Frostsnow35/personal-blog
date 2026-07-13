@@ -136,6 +136,7 @@ interface SearchResult {
   cover: string
   rating: string
   url: string
+  description: string
 }
 
 const items = ref<Movie[]>([])
@@ -227,7 +228,8 @@ const searchMovie = async () => {
         year: movie.year || '',
         cover: movie.images?.large || movie.images?.medium || '',
         rating: movie.rating?.average?.toString() || '',
-        url: movie.alt || ''
+        url: movie.alt || '',
+        description: movie.summary?.substring(0, 100) || ''
       }))
     }
   } catch (error) {
@@ -243,7 +245,8 @@ const searchMovie = async () => {
           year: movie.year || '',
           cover: movie.images?.large || movie.images?.medium || '',
           rating: movie.rating?.average?.toString() || '',
-          url: movie.alt || ''
+          url: movie.alt || '',
+          description: movie.summary?.substring(0, 100) || ''
         }))
       }
     } catch (fallbackError) {
@@ -262,7 +265,7 @@ const addFromSearch = async (item: SearchResult) => {
     year: item.year ? parseInt(item.year) : null,
     cover_url: item.cover || null,
     source_url: item.url || null,
-    description: null,
+    description: item.description || null,
     rating: item.rating ? parseFloat(item.rating) : null,
     tags: [],
     sort_order: 0

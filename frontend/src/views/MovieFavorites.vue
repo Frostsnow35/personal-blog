@@ -60,12 +60,9 @@
         <p>暂无电影</p>
       </div>
       <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-        <a
+        <div
           v-for="m in items"
           :key="m.id"
-          :href="m.source_url || '#'"
-          target="_blank"
-          rel="noopener"
           class="card overflow-hidden hover:shadow-xl transition-all duration-300 group"
         >
           <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 2/3;">
@@ -73,12 +70,12 @@
             <div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 text-4xl">🎬</div>
             <div v-if="m.rating" class="absolute top-2 right-2 px-2 py-0.5 bg-amber-500 text-white text-xs rounded">★ {{ m.rating }}</div>
             <div
-              class="absolute inset-0 flex flex-col items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300"
+              class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300 p-4"
             >
-              <span class="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center mb-2 transform group-hover:scale-110 transition-transform">
-                <span class="text-xl">↗</span>
-              </span>
-              <span class="text-white text-xs font-medium">点击跳转到豆瓣</span>
+              <p v-if="m.description" class="text-white text-xs text-center line-clamp-4">{{ m.description }}</p>
+              <div v-if="m.tags?.length" class="mt-2 flex flex-wrap justify-center gap-1">
+                <span v-for="tag in m.tags" :key="tag" class="px-2 py-0.5 bg-white/20 text-white text-xs rounded">{{ tag }}</span>
+              </div>
             </div>
           </div>
           <div class="p-3">
@@ -88,7 +85,7 @@
               <span v-if="m.year"> · {{ m.year }}</span>
             </p>
           </div>
-        </a>
+        </div>
       </div>
     </div>
   </div>
@@ -107,6 +104,8 @@ interface Movie {
   cover_url: string | null
   source_url: string | null
   rating: number | null
+  description: string | null
+  tags: string[] | null
 }
 
 interface SearchResult {
