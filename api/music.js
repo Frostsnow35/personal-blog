@@ -1,7 +1,7 @@
 const https = require('https');
 const http = require('http');
 
-async function fetchUrl(targetUrl, headers = {}) {
+async function fetchUrl(targetUrl, headers = {}, method = 'GET', body = null) {
   const urlObj = new URL(targetUrl);
   const protocol = urlObj.protocol === 'https:' ? https : http;
   
@@ -17,7 +17,7 @@ async function fetchUrl(targetUrl, headers = {}) {
   const requestOptions = {
     hostname: urlObj.hostname,
     path: urlObj.pathname + urlObj.search,
-    method: 'GET',
+    method: method,
     headers: defaultHeaders,
     timeout: 15000
   };
@@ -42,18 +42,99 @@ async function fetchUrl(targetUrl, headers = {}) {
       reject(new Error('请求超时'));
     });
     
+    if (body) {
+      proxyReq.write(body);
+    }
     proxyReq.end();
   });
 }
 
-async function getAudioUrl(songId) {
+async function getNeteaseAudioUrl(songId) {
   const apiUrls = [
     `https://music.163.com/api/song/enhance/player/url/v1?csrf_token=&ids=[${songId}]&level=standard&encodeType=mp3&br=320000`,
     `https://music.163.com/api/song/enhance/player/url?csrf_token=&ids=[${songId}]&br=320000`,
+  ];
+  
+  for (const url of apiUrls) {
+    try {
+      const responseData = await fetchUrl(url);
+      if (responseData.status === 200) {
+        try {
+          const jsonData = JSON.parse(responseData.body);
+          if (jsonData.data && Array.isArray(jsonData.data) && jsonData.data.length > 0) {
+            const audioUrl = jsonData.data[0].url || jsonData.data[0].mp3Url || jsonData.data[0].audio;
+            if (audioUrl && audioUrl.startsWith('http')) {
+              return audioUrl;
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+  
+  return null;
+}
+
+async function getQQMusicAudioUrl(songId) {
+  try {
+    const searchUrl = `https://c.y.qq.com/soso/fcgi-bin/client_search_cp?ct=24&qqmusic_ver=1298&new_json=1&remoteplace=txt.yqq.song&searchid=64405487069162918&t=0&aggr=1&cr=1&catZhida=1&lossless=0&flag_qc=0&p=1&n=10&w=${encodeURIComponent(songId)}&g_tk=5381&jsonpCallback=MusicJsonCallback22315007933490223&loginUin=0&hostUin=0&format=jsonp&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq&needNewCode=0`;
+    const responseData = await fetchUrl(searchUrl, {
+      'Referer': 'https://y.qq.com/',
+      'Origin': 'https://y.qq.com'
+    });
+    
+    if (responseData.status === 200) {
+      try {
+        const body = responseData.body;
+        const match = body.match(/MusicJsonCallback\d+\((.+)\)/);
+        if (match) {
+          const jsonData = JSON.parse(match[1]);
+          if (jsonData.data && jsonData.data.song && jsonData.data.song.list && jsonData.data.song.list.length > 0) {
+            const song = jsonData.data.song.list[0];
+            const mediaMid = song.mid;
+            const guid = Math.floor(Math.random() * 1000000000);
+            
+            const urlUrl = `https://u.y.qq.com/cgi-bin/musicu.fcg?format=json&data={"req":{"module":"CDN.SrfCdnDispatchServer","method":"GetCdnDispatch","param":{"guid":"${guid}","calltype":0,"userip":""}},"req_0":{"module":"vkey.GetVkeyServer","method":"CgiGetVkey","param":{"guid":"${guid}","songmid":["${mediaMid}"],"songtype":[0],"uin":"0","loginflag":1,"platform":"20"}},"comm":{"uin":"0","format":"json","ct":20,"cv":0}}`;
+            
+            const vkeyResponse = await fetchUrl(urlUrl, {
+              'Referer': 'https://y.qq.com/',
+              'Origin': 'https://y.qq.com'
+            });
+            
+            if (vkeyResponse.status === 200) {
+              const vkeyData = JSON.parse(vkeyResponse.body);
+              if (vkeyData.req_0 && vkeyData.req_0.data && vkeyData.req_0.data.midurlinfo && vkeyData.req_0.data.midurlinfo.length > 0) {
+                const midUrlInfo = vkeyData.req_0.data.midurlinfo[0];
+                const purl = midUrlInfo.purl;
+                if (purl) {
+                  return `https://isure.stream.qqmusic.qq.com/${purl}`;
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  
+  return null;
+}
+
+async function getThirdPartyAudioUrl(songId) {
+  const apiUrls = [
     `https://api.injahow.cn/meting/api?server=netease&type=song&id=${songId}`,
-    `https://api.itooi.cn/music/netease/playUrl?id=${songId}&quality=high`,
     `https://api.bzqll.com/music/netease/song?id=${songId}&type=json`,
     `https://music.666ccc.com/api/netease/song?id=${songId}`,
+    `https://api.mixmoe.cn/netease/song?id=${songId}`,
+    `https://api.paugram.com/music/netease?id=${songId}`,
   ];
   
   for (const url of apiUrls) {
@@ -73,6 +154,8 @@ async function getAudioUrl(songId) {
             audioUrl = jsonData.data.url;
           } else if (jsonData.songs && Array.isArray(jsonData.songs) && jsonData.songs.length > 0) {
             audioUrl = jsonData.songs[0].url || jsonData.songs[0].mp3Url;
+          } else if (jsonData.music && jsonData.music.url) {
+            audioUrl = jsonData.music.url;
           }
           
           if (audioUrl && audioUrl.startsWith('http')) {
@@ -90,6 +173,19 @@ async function getAudioUrl(songId) {
   return null;
 }
 
+async function getAudioUrl(songId) {
+  let audioUrl = await getNeteaseAudioUrl(songId);
+  if (audioUrl) return audioUrl;
+  
+  audioUrl = await getThirdPartyAudioUrl(songId);
+  if (audioUrl) return audioUrl;
+  
+  audioUrl = await getQQMusicAudioUrl(songId);
+  if (audioUrl) return audioUrl;
+  
+  return null;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -100,7 +196,7 @@ module.exports = async (req, res) => {
     return;
   }
   
-  const { keywords, id, stream } = req.query;
+  const { keywords, id, stream, platform } = req.query;
   
   if (keywords) {
     const targetUrl = `https://music.163.com/api/cloudsearch/pc?s=${encodeURIComponent(keywords)}&type=1&offset=0&limit=10`;
