@@ -1213,6 +1213,7 @@ def serve_uploads(filename):
 
 # TMDb API 配置
 TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
+TMDB_BEARER_TOKEN = os.environ.get('TMDB_BEARER_TOKEN', '')
 TMDB_BASE_URL = 'https://api.themoviedb.org/3'
 TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
 
@@ -1222,12 +1223,15 @@ def proxy_tmdb_search():
     page = request.args.get('page', '1')
     if not q:
         return jsonify({'success': False, 'message': '搜索关键词不能为空'}), 400
-    if not TMDB_API_KEY:
-        return jsonify({'success': False, 'message': 'TMDb API 密钥未配置'}), 500
+    if not TMDB_BEARER_TOKEN:
+        return jsonify({'success': False, 'message': 'TMDb Bearer Token 未配置'}), 500
     
-    url = f'{TMDB_BASE_URL}/search/movie?api_key={TMDB_API_KEY}&query={urllib.parse.quote(q)}&page={page}&language=zh-CN'
+    url = f'{TMDB_BASE_URL}/search/movie?query={urllib.parse.quote(q)}&page={page}&language=zh-CN'
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'Mozilla/5.0',
+            'Authorization': f'Bearer {TMDB_BEARER_TOKEN}'
+        })
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode('utf-8'))
             return json_response({'success': True, 'data': data})
@@ -1238,12 +1242,15 @@ def proxy_tmdb_search():
 @app.route('/api/proxy/tmdb/movie/popular', methods=['GET'])
 def proxy_tmdb_popular():
     page = request.args.get('page', '1')
-    if not TMDB_API_KEY:
-        return jsonify({'success': False, 'message': 'TMDb API 密钥未配置'}), 500
+    if not TMDB_BEARER_TOKEN:
+        return jsonify({'success': False, 'message': 'TMDb Bearer Token 未配置'}), 500
     
-    url = f'{TMDB_BASE_URL}/movie/popular?api_key={TMDB_API_KEY}&page={page}&language=zh-CN'
+    url = f'{TMDB_BASE_URL}/movie/popular?page={page}&language=zh-CN'
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'Mozilla/5.0',
+            'Authorization': f'Bearer {TMDB_BEARER_TOKEN}'
+        })
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode('utf-8'))
             return json_response({'success': True, 'data': data})
