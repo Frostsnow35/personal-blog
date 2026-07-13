@@ -87,13 +87,18 @@
           </div>
         </div>
 
-        <div v-if="currentItem" class="h-20"></div>
+        <div v-if="currentItem" class="h-24"></div>
       </div>
     </div>
 
-    <div v-if="currentItem" class="fixed top-20 right-4 w-80 z-40">
+    <div v-if="currentItem" class="fixed bottom-24 right-4 w-80 z-40">
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+        <div class="p-3 border-b dark:border-gray-700 flex items-center justify-between">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ currentItem.title }}</span>
+          <button @click="closePlayer" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">×</button>
+        </div>
         <iframe
+          :key="iframeKey"
           :src="currentIframeUrl"
           frameborder="0"
           allowfullscreen
@@ -106,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { http } from '../utils/http'
 import SiteNav from '../components/SiteNav.vue'
 
@@ -126,6 +131,7 @@ const loading = ref(false)
 const currentIndex = ref(-1)
 const isPlaying = ref(false)
 const progress = ref(0)
+const iframeKey = ref(0)
 
 let progressInterval: number | null = null
 
@@ -145,7 +151,7 @@ const load = async () => {
   } finally { loading.value = false }
 }
 
-const play = async (index: number) => {
+const play = (index: number) => {
   if (currentIndex.value === index && isPlaying.value) {
     togglePlay()
     return
@@ -153,6 +159,8 @@ const play = async (index: number) => {
 
   currentIndex.value = index
   isPlaying.value = true
+  progress.value = 0
+  iframeKey.value++
 
   if (progressInterval) {
     clearInterval(progressInterval)
@@ -178,11 +186,15 @@ const next = () => {
   play(newIndex)
 }
 
-watch(progress, (newVal) => {
-  if (newVal >= 100) {
-    next()
+const closePlayer = () => {
+  currentIndex.value = -1
+  isPlaying.value = false
+  progress.value = 0
+  if (progressInterval) {
+    clearInterval(progressInterval)
+    progressInterval = null
   }
-})
+}
 
 onUnmounted(() => {
   if (progressInterval) {
