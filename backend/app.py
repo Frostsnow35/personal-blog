@@ -404,7 +404,6 @@ class MovieFavorite(db.Model):
     rating = db.Column(db.Integer)  # 1-10
     tags = db.Column(db.JSON)
     sort_order = db.Column(db.Integer, default=0, index=True)
-    tier = db.Column(db.String(10), default='S', index=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -929,7 +928,6 @@ def _movie_to_dict(m: MovieFavorite) -> dict:
         'rating': m.rating,
         'tags': m.tags or [],
         'sort_order': m.sort_order,
-        'tier': getattr(m, 'tier', 'S'),
         'created_at': m.created_at.isoformat() if m.created_at else None,
     }
 
@@ -1061,7 +1059,6 @@ def admin_create_movie():
         rating=int(data['rating']) if data.get('rating') else None,
         tags=data.get('tags') or [],
         sort_order=int(data.get('sort_order') or 0),
-        tier=(data.get('tier') or 'S').strip()[:10] or 'S',
     )
     db.session.add(m)
     db.session.commit()
@@ -1092,8 +1089,6 @@ def admin_update_movie(mid):
     if 'sort_order' in data:
         try: m.sort_order = int(data.get('sort_order') or 0)
         except (TypeError, ValueError): pass
-    if 'tier' in data:
-        m.tier = (data.get('tier') or 'S').strip()[:10] or 'S'
     db.session.commit()
     return jsonify({'success': True, 'data': _movie_to_dict(m)})
 
@@ -1215,6 +1210,47 @@ def serve_uploads(filename):
 
 
 # --- 外部 API 代理 ---
+
+# TMDb API 配置
+TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
+TMDB_BASE_URL = 'https://api.themoviedb.org/3'
+TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
+
+@app.route('/api/proxy/tmdb/movie/search', methods=['GET'])
+def proxy_tmdb_search():
+    q = request.args.get('q', '')
+    page = request.args.get('page', '1')
+    if not q:
+        return jsonify({'success': False, 'message': '搜索关键词不能为空'}), 400
+    if not TMDB_API_KEY:
+        return jsonify({'success': False, 'message': 'TMDb API 密钥未配置'}), 500
+    
+    url = f'{TMDB_BASE_URL}/search/movie?api_key={TMDB_API_KEY}&query={urllib.parse.quote(q)}&page={page}&language=zh-CN'
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            return json_response({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'无法连接到TMDb: {str(e)}'}), 500
+
+
+@app.route('/api/proxy/tmdb/movie/popular', methods=['GET'])
+def proxy_tmdb_popular():
+    page = request.args.get('page', '1')
+    if not TMDB_API_KEY:
+        return jsonify({'success': False, 'message': 'TMDb API 密钥未配置'}), 500
+    
+    url = f'{TMDB_BASE_URL}/movie/popular?api_key={TMDB_API_KEY}&page={page}&language=zh-CN'
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            return json_response({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'无法连接到TMDb: {str(e)}'}), 500
+
+
 @app.route('/api/proxy/douban/movie/search', methods=['GET'])
 def proxy_douban_search():
     q = request.args.get('q', '')

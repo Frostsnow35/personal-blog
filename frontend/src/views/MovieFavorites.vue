@@ -17,7 +17,6 @@
           <div class="relative w-full" style="aspect-ratio: 2/3;">
             <img v-if="item.cover_url" :src="item.cover_url" :alt="item.title" class="absolute inset-0 w-full h-full object-cover" loading="lazy" />
             <div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 text-6xl">🎬</div>
-            <div v-if="item.rating" class="absolute top-3 right-3 px-3 py-1 bg-amber-500 text-white text-sm rounded">★ {{ item.rating }}</div>
             <div
               class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 opacity-0 hover:opacity-100 transition-all duration-300 p-6"
             >
@@ -53,7 +52,6 @@ interface Movie {
   year: number | null
   cover_url: string | null
   source_url: string | null
-  rating: number | null
   description: string | null
   tags: string[] | null
 }
