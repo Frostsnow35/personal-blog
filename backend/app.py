@@ -1338,33 +1338,38 @@ def proxy_netease_hot():
 
 
 def _music_request(url: str) -> tuple:
-    import ssl
     import traceback
+    import requests
     try:
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        req = urllib.request.Request(
-            url,
-            headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Referer': 'https://music.163.com/',
-                'Origin': 'https://music.163.com',
-                'Accept': 'application/json',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
-            }
-        )
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://music.163.com/',
+            'Origin': 'https://music.163.com',
+            'Accept': 'application/json',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin'
+        }
         app.logger.info(f'Music API request: {url}')
-        with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
-            app.logger.info(f'Music API response status: {resp.status}')
+        resp = requests.get(url, headers=headers, timeout=15, verify=False)
+        app.logger.info(f'Music API response status: {resp.status_code}')
+        app.logger.info(f'Music API response headers: {dict(resp.headers)}')
+        if resp.status_code == 200:
+            data = resp.json()
             return True, data
-    except urllib.error.HTTPError as e:
-        app.logger.error(f'HTTP Error {e.code}: {e.reason} for {url}')
-        return False, f'HTTP Error {e.code}: {e.reason}'
-    except urllib.error.URLError as e:
-        app.logger.error(f'URL Error: {str(e.reason)} for {url}')
-        return False, f'URL Error: {str(e.reason)}'
+        else:
+            app.logger.error(f'Music API response content: {resp.text[:500]}')
+            return False, f'HTTP Status {resp.status_code}'
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f'Request Error: {str(e)} for {url}')
+        app.logger.error(traceback.format_exc())
+        return False, f'Request Error: {str(e)}'
     except Exception as e:
         app.logger.error(f'Unknown Error: {str(e)} for {url}')
         app.logger.error(traceback.format_exc())
@@ -1390,7 +1395,21 @@ def proxy_music_search():
             if success:
                 songs = data.get('result', {}).get('songs', [])
                 if songs:
-                    result = {'result': {'songs': songs}}
+                    processed_songs = []
+                    for song in songs:
+                        artist = song.get('artists') and song['artists'][0].get('name') or '未知歌手'
+                        album_name = song.get('album', {}).get('name') or '未知专辑'
+                        cover = song.get('album', {}).get('picUrl') or ''
+                        processed_songs.append({
+                            'id': str(song.get('id')),
+                            'name': song.get('name'),
+                            'artists': song.get('artists', []),
+                            'album': song.get('album', {}),
+                            'artist': artist,
+                            'albumName': album_name,
+                            'cover': cover
+                        })
+                    result = {'result': {'songs': processed_songs}}
                     return json_response({'success': True, 'data': result})
         
         return jsonify({'success': False, 'message': f'搜索失败: 无法连接到音乐API'}), 500
