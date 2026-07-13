@@ -269,6 +269,27 @@
               </div>
             </div>
 
+            <!-- 站点信息 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">站点标题（封面页显示）</label>
+                <input
+                  v-model="profileStore.profile.siteTitle"
+                  type="text"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">站点副标题（封面页显示）</label>
+                <input
+                  v-model="profileStore.profile.siteSubtitle"
+                  type="text"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
             <!-- 操作按钮 -->
             <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
               <button
@@ -380,6 +401,18 @@
               <div v-if="profileStore.profile.occupation">
                 <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">职业</h4>
                 <p class="text-gray-900 dark:text-gray-100">{{ profileStore.profile.occupation }}</p>
+              </div>
+            </div>
+
+            <!-- 站点信息 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div v-if="profileStore.profile.siteTitle">
+                <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">站点标题</h4>
+                <p class="text-gray-900 dark:text-gray-100">{{ profileStore.profile.siteTitle }}</p>
+              </div>
+              <div v-if="profileStore.profile.siteSubtitle">
+                <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">站点副标题</h4>
+                <p class="text-gray-900 dark:text-gray-100">{{ profileStore.profile.siteSubtitle }}</p>
               </div>
             </div>
 

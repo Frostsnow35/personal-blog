@@ -19,32 +19,33 @@
       <!-- 头像 -->
       <div class="mb-6">
         <img 
-          v-lazy-img="'/avatar.jpg'"
-          alt="霜雪旧曾谙"
+          v-lazy-img="profileStore.profile.avatar"
+          :alt="profileStore.profile.name"
           class="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white/30 shadow-2xl"
         />
       </div>
       
       <!-- 标题 -->
       <h1 class="text-5xl md:text-7xl font-bold mb-6 titletext-gradient">
-        霜雪旧曾谙的世界
+        {{ profileStore.profile.siteTitle || '霜雪旧曾谙的世界' }}
       </h1>
       
       <!-- 副标题 -->
       <p class="text-xl md:text-2xl mb-8 text-gray-200 max-w-2xl">
-        这里记录着我的技术分享、生活感悟和对世界的思考
+        {{ profileStore.profile.siteSubtitle || '这里记录着我的技术分享、生活感悟和对世界的思考' }}
       </p>
       
       <!-- 个人介绍 -->
       <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-8 border border-white/20">
         <p class="text-lg text-gray-200 mb-4">
-           计算机专业学生 | 二次元爱好者 | 海洋探索者 | 哲学思考者
+          {{ profileStore.profile.bio || '计算机专业学生 | 二次元爱好者 | 海洋探索者 | 哲学思考者' }}
         </p>
         <div class="flex flex-wrap justify-center gap-2">
-          <span class="px-3 py-1 bg-ocean-600/50 rounded-full text-sm">Vue.js</span>
-          <span class="px-3 py-1 bg-ocean-600/50 rounded-full text-sm">Python</span>
-          <span class="px-3 py-1 bg-ocean-600/50 rounded-full text-sm">Flask</span>
-          <span class="px-3 py-1 bg-ocean-600/50 rounded-full text-sm">MySQL</span>
+          <span 
+            v-for="skill in profileStore.profile.skills" 
+            :key="skill"
+            class="px-3 py-1 bg-ocean-600/50 rounded-full text-sm"
+          >{{ skill }}</span>
         </div>
       </div>
       
@@ -86,13 +87,18 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useProfileStore } from '../stores/profile'
 
 const router = useRouter()
+const profileStore = useProfileStore()
 
-// 添加图片加载错误处理
+onMounted(() => {
+  profileStore.loadProfile()
+})
+
 const handleImageError = () => {
-  // 如果图片加载失败，使用默认背景色
 }
 
 const enterBlog = () => {

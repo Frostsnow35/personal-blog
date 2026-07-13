@@ -287,6 +287,8 @@ class Profile(db.Model):
     interests = db.Column(db.JSON)
     education = db.Column(db.String(200))
     occupation = db.Column(db.String(200))
+    site_title = db.Column(db.String(200))
+    site_subtitle = db.Column(db.String(500))
     featured_slugs = db.Column(db.JSON)
     contact_markdown = db.Column(db.Text)
     cooperation_markdown = db.Column(db.Text)
@@ -1395,7 +1397,9 @@ def ensure_profile_schema():
         'featured_slugs': 'TEXT',
         'contact_markdown': 'TEXT',
         'cooperation_markdown': 'TEXT',
-        'site_notice_markdown': 'TEXT'
+        'site_notice_markdown': 'TEXT',
+        'site_title': 'VARCHAR(200)',
+        'site_subtitle': 'VARCHAR(500)'
     }
 
     try:
@@ -1961,6 +1965,8 @@ def get_profile():
             'interests': ['二次元', '海洋', '自然', '哲学', '技术分享'],
             'education': '计算机科学与技术',
             'occupation': '学生',
+            'site_title': '霜雪旧曾谙的世界',
+            'site_subtitle': '这里记录着我的技术分享、生活感悟和对世界的思考',
             'featured_slugs': [],
             'contact_markdown': '',
             'cooperation_markdown': '',
@@ -1983,6 +1989,8 @@ def get_profile():
         'interests': profile.interests or [],
         'education': profile.education or '',
         'occupation': profile.occupation or '',
+        'site_title': getattr(profile, 'site_title', '') or '',
+        'site_subtitle': getattr(profile, 'site_subtitle', '') or '',
         'featured_slugs': profile.featured_slugs or [],
         'contact_markdown': profile.contact_markdown or '',
         'cooperation_markdown': profile.cooperation_markdown or '',
@@ -2016,6 +2024,8 @@ def update_profile():
         'interests',
         'education',
         'occupation',
+        'site_title',
+        'site_subtitle',
         'featured_slugs',
         'contact_markdown',
         'cooperation_markdown',
