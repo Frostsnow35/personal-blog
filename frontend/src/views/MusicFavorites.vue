@@ -90,6 +90,18 @@
         <div v-if="currentItem" class="h-20"></div>
       </div>
     </div>
+
+    <div v-if="currentItem" class="fixed top-20 right-4 w-80 z-40">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+        <iframe
+          :src="currentIframeUrl"
+          frameborder="0"
+          allowfullscreen
+          class="w-full"
+          style="height: 120px;"
+        ></iframe>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -115,10 +127,15 @@ const currentIndex = ref(-1)
 const isPlaying = ref(false)
 const progress = ref(0)
 
-let audio: HTMLAudioElement | null = null
 let progressInterval: number | null = null
 
 const currentItem = computed(() => items.value[currentIndex.value] || null)
+
+const currentIframeUrl = computed(() => {
+  if (!currentItem.value) return ''
+  const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id
+  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=1&height=66`
+})
 
 const load = async () => {
   loading.value = true
@@ -128,18 +145,6 @@ const load = async () => {
   } finally { loading.value = false }
 }
 
-const getPlayUrl = async (songId: string | number): Promise<string | null> => {
-  try {
-    const r = await http.get<any>(`/music?id=${songId}&br=320000`)
-    if (r?.success && r.data?.data?.[0]?.url) {
-      return r.data.data[0].url
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
 const play = async (index: number) => {
   if (currentIndex.value === index && isPlaying.value) {
     togglePlay()
@@ -147,43 +152,17 @@ const play = async (index: number) => {
   }
 
   currentIndex.value = index
-  const item = items.value[index]
-  
-  const playUrl = await getPlayUrl(item.source_url?.split('=')?.[1] || item.id)
-  if (!playUrl) {
-    alert('该歌曲暂无播放链接，请点击网易云音乐链接收听')
-    return
-  }
-
-  if (audio) {
-    audio.pause()
-    audio.src = playUrl
-    audio.load()
-  } else {
-    audio = new Audio(playUrl)
-    audio.loop = false
-    audio.addEventListener('ended', () => {
-      next()
-    })
-    audio.addEventListener('timeupdate', () => {
-      if (audio && audio.duration) {
-        progress.value = (audio.currentTime / audio.duration) * 100
-      }
-    })
-  }
-
-  audio.play()
   isPlaying.value = true
+
+  if (progressInterval) {
+    clearInterval(progressInterval)
+  }
+  progressInterval = window.setInterval(() => {
+    progress.value = (progress.value + 0.1) % 100
+  }, 100)
 }
 
 const togglePlay = () => {
-  if (!audio) return
-  
-  if (isPlaying.value) {
-    audio.pause()
-  } else {
-    audio.play()
-  }
   isPlaying.value = !isPlaying.value
 }
 
@@ -200,16 +179,12 @@ const next = () => {
 }
 
 watch(progress, (newVal) => {
-  if (audio && audio.duration) {
-    audio.currentTime = (newVal / 100) * audio.duration
+  if (newVal >= 100) {
+    next()
   }
 })
 
 onUnmounted(() => {
-  if (audio) {
-    audio.pause()
-    audio = null
-  }
   if (progressInterval) {
     clearInterval(progressInterval)
   }
