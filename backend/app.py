@@ -974,6 +974,28 @@ def daily_music_favorite_public():
     return daily_music_favorite()
 
 
+@app.route('/music-favorites', methods=['POST'])
+def create_music_favorite_public():
+    data = request.get_json() or {}
+    title = (data.get('title') or '').strip()
+    source_url = (data.get('source_url') or '').strip()
+    if not title or not source_url:
+        return jsonify({'success': False, 'message': '标题和音频源必填'}), 400
+    m = MusicFavorite(
+        title=title[:200],
+        artist=(data.get('artist') or '').strip() or None,
+        album=(data.get('album') or '').strip() or None,
+        cover_url=(data.get('cover_url') or '').strip() or None,
+        source_url=source_url[:500],
+        description=(data.get('description') or '').strip() or None,
+        tags=data.get('tags') or [],
+        sort_order=int(data.get('sort_order') or 0),
+    )
+    db.session.add(m)
+    db.session.commit()
+    return jsonify({'success': True, 'data': _music_to_dict(m)})
+
+
 @app.route('/api/admin/music-favorites', methods=['GET'])
 @jwt_required_admin
 def admin_list_music():
