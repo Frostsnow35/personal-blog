@@ -1338,38 +1338,51 @@ def proxy_netease_hot():
 
 
 def _music_request(url: str) -> tuple:
+    import ssl
     import traceback
-    import requests
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://music.163.com/',
-            'Origin': 'https://music.163.com',
-            'Accept': 'application/json',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-            'Sec-Ch-Ua-Mobile': '?0',
-            'Sec-Ch-Ua-Platform': '"Windows"',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin'
-        }
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        req = urllib.request.Request(
+            url,
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://music.163.com/',
+                'Origin': 'https://music.163.com',
+                'Accept': 'application/json',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                'Sec-Ch-Ua-Mobile': '?0',
+                'Sec-Ch-Ua-Platform': '"Windows"',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-origin'
+            }
+        )
         app.logger.info(f'Music API request: {url}')
-        resp = requests.get(url, headers=headers, timeout=15, verify=False)
-        app.logger.info(f'Music API response status: {resp.status_code}')
-        app.logger.info(f'Music API response headers: {dict(resp.headers)}')
-        if resp.status_code == 200:
-            data = resp.json()
+        with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
+            content = resp.read()
+            app.logger.info(f'Music API response status: {resp.status}')
+            app.logger.info(f'Music API response headers: {dict(resp.headers)}')
+            try:
+                data = json.loads(content.decode('utf-8'))
+            except:
+                try:
+                    import zlib
+                    data = json.loads(zlib.decompress(content, 16+zlib.MAX_WBITS).decode('utf-8'))
+                except:
+                    app.logger.error(f'Failed to decode response content')
+                    return False, 'Failed to decode response'
             return True, data
-        else:
-            app.logger.error(f'Music API response content: {resp.text[:500]}')
-            return False, f'HTTP Status {resp.status_code}'
-    except requests.exceptions.RequestException as e:
-        app.logger.error(f'Request Error: {str(e)} for {url}')
-        app.logger.error(traceback.format_exc())
-        return False, f'Request Error: {str(e)}'
+    except urllib.error.HTTPError as e:
+        app.logger.error(f'HTTP Error {e.code}: {e.reason} for {url}')
+        return False, f'HTTP Error {e.code}: {e.reason}'
+    except urllib.error.URLError as e:
+        app.logger.error(f'URL Error: {str(e.reason)} for {url}')
+        return False, f'URL Error: {str(e.reason)}'
     except Exception as e:
         app.logger.error(f'Unknown Error: {str(e)} for {url}')
         app.logger.error(traceback.format_exc())
