@@ -158,21 +158,21 @@ const searchMusic = async () => {
   try {
     const response = await http.get<any>(`/proxy/music/search?keywords=${encodeURIComponent(query)}&platform=${platform.value}&limit=10`)
     if (response?.success && response.data?.result?.songs) {
-      searchResults.value = response.data.result.songs.map((song: any) => ({
-        id: song.id.toString(),
-        name: song.name,
-        artist: song.ar?.[0]?.name || song.artists?.[0]?.name || '未知歌手',
-        album: song.al?.name || song.album?.name || '未知专辑',
-        cover: song.al?.picUrl ? `${song.al.picUrl}?param=300x300` : song.album?.picUrl ? `${song.album.picUrl}?param=300x300` : ''
-      })).filter((m: any) => m.cover)
-    } else if (response?.success && response.data?.data?.song?.list) {
-      searchResults.value = response.data.data.song.list.map((song: any) => ({
-        id: song.songid.toString(),
-        name: song.songname,
-        artist: song.singer?.[0]?.name || '未知歌手',
-        album: song.albumname || '未知专辑',
-        cover: song.albummid ? `https://y.qq.com/music/photo_new/T002R300x300M000${song.albummid}.jpg` : ''
-      })).filter((m: any) => m.cover)
+      searchResults.value = response.data.result.songs.map((song: any) => {
+        const artist = song.artists && song.artists.length > 0 ? song.artists[0].name : '未知歌手'
+        const albumName = song.album ? song.album.name : '未知专辑'
+        const cover = song.album && song.album.picUrl ? `${song.album.picUrl}?param=300x300` : ''
+        return {
+          id: song.id.toString(),
+          name: song.name,
+          artist,
+          album: albumName,
+          cover
+        }
+      }).filter((m: any) => m.cover)
+    }
+    if (!searchResults.value.length && response?.success) {
+      toast.warning('未找到相关歌曲')
     }
   } catch (error) {
     console.error('搜索失败:', error)

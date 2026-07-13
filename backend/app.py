@@ -1330,7 +1330,22 @@ def proxy_netease_hot():
         return jsonify({'success': False, 'message': f'无法连接到网易云音乐: {str(e)}'}), 500
 
 
-MUSIC_API_BASE_URL = os.environ.get('MUSIC_API_BASE_URL', 'https://neteasecloudmusicapi.js.org')
+def _music_request(url: str) -> tuple:
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://music.163.com/',
+                'Origin': 'https://music.163.com'
+            }
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            return True, data
+    except Exception as e:
+        return False, str(e)
+
 
 @app.route('/api/proxy/music/search', methods=['GET'])
 def proxy_music_search():
@@ -1339,15 +1354,20 @@ def proxy_music_search():
     limit = request.args.get('limit', '10')
     if not keywords:
         return jsonify({'success': False, 'message': '搜索关键词不能为空'}), 400
-    
-    url = f'{MUSIC_API_BASE_URL}/search?keywords={urllib.parse.quote(keywords)}&platform={platform}&limit={limit}'
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
-            return json_response({'success': True, 'data': data})
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'无法连接到音乐API: {str(e)}'}), 500
+
+    if platform == 'netease':
+        url = f'https://music.163.com/api/search/get/web?csrf_token=&hlpretag=&hlposttag=&s={urllib.parse.quote(keywords)}&type=1&offset=0&total=true&limit={limit}'
+        success, data = _music_request(url)
+        if success:
+            result = {
+                'result': {
+                    'songs': data.get('result', {}).get('songs', [])
+                }
+            }
+            return json_response({'success': True, 'data': result})
+        return jsonify({'success': False, 'message': f'搜索失败: {data}'}), 500
+    else:
+        return jsonify({'success': False, 'message': '暂不支持该平台'}), 400
 
 
 @app.route('/api/proxy/music/song/detail', methods=['GET'])
@@ -1356,28 +1376,28 @@ def proxy_music_song_detail():
     platform = request.args.get('platform', 'netease')
     if not ids:
         return jsonify({'success': False, 'message': '歌曲ID不能为空'}), 400
-    
-    url = f'{MUSIC_API_BASE_URL}/song/detail?ids={ids}&platform={platform}'
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
+
+    if platform == 'netease':
+        url = f'https://music.163.com/api/song/detail/?id={ids}&ids=[{ids}]'
+        success, data = _music_request(url)
+        if success:
             return json_response({'success': True, 'data': data})
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'无法连接到音乐API: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'获取歌曲详情失败: {data}'}), 500
+    else:
+        return jsonify({'success': False, 'message': '暂不支持该平台'}), 400
 
 
 @app.route('/api/proxy/music/toplist', methods=['GET'])
 def proxy_music_toplist():
     platform = request.args.get('platform', 'netease')
-    url = f'{MUSIC_API_BASE_URL}/toplist?platform={platform}'
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
+    if platform == 'netease':
+        url = 'https://music.163.com/api/playlist/detail?id=3779629'
+        success, data = _music_request(url)
+        if success:
             return json_response({'success': True, 'data': data})
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'无法连接到音乐API: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'获取榜单失败: {data}'}), 500
+    else:
+        return jsonify({'success': False, 'message': '暂不支持该平台'}), 400
 
 
 @app.route('/api/proxy/music/url', methods=['GET'])
@@ -1387,15 +1407,15 @@ def proxy_music_url():
     br = request.args.get('br', '320000')
     if not id:
         return jsonify({'success': False, 'message': '歌曲ID不能为空'}), 400
-    
-    url = f'{MUSIC_API_BASE_URL}/song/url?id={id}&platform={platform}&br={br}'
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
+
+    if platform == 'netease':
+        url = f'https://music.163.com/api/song/enhance/player/url?csrf_token=&ids=[{id}]&br={br}'
+        success, data = _music_request(url)
+        if success:
             return json_response({'success': True, 'data': data})
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'无法连接到音乐API: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'获取播放链接失败: {data}'}), 500
+    else:
+        return jsonify({'success': False, 'message': '暂不支持该平台'}), 400
 
 
 @app.route('/api/proxy/music/playlist', methods=['GET'])
@@ -1404,15 +1424,15 @@ def proxy_music_playlist():
     platform = request.args.get('platform', 'netease')
     if not id:
         return jsonify({'success': False, 'message': '歌单ID不能为空'}), 400
-    
-    url = f'{MUSIC_API_BASE_URL}/playlist/detail?id={id}&platform={platform}'
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
+
+    if platform == 'netease':
+        url = f'https://music.163.com/api/playlist/detail?id={id}'
+        success, data = _music_request(url)
+        if success:
             return json_response({'success': True, 'data': data})
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'无法连接到音乐API: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'获取歌单失败: {data}'}), 500
+    else:
+        return jsonify({'success': False, 'message': '暂不支持该平台'}), 400
 
 
 def _get_site_url() -> str:
