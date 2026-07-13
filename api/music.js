@@ -1,35 +1,4 @@
 const https = require('https');
-const crypto = require('crypto');
-
-const ENCRYPTION_KEY = '0CoJUm6Qyw8W8jud';
-const IV = '0102030405060708';
-
-const decrypt = (data) => {
-  try {
-    const decoded = Buffer.from(data, 'base64');
-    const cipher = crypto.createDecipheriv('aes-128-cbc', ENCRYPTION_KEY, IV);
-    let decrypted = cipher.update(decoded, 'binary', 'utf8');
-    decrypted += cipher.final('utf8');
-    return JSON.parse(decrypted);
-  } catch (e) {
-    return null;
-  }
-};
-
-const decryptData = (data) => {
-  try {
-    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-    if (parsed.result && typeof parsed.result === 'string') {
-      const decrypted = decrypt(parsed.result);
-      if (decrypted) {
-        return { ...parsed, result: decrypted };
-      }
-    }
-    return parsed;
-  } catch (e) {
-    return data;
-  }
-};
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -45,9 +14,9 @@ module.exports = async (req, res) => {
   
   let targetUrl;
   if (keywords) {
-    targetUrl = `https://music.163.com/api/search/get/web?csrf_token=&hlpretag=&hlposttag=&s=${encodeURIComponent(keywords)}&type=1&offset=0&total=true&limit=10`;
+    targetUrl = `https://music.163.com/api/cloudsearch/pc?s=${encodeURIComponent(keywords)}&type=1&offset=0&limit=10`;
   } else if (id) {
-    targetUrl = `https://music.163.com/api/song/enhance/player/url?csrf_token=&ids=[${id}]&br=${br}`;
+    targetUrl = `https://music.163.com/api/song/enhance/player/url/v1?csrf_token=&ids=[${id}]&level=standard&encodeType=mp3&br=${br}`;
   } else {
     res.status(400).json({ success: false, message: '缺少参数' });
     return;
@@ -95,8 +64,7 @@ module.exports = async (req, res) => {
     
     if (responseData.status === 200) {
       try {
-        let jsonData = JSON.parse(responseData.body);
-        jsonData = decryptData(jsonData);
+        const jsonData = JSON.parse(responseData.body);
         res.status(200).json({ success: true, data: jsonData });
       } catch (e) {
         res.status(500).json({ 
