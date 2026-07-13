@@ -130,17 +130,9 @@ const load = async () => {
 
 const getPlayUrl = async (songId: string | number): Promise<string | null> => {
   try {
-    const apiUrl = `https://music.163.com/api/song/enhance/player/url?csrf_token=&ids=[${songId}]&br=320000`
-    const corsProxy = 'https://api.allorigins.win/get?url='
-    const res = await fetch(corsProxy + encodeURIComponent(apiUrl), {
-      headers: { 'Accept': 'application/json' }
-    })
-    const proxyData = await res.json()
-    if (proxyData?.contents) {
-      const data = JSON.parse(proxyData.contents)
-      if (data?.data?.[0]?.url) {
-        return data.data[0].url
-      }
+    const r = await http.get<any>(`/api/music?id=${songId}&br=320000`)
+    if (r?.success && r.data?.data?.[0]?.url) {
+      return r.data.data[0].url
     }
     return null
   } catch {

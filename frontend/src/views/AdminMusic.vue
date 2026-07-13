@@ -156,27 +156,17 @@ const searchMusic = async () => {
   searchLoading.value = true
   searchResults.value = []
   try {
-    const apiUrl = `https://music.163.com/api/search/get/web?csrf_token=&hlpretag=&hlposttag=&s=${encodeURIComponent(query)}&type=1&offset=0&total=true&limit=10`
-    const corsProxy = 'https://api.allorigins.win/get?url='
-    const res = await fetch(corsProxy + encodeURIComponent(apiUrl), {
-      headers: {
-        'Accept': 'application/json',
-      }
-    })
-    const proxyData = await res.json()
-    if (proxyData?.contents) {
-      const data = JSON.parse(proxyData.contents)
-      if (data?.result?.songs) {
-        searchResults.value = data.result.songs.map((song: any) => ({
-          id: song.id.toString(),
-          name: song.name,
-          artist: song.artists && song.artists.length > 0 ? song.artists[0].name : '未知歌手',
-          album: song.album ? song.album.name : '未知专辑',
-          cover: song.album && song.album.picUrl ? `${song.album.picUrl}?param=300x300` : ''
-        })).filter((m: any) => m.cover)
-      }
+    const response = await http.get<any>(`/api/music?keywords=${encodeURIComponent(query)}`)
+    if (response?.success && response.data?.result?.songs) {
+      searchResults.value = response.data.result.songs.map((song: any) => ({
+        id: song.id.toString(),
+        name: song.name,
+        artist: song.artists && song.artists.length > 0 ? song.artists[0].name : '未知歌手',
+        album: song.album ? song.album.name : '未知专辑',
+        cover: song.album && song.album.picUrl ? `${song.album.picUrl}?param=300x300` : ''
+      })).filter((m: any) => m.cover)
     }
-    if (!searchResults.value.length) {
+    if (!searchResults.value.length && response?.success) {
       toast.warning('未找到相关歌曲')
     }
   } catch (error: any) {
