@@ -58,7 +58,7 @@
                   :src="currentIframeUrl"
                   frameborder="0"
                   class="w-full"
-                  style="height: 80px;"
+                  style="height: 100px;"
                 ></iframe>
               </div>
               <div class="flex items-center gap-3">
@@ -106,7 +106,7 @@ const currentItem = computed(() => items.value[currentIndex.value] || null)
 const currentIframeUrl = computed(() => {
   if (!currentItem.value) return ''
   const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id
-  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=0&height=80`
+  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=0&height=100`
 })
 
 const load = async () => {
