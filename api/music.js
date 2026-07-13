@@ -22,43 +22,57 @@ module.exports = async (req, res) => {
     return;
   }
   
-  const options = new URL(targetUrl);
-  
-  const requestOptions = {
-    hostname: options.hostname,
-    path: options.path + (options.search || ''),
-    method: 'GET',
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Referer': 'https://music.163.com/',
-      'Origin': 'https://music.163.com',
-      'Accept': 'application/json',
-      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+  try {
+    const urlObj = new URL(targetUrl);
+    
+    const requestOptions = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://music.163.com/',
+        'Origin': 'https://music.163.com',
+        'Accept': 'application/json',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+      },
+      timeout: 15000
+    };
+    
+    const responseData = await new Promise((resolve, reject) => {
+      const proxyReq = https.request(requestOptions, (proxyRes) => {
+        let data = '';
+        proxyRes.on('data', (chunk) => {
+          data += chunk;
+        });
+        proxyRes.on('end', () => {
+          resolve({ status: proxyRes.statusCode, headers: proxyRes.headers, body: data });
+        });
+      });
+      
+      proxyReq.on('error', (e) => {
+        reject(e);
+      });
+      
+      proxyReq.on('timeout', () => {
+        proxyReq.destroy();
+        reject(new Error('请求超时'));
+      });
+      
+      proxyReq.end();
+    });
+    
+    if (responseData.status === 200) {
+      try {
+        const jsonData = JSON.parse(responseData.body);
+        res.status(200).json({ success: true, data: jsonData });
+      } catch (e) {
+        res.status(500).json({ success: false, message: '解析响应失败', rawBody: responseData.body.substring(0, 500) });
+      }
+    } else {
+      res.status(responseData.status).json({ success: false, message: `上游服务返回 ${responseData.status}`, rawBody: responseData.body.substring(0, 500) });
     }
-  };
-  
-  return new Promise((resolve) => {
-    const proxyReq = https.request(requestOptions, (proxyRes) => {
-      let data = '';
-      proxyRes.on('data', (chunk) => {
-        data += chunk;
-      });
-      proxyRes.on('end', () => {
-        try {
-          const jsonData = JSON.parse(data);
-          res.status(200).json({ success: true, data: jsonData });
-        } catch (e) {
-          res.status(500).json({ success: false, message: '解析响应失败' });
-        }
-        resolve();
-      });
-    });
-    
-    proxyReq.on('error', (e) => {
-      res.status(500).json({ success: false, message: e.message });
-      resolve();
-    });
-    
-    proxyReq.end();
-  });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message, errorType: error.name });
+  }
 };
