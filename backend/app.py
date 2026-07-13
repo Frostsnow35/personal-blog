@@ -1338,20 +1338,30 @@ def proxy_netease_hot():
 
 
 def _music_request(url: str) -> tuple:
+    import ssl
     try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
         req = urllib.request.Request(
             url,
             headers={
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': 'https://music.163.com/',
-                'Origin': 'https://music.163.com'
+                'Origin': 'https://music.163.com',
+                'Accept': 'application/json',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
             }
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
             data = json.loads(resp.read().decode('utf-8'))
             return True, data
+    except urllib.error.HTTPError as e:
+        return False, f'HTTP Error {e.code}: {e.reason}'
+    except urllib.error.URLError as e:
+        return False, f'URL Error: {str(e.reason)}'
     except Exception as e:
-        return False, str(e)
+        return False, f'Unknown Error: {str(e)}'
 
 
 @app.route('/api/proxy/music/search', methods=['GET'])
