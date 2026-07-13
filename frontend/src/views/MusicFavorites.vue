@@ -26,10 +26,10 @@
               <div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 text-6xl">🎵</div>
               <div
                 class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 transition-all duration-300"
-                :class="currentIndex === index && isPlaying ? 'opacity-100' : 'opacity-0 hover:opacity-100'"
+                :class="currentIndex === index ? 'opacity-100' : 'opacity-0 hover:opacity-100'"
               >
-                <span class="text-white text-4xl">{{ currentIndex === index && isPlaying ? '⏸️' : '▶️' }}</span>
-                <p v-if="item.description" class="text-white text-xs text-center line-clamp-3 mt-2 px-4">{{ item.description }}</p>
+                <span class="text-white text-4xl">🎧</span>
+                <p class="text-white text-xs text-center mt-2">点击播放</p>
                 <div v-if="item.tags?.length" class="mt-3 flex flex-wrap justify-center gap-2">
                   <span v-for="tag in item.tags" :key="tag" class="px-2 py-0.5 bg-white/20 text-white text-xs rounded">{{ tag }}</span>
                 </div>
@@ -48,17 +48,31 @@
         <div class="mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
           <div class="p-4 border-b dark:border-gray-700">
             <h3 class="font-semibold text-gray-900 dark:text-gray-100">🎧 网易云音乐播放器</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">请点击播放器中的播放按钮开始播放音乐</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">请点击播放器中的播放按钮开始播放</p>
           </div>
           <div class="p-4">
-            <iframe
-              :key="playlistIframeKey"
-              :src="playlistIframeUrl"
-              frameborder="0"
-              class="w-full"
-              style="height: 400px;"
-              allow="autoplay; fullscreen"
-            ></iframe>
+            <div v-if="currentItem" class="flex flex-col sm:flex-row gap-4">
+              <div class="flex-1">
+                <iframe
+                  :key="iframeKey"
+                  :src="currentIframeUrl"
+                  frameborder="0"
+                  class="w-full"
+                  style="height: 80px;"
+                ></iframe>
+              </div>
+              <div class="flex items-center gap-3">
+                <button @click="prev" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+                  ⏮️
+                </button>
+                <button @click="next" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+                  ⏭️
+                </button>
+              </div>
+            </div>
+            <div v-else class="text-center py-8 text-gray-500">
+              <p>请点击上方歌曲卡片选择要播放的音乐</p>
+            </div>
           </div>
         </div>
       </div>
@@ -85,21 +99,14 @@ interface Music {
 const items = ref<Music[]>([])
 const loading = ref(false)
 const currentIndex = ref(-1)
-const isPlaying = ref(false)
-const playlistIframeKey = ref(0)
+const iframeKey = ref(0)
 
 const currentItem = computed(() => items.value[currentIndex.value] || null)
 
-const songIds = computed(() => {
-  return items.value.map(item => {
-    const id = item.source_url?.split('=')?.[1] || item.id
-    return id
-  }).join(',')
-})
-
-const playlistIframeUrl = computed(() => {
-  if (!songIds.value) return ''
-  return `https://music.163.com/outchain/player?type=0&id=${songIds.value}&auto=0&height=400`
+const currentIframeUrl = computed(() => {
+  if (!currentItem.value) return ''
+  const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id
+  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=0&height=80`
 })
 
 const load = async () => {
@@ -111,13 +118,20 @@ const load = async () => {
 }
 
 const play = (index: number) => {
-  if (currentIndex.value === index && isPlaying.value) {
-    isPlaying.value = false
-    return
-  }
-
   currentIndex.value = index
-  isPlaying.value = true
+  iframeKey.value++
+}
+
+const prev = () => {
+  if (items.value.length === 0) return
+  const newIndex = currentIndex.value <= 0 ? items.value.length - 1 : currentIndex.value - 1
+  play(newIndex)
+}
+
+const next = () => {
+  if (items.value.length === 0) return
+  const newIndex = currentIndex.value >= items.value.length - 1 ? 0 : currentIndex.value + 1
+  play(newIndex)
 }
 
 onMounted(load)
