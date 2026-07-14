@@ -3,6 +3,7 @@ import json
 import random
 import urllib.request
 import urllib.error
+import urllib.parse
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -989,160 +990,171 @@ def daily_music_favorite_public():
 
 @app.route('/api/music-search', methods=['GET'])
 def search_music():
-    keyword = request.args.get('keyword', '').strip()
-    if not keyword:
-        return json_response({'success': False, 'message': '搜索关键词不能为空'})
-    
-    page = int(request.args.get('page', 1))
-    limit = int(request.args.get('limit', 20))
-    platform = request.args.get('platform', 'netease')
-    
-    if platform == 'qqmusic':
-        qq_url = f'https://c.y.qq.com/soso/fcgi-bin/search_for_qq_cp?w={urllib.parse.quote(keyword)}&p={page}&n={limit}&format=json'
-        success, data = _music_request(qq_url)
-        if success:
-            try:
-                result = []
-                songs = data.get('data', {}).get('song', {}).get('list', [])
-                for song in songs:
-                    song_id = str(song.get('songmid', ''))
-                    singers = song.get('singer') or []
-                    artist_names = singers[0].get('name', '') if singers else '未知歌手'
-                    
-                    cover_url = ''
-                    if song.get('albummid'):
-                        cover_url = f'https://y.gtimg.cn/music/photo_new/T002R300x300M000{song["albummid"]}.jpg'
-                    
-                    result.append({
-                        'id': song_id,
-                        'title': song.get('songname', ''),
-                        'artist': artist_names,
-                        'album': song.get('albumname', ''),
-                        'cover_url': cover_url,
-                        'source_url': f'https://y.qq.com/n/ryqq/songDetail/{song_id}',
-                    })
-                
-                return json_response({
-                    'success': True,
-                    'data': result,
-                    'total': data.get('data', {}).get('song', {}).get('totalnum', 0),
-                    'page': page,
-                    'limit': limit,
-                })
-            except Exception as e:
-                pass
-    
-    proxy_urls = [
-        f'https://netease-cloud-music-api-gold.vercel.app/search?keywords={urllib.parse.quote(keyword)}&limit={limit}&offset={(page-1)*limit}&type=1',
-        f'https://api.injahow.cn/meting/api?server=netease&type=search&keyword={urllib.parse.quote(keyword)}&page={page}&limit={limit}',
-        f'https://api.i-meto.com/meting/api?server=netease&type=search&keyword={urllib.parse.quote(keyword)}&page={page}&limit={limit}',
-    ]
-    
-    for url in proxy_urls:
-        success, data = _music_request(url)
-        if success:
-            try:
-                result = []
-                total = 0
-                
-                songs = []
-                if isinstance(data, list):
-                    songs = data
-                else:
-                    songs = data.get('result', {}).get('songs', [])
-                    if not songs:
-                        songs = data.get('data', {}).get('songs', [])
-                    if not songs:
-                        songs = data.get('data', [])
-                
-                for song in songs:
-                    song_id = str(song.get('id', '')) or str(song.get('song_id', ''))
-                    
-                    url_info = song.get('url', '')
-                    if url_info:
-                        id_match = url_info.split('id=')
-                        if len(id_match) > 1:
-                            song_id = id_match[1].split('&')[0]
-                    
-                    album = song.get('album', {})
-                    artists = song.get('artists', [])
-                    
-                    artist_names = ''
-                    if artists:
-                        if isinstance(artists, list):
-                            artist_names = '/'.join([a.get('name', '') for a in artists])
-                        elif isinstance(artists, str):
-                            artist_names = artists
-                    
-                    if not artist_names:
-                        artist_names = song.get('artist', '未知歌手')
-                    
-                    cover_url = ''
-                    if album.get('picUrl'):
-                        cover_url = album['picUrl']
-                    elif album.get('cover'):
-                        cover_url = album['cover']
-                    elif song.get('pic'):
-                        cover_url = song['pic']
-                    elif song.get('cover'):
-                        cover_url = song['cover']
-                    elif song.get('picUrl'):
-                        cover_url = song['picUrl']
-                    elif song.get('cover_url'):
-                        cover_url = song['cover_url']
-                    
-                    if cover_url and cover_url.startswith('http://'):
-                        cover_url = cover_url.replace('http://', 'https://')
-                    
-                    title = song.get('name', '') or song.get('title', '')
-                    album_name = album.get('name', '') or song.get('album', '')
-                    
-                    if title:
+    try:
+        keyword = request.args.get('keyword', '').strip()
+        if not keyword:
+            return json_response({'success': False, 'message': '搜索关键词不能为空'})
+
+        try:
+            page = int(request.args.get('page', 1))
+        except (ValueError, TypeError):
+            page = 1
+        try:
+            limit = int(request.args.get('limit', 20))
+        except (ValueError, TypeError):
+            limit = 20
+        platform = request.args.get('platform', 'netease')
+
+        if platform == 'qqmusic':
+            qq_url = f'https://c.y.qq.com/soso/fcgi-bin/search_for_qq_cp?w={urllib.parse.quote(keyword)}&p={page}&n={limit}&format=json'
+            success, data = _music_request(qq_url)
+            if success:
+                try:
+                    result = []
+                    songs = data.get('data', {}).get('song', {}).get('list', [])
+                    for song in songs:
+                        song_id = str(song.get('songmid', ''))
+                        singers = song.get('singer') or []
+                        artist_names = singers[0].get('name', '') if singers else '未知歌手'
+
+                        cover_url = ''
+                        if song.get('albummid'):
+                            cover_url = f'https://y.gtimg.cn/music/photo_new/T002R300x300M000{song["albummid"]}.jpg'
+
                         result.append({
                             'id': song_id,
-                            'title': title,
+                            'title': song.get('songname', ''),
                             'artist': artist_names,
-                            'album': album_name,
+                            'album': song.get('albumname', ''),
                             'cover_url': cover_url,
-                            'source_url': f'https://music.163.com/#/song?id={song_id}',
+                            'source_url': f'https://y.qq.com/n/ryqq/songDetail/{song_id}',
                         })
-                
-                total = data.get('result', {}).get('songCount', 0) or len(result)
 
-                # 批量获取缺失的封面URL
-                missing_ids = [r['id'] for r in result if not r.get('cover_url')]
-                if missing_ids:
-                    try:
-                        ids_str = ','.join(missing_ids[:30])
-                        detail_url = f'https://netease-cloud-music-api-gold.vercel.app/song/detail?ids={ids_str}'
-                        detail_success, detail_data = _music_request(detail_url)
-                        if detail_success and detail_data:
-                            detail_songs = detail_data.get('songs', []) if isinstance(detail_data, dict) else []
-                            cover_map = {}
-                            for ds in detail_songs:
-                                ds_id = str(ds.get('id', ''))
-                                al = ds.get('al', {}) or {}
-                                if al.get('picUrl'):
-                                    cover_map[ds_id] = al['picUrl']
-                            for r in result:
-                                if not r.get('cover_url') and r['id'] in cover_map:
-                                    r['cover_url'] = cover_map[r['id']]
-                    except Exception as e:
-                        app.logger.error(f'Cover fetch error: {e}')
-
-                if result:
                     return json_response({
                         'success': True,
                         'data': result,
-                        'total': total,
+                        'total': data.get('data', {}).get('song', {}).get('totalnum', 0),
                         'page': page,
                         'limit': limit,
                     })
-            except Exception as e:
-                app.logger.error(f'Music search parse error: {e}')
-                continue
-    
-    return json_response({'success': False, 'message': '搜索失败: 无法连接到音乐API'})
+                except Exception as e:
+                    app.logger.error(f'QQ music parse error: {e}')
+
+        proxy_urls = [
+            f'https://netease-cloud-music-api-gold.vercel.app/search?keywords={urllib.parse.quote(keyword)}&limit={limit}&offset={(page-1)*limit}&type=1',
+            f'https://api.injahow.cn/meting/api?server=netease&type=search&keyword={urllib.parse.quote(keyword)}&page={page}&limit={limit}',
+        ]
+
+        for url in proxy_urls:
+            success, data = _music_request(url)
+            if success:
+                try:
+                    result = []
+                    total = 0
+
+                    songs = []
+                    if isinstance(data, list):
+                        songs = data
+                    else:
+                        songs = data.get('result', {}).get('songs', [])
+                        if not songs:
+                            songs = data.get('data', {}).get('songs', [])
+                        if not songs:
+                            songs = data.get('data', [])
+
+                    for song in songs:
+                        song_id = str(song.get('id', '')) or str(song.get('song_id', ''))
+
+                        url_info = song.get('url', '')
+                        if url_info:
+                            id_match = url_info.split('id=')
+                            if len(id_match) > 1:
+                                song_id = id_match[1].split('&')[0]
+
+                        album = song.get('album', {})
+                        if not isinstance(album, dict):
+                            album = {}
+                        artists = song.get('artists', [])
+
+                        artist_names = ''
+                        if artists:
+                            if isinstance(artists, list):
+                                artist_names = '/'.join([a.get('name', '') for a in artists])
+                            elif isinstance(artists, str):
+                                artist_names = artists
+
+                        if not artist_names:
+                            artist_names = song.get('artist', '未知歌手')
+
+                        cover_url = ''
+                        if album.get('picUrl'):
+                            cover_url = album['picUrl']
+                        elif album.get('cover'):
+                            cover_url = album['cover']
+                        elif song.get('pic'):
+                            cover_url = song['pic']
+                        elif song.get('cover'):
+                            cover_url = song['cover']
+                        elif song.get('picUrl'):
+                            cover_url = song['picUrl']
+                        elif song.get('cover_url'):
+                            cover_url = song['cover_url']
+
+                        if cover_url and cover_url.startswith('http://'):
+                            cover_url = cover_url.replace('http://', 'https://')
+
+                        title = song.get('name', '') or song.get('title', '')
+                        album_name = album.get('name', '') or song.get('album', '')
+
+                        if title:
+                            result.append({
+                                'id': song_id,
+                                'title': title,
+                                'artist': artist_names,
+                                'album': album_name,
+                                'cover_url': cover_url,
+                                'source_url': f'https://music.163.com/#/song?id={song_id}',
+                            })
+
+                    total = data.get('result', {}).get('songCount', 0) or len(result)
+
+                    # 批量获取缺失的封面URL（限制15首避免超时）
+                    missing_ids = [r['id'] for r in result if not r.get('cover_url')]
+                    if missing_ids:
+                        try:
+                            ids_str = ','.join(missing_ids[:15])
+                            detail_url = f'https://netease-cloud-music-api-gold.vercel.app/song/detail?ids={ids_str}'
+                            detail_success, detail_data = _music_request(detail_url)
+                            if detail_success and detail_data:
+                                detail_songs = detail_data.get('songs', []) if isinstance(detail_data, dict) else []
+                                cover_map = {}
+                                for ds in detail_songs:
+                                    ds_id = str(ds.get('id', ''))
+                                    al = ds.get('al', {}) or {}
+                                    if al.get('picUrl'):
+                                        cover_map[ds_id] = al['picUrl']
+                                for r in result:
+                                    if not r.get('cover_url') and r['id'] in cover_map:
+                                        r['cover_url'] = cover_map[r['id']]
+                        except Exception as e:
+                            app.logger.error(f'Cover fetch error: {e}')
+
+                    if result:
+                        return json_response({
+                            'success': True,
+                            'data': result,
+                            'total': total,
+                            'page': page,
+                            'limit': limit,
+                        })
+                except Exception as e:
+                    app.logger.error(f'Music search parse error: {e}')
+                    continue
+
+        return json_response({'success': False, 'message': '搜索服务暂时不可用，请稍后重试'})
+    except Exception as e:
+        app.logger.error(f'Search route error: {e}')
+        return json_response({'success': False, 'message': '搜索服务暂时不可用，请稍后重试'})
 
 
 @app.route('/music-favorites', methods=['POST'])

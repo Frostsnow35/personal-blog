@@ -238,7 +238,12 @@ const searchMusic = async (pageNum = 1) => {
     }
   } catch (error: any) {
     console.error('搜索失败:', error)
-    toast.error('搜索失败', error?.message || String(error))
+    const msg = error?.message || String(error)
+    if (msg.includes('不可用') || msg.includes('失败')) {
+      toast.error('搜索服务暂时不可用', '请稍后重试')
+    } else {
+      toast.error('搜索失败', msg)
+    }
   } finally {
     searchLoading.value = false
   }
