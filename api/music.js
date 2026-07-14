@@ -68,6 +68,47 @@ async function fetchUrl(targetUrl, headers = {}, method = 'GET', body = null) {
   });
 }
 
+async function verifyUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    const protocol = urlObj.protocol === 'https:' ? https : http;
+    
+    const requestOptions = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
+      method: 'HEAD',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://music.163.com/'
+      },
+      timeout: 10000
+    };
+    
+    return new Promise((resolve) => {
+      const proxyReq = protocol.request(requestOptions, (proxyRes) => {
+        const contentType = proxyRes.headers['content-type'] || '';
+        const contentLength = proxyRes.headers['content-length'] || '0';
+        const isValid = (proxyRes.statusCode === 200 || proxyRes.statusCode === 206) && 
+                        (contentType.includes('audio') || contentType.includes('mpeg') || contentType.includes('mp3') || parseInt(contentLength) > 1000);
+        resolve(isValid);
+      });
+      
+      proxyReq.on('error', () => {
+        resolve(false);
+      });
+      
+      proxyReq.on('timeout', () => {
+        proxyReq.destroy();
+        resolve(false);
+      });
+      
+      proxyReq.end();
+    });
+  } catch (e) {
+    return false;
+  }
+}
+
 async function getNeteaseAudioUrl(songId) {
   const apiUrls = [
     `https://music.163.com/api/song/enhance/player/url/v1?csrf_token=&ids=[${songId}]&level=standard&encodeType=mp3&br=320000`,
@@ -90,7 +131,12 @@ async function getNeteaseAudioUrl(songId) {
           }
           
           if (!jsonData && responseData.headers['location']) {
-            return responseData.headers['location'];
+            const loc = responseData.headers['location'];
+            if (loc && loc.startsWith('http') && !loc.includes('404')) {
+              const isValid = await verifyUrl(loc);
+              if (isValid) return loc;
+            }
+            continue;
           }
           
           let audioUrl = null;
@@ -104,13 +150,18 @@ async function getNeteaseAudioUrl(songId) {
           }
           
           if (audioUrl && audioUrl.startsWith('http') && !audioUrl.includes('404') && !audioUrl.includes('music.163.com/404')) {
-            return audioUrl;
+            const isValid = await verifyUrl(audioUrl);
+            if (isValid) return audioUrl;
           }
         } catch (e) {
           continue;
         }
       } else if (responseData.status === 302 && responseData.headers['location']) {
-        return responseData.headers['location'];
+        const loc = responseData.headers['location'];
+        if (loc && loc.startsWith('http') && !loc.includes('404')) {
+          const isValid = await verifyUrl(loc);
+          if (isValid) return loc;
+        }
       }
     } catch (e) {
       continue;
@@ -152,7 +203,9 @@ async function getQQMusicAudioUrl(songName, artist) {
                 const midUrlInfo = vkeyData.req_0.data.midurlinfo[0];
                 const purl = midUrlInfo.purl;
                 if (purl) {
-                  return `https://isure.stream.qqmusic.qq.com/${purl}`;
+                  const audioUrl = `https://isure.stream.qqmusic.qq.com/${purl}`;
+                  const isValid = await verifyUrl(audioUrl);
+                  if (isValid) return audioUrl;
                 }
               }
             }
@@ -176,9 +229,10 @@ async function getThirdPartyAudioUrl(songId) {
     `https://music.666ccc.com/api/netease/song?id=${songId}`,
     `https://api.mixmoe.cn/netease/song?id=${songId}`,
     `https://api.paugram.com/music/netease?id=${songId}`,
-    `https://api.kuwo.cn/api/www/search/searchMusicBykeyWord?key=${encodeURIComponent(songId)}&pn=1&rn=1&httpsStatus=1`,
     `https://api.zhaoge.club/api/netease/song?id=${songId}`,
     `https://api.dogecloud.cn/api/netease/song?id=${songId}`,
+    `https://api.y.qq.com/v1/music/fcgi-bin/music_mini_player?songid=${songId}`,
+    `https://api.kugou.com/yy/index.php?r=play/getdata&hash=${songId}&mid=1`,
   ];
   
   for (const url of apiUrls) {
@@ -205,10 +259,13 @@ async function getThirdPartyAudioUrl(songId) {
             if (song.mp3Url || song.playUrl || song.url) {
               audioUrl = song.mp3Url || song.playUrl || song.url;
             }
+          } else if (jsonData.data && jsonData.data.play_url) {
+            audioUrl = jsonData.data.play_url;
           }
           
           if (audioUrl && audioUrl.startsWith('http') && !audioUrl.includes('404') && !audioUrl.includes('music.163.com/404')) {
-            return audioUrl;
+            const isValid = await verifyUrl(audioUrl);
+            if (isValid) return audioUrl;
           }
         } catch (e) {
           continue;
