@@ -383,6 +383,7 @@ class MusicFavorite(db.Model):
     album = db.Column(db.String(200))
     cover_url = db.Column(db.String(500))
     source_url = db.Column(db.String(500), nullable=False)
+    audio_url = db.Column(db.String(500))
     description = db.Column(db.Text)
     tags = db.Column(db.JSON)
     sort_order = db.Column(db.Integer, default=0, index=True)
@@ -905,6 +906,9 @@ def _music_to_dict(m: MusicFavorite) -> dict:
     cover_url = m.cover_url
     if cover_url and cover_url.startswith('http://'):
         cover_url = cover_url.replace('http://', 'https://')
+    audio_url = m.audio_url
+    if audio_url and audio_url.startswith('http://'):
+        audio_url = audio_url.replace('http://', 'https://')
     return {
         'id': m.id,
         'title': m.title,
@@ -912,6 +916,7 @@ def _music_to_dict(m: MusicFavorite) -> dict:
         'album': m.album,
         'cover_url': cover_url,
         'source_url': m.source_url,
+        'audio_url': audio_url,
         'description': m.description,
         'tags': m.tags or [],
         'sort_order': m.sort_order,

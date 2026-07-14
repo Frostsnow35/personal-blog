@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { toast } from 'vue3-toastify';
-import { Music, ExternalLink } from 'lucide-vue-next';
+import { Music, Play, Pause, SkipBack, SkipForward, ExternalLink } from 'lucide-vue-next';
 import { http } from '@/utils/http';
 import SiteNav from '@/components/SiteNav.vue';
 import AmbientBackdrop from '@/components/AmbientBackdrop.vue';
@@ -13,20 +13,104 @@ interface MusicItem {
   album: string;
   cover_url: string;
   source_url: string;
+  audio_url: string;
   created_at: string;
 }
 
 const musicItems = ref<MusicItem[]>([]);
 const loading = ref(true);
-const expandedId = ref<string | null>(null);
+const currentIndex = ref(0);
+const isPlaying = ref(false);
+const progress = ref(0);
+const duration = ref(0);
+const currentTime = ref(0);
 
-const getSongId = (item: MusicItem): string => {
-  return item.source_url?.split('=')?.[1] || item.id;
+const audioElement = ref<HTMLAudioElement | null>(null);
+
+const currentItem = computed(() => musicItems.value[currentIndex.value] || null);
+const hasNext = computed(() => currentIndex.value < musicItems.value.length - 1);
+const hasPrev = computed(() => currentIndex.value > 0);
+
+const playSong = (index: number) => {
+  if (!musicItems.value[index]) return;
+  
+  currentIndex.value = index;
+  isPlaying.value = false;
+  
+  const audio = audioElement.value;
+  if (audio) {
+    audio.src = musicItems.value[index].audio_url || '';
+    audio.load();
+    
+    setTimeout(() => {
+      audio.play().then(() => {
+        isPlaying.value = true;
+      }).catch((error) => {
+        console.error('播放失败:', error);
+        toast.error('播放失败，请检查音频文件');
+      });
+    }, 100);
+  }
 };
 
-const getNeteaseEmbedUrl = (item: MusicItem): string => {
-  const songId = getSongId(item);
-  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=0&height=66`;
+const togglePlay = () => {
+  if (!currentItem.value) {
+    if (musicItems.value.length > 0) {
+      playSong(0);
+    }
+    return;
+  }
+  
+  const audio = audioElement.value;
+  if (!audio) return;
+  
+  if (isPlaying.value) {
+    audio.pause();
+    isPlaying.value = false;
+  } else {
+    audio.play().then(() => {
+      isPlaying.value = true;
+    }).catch((error) => {
+      console.error('播放失败:', error);
+      toast.error('播放失败，请检查音频文件');
+    });
+  }
+};
+
+const playPrev = () => {
+  if (hasPrev.value) {
+    playSong(currentIndex.value - 1);
+  }
+};
+
+const playNext = () => {
+  if (hasNext.value) {
+    playSong(currentIndex.value + 1);
+  }
+};
+
+const updateProgress = () => {
+  const audio = audioElement.value;
+  if (audio) {
+    currentTime.value = audio.currentTime;
+    duration.value = audio.duration;
+    progress.value = audio.duration > 0 ? (audio.currentTime / audio.duration) * 100 : 0;
+  }
+};
+
+const seekTo = (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  const audio = audioElement.value;
+  if (audio && duration.value > 0) {
+    audio.currentTime = (parseFloat(target.value) / 100) * duration.value;
+  }
+};
+
+const formatTime = (seconds: number): string => {
+  if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
 const loadMusic = async () => {
@@ -43,16 +127,8 @@ const loadMusic = async () => {
   }
 };
 
-const toggleExpand = (item: MusicItem) => {
-  if (expandedId.value === item.id) {
-    expandedId.value = null;
-  } else {
-    expandedId.value = item.id;
-  }
-};
-
 const openInNetease = (item: MusicItem) => {
-  const songId = getSongId(item);
+  const songId = item.source_url?.split('=')?.[1] || item.id;
   const url = `https://music.163.com/#/song?id=${songId}`;
   window.open(url, '_blank');
 };
@@ -87,8 +163,30 @@ const onCoverError = (e: Event) => {
   );
 };
 
+const handleEnded = () => {
+  if (hasNext.value) {
+    playSong(currentIndex.value + 1);
+  } else {
+    isPlaying.value = false;
+  }
+};
+
 onMounted(() => {
   loadMusic();
+});
+
+onBeforeUnmount(() => {
+  if (audioElement.value) {
+    audioElement.value.pause();
+    audioElement.value.src = '';
+  }
+});
+
+watch(currentIndex, () => {
+  if (audioElement.value && currentItem.value) {
+    audioElement.value.src = currentItem.value.audio_url || '';
+    audioElement.value.load();
+  }
 });
 </script>
 
@@ -115,62 +213,102 @@ onMounted(() => {
         <p class="text-gray-500 dark:text-gray-400 text-xl">暂无收藏音乐</p>
       </div>
 
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-        <div
-          v-for="item in musicItems"
-          :key="item.id"
-          :class="[
-            'card overflow-hidden cursor-pointer hover-lift transition-all duration-300',
-            expandedId === item.id ? 'ring-2 ring-ocean-500' : ''
-          ]"
-        >
+      <div v-else>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-24">
           <div
-            class="relative aspect-square overflow-hidden"
-            @click="toggleExpand(item)"
+            v-for="(item, index) in musicItems"
+            :key="item.id"
+            @click="playSong(index)"
+            :class="[
+              'card overflow-hidden cursor-pointer hover-lift transition-all duration-300',
+              currentIndex === index ? 'ring-2 ring-ocean-500' : ''
+            ]"
           >
-            <img
-              v-lazy-img="getCoverSrc(item.cover_url)"
-              :alt="item.title"
-              class="w-full h-full object-cover bg-gray-200 dark:bg-gray-700"
-              @error="onCoverError($event)"
-            />
-            <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <div class="text-center text-white">
-                <Music class="w-12 h-12 mx-auto mb-2 opacity-80" />
-                <span class="text-sm opacity-80">{{ expandedId === item.id ? '点击收起' : '点击播放' }}</span>
+            <div class="relative aspect-square overflow-hidden">
+              <img
+                v-lazy-img="getCoverSrc(item.cover_url)"
+                :alt="item.title"
+                class="w-full h-full object-cover bg-gray-200 dark:bg-gray-700"
+                @error="onCoverError($event)"
+              />
+              <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                <div class="text-center text-white">
+                  <Play v-if="currentIndex !== index || !isPlaying" class="w-12 h-12 mx-auto" />
+                  <Pause v-else class="w-12 h-12 mx-auto" />
+                </div>
               </div>
             </div>
+            <div class="p-4">
+              <h3 class="text-gray-900 dark:text-gray-100 font-semibold truncate">{{ item.title }}</h3>
+              <p class="text-gray-500 dark:text-gray-400 text-sm truncate">{{ item.artist }}</p>
+              <p class="text-gray-400 dark:text-gray-500 text-xs truncate">{{ item.album }}</p>
+              <button
+                @click.stop="openInNetease(item)"
+                class="mt-3 w-full px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-800/40 text-red-600 dark:text-red-400 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm press"
+              >
+                <ExternalLink class="w-4 h-4" />
+                在网易云播放
+              </button>
+            </div>
           </div>
+        </div>
+      </div>
+    </div>
 
-          <div class="p-4">
-            <h3 class="text-gray-900 dark:text-gray-100 font-semibold truncate">{{ item.title }}</h3>
-            <p class="text-gray-500 dark:text-gray-400 text-sm truncate">{{ item.artist }}</p>
-            <p class="text-gray-400 dark:text-gray-500 text-xs truncate">{{ item.album }}</p>
+    <audio
+      ref="audioElement"
+      @timeupdate="updateProgress"
+      @loadedmetadata="updateProgress"
+      @ended="handleEnded"
+      @error="(e) => { console.error('音频错误:', e); isPlaying.value = false; }"
+    ></audio>
 
-            <Transition name="expand">
-              <div v-if="expandedId === item.id" class="mt-3">
-                <iframe
-                  :src="getNeteaseEmbedUrl(item)"
-                  frameborder="no"
-                  border="0"
-                  marginwidth="0"
-                  marginheight="0"
-                  width="100%"
-                  height="66"
-                  allow="autoplay"
-                  class="rounded-lg"
-                ></iframe>
-              </div>
-            </Transition>
-
-            <button
-              @click.stop="openInNetease(item)"
-              class="mt-3 w-full px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-800/40 text-red-600 dark:text-red-400 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm press"
-            >
-              <ExternalLink class="w-4 h-4" />
-              在网易云播放
-            </button>
-          </div>
+    <div v-if="currentItem" class="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 px-4 py-3 z-50">
+      <div class="max-w-6xl mx-auto flex items-center gap-4">
+        <img
+          v-lazy-img="getCoverSrc(currentItem.cover_url)"
+          :alt="currentItem.title"
+          class="w-12 h-12 rounded-lg object-cover bg-gray-200 dark:bg-gray-700"
+          @error="onCoverError($event)"
+        />
+        <div class="flex-1 min-w-0">
+          <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{{ currentItem.title }}</h4>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ currentItem.artist }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button
+            @click="playPrev"
+            :disabled="!hasPrev"
+            class="p-2 text-gray-600 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors press"
+          >
+            <SkipBack class="w-5 h-5" />
+          </button>
+          <button
+            @click="togglePlay"
+            class="p-3 bg-ocean-600 hover:bg-ocean-500 rounded-full text-white transition-colors press"
+          >
+            <Pause v-if="isPlaying" class="w-6 h-6" />
+            <Play v-else class="w-6 h-6" />
+          </button>
+          <button
+            @click="playNext"
+            :disabled="!hasNext"
+            class="p-2 text-gray-600 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors press"
+          >
+            <SkipForward class="w-5 h-5" />
+          </button>
+        </div>
+        <div class="hidden sm:flex items-center gap-3 w-48">
+          <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatTime(currentTime) }}</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            :value="progress"
+            @input="seekTo"
+            class="flex-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-ocean-500"
+          />
+          <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatTime(duration) }}</span>
         </div>
       </div>
     </div>
@@ -189,28 +327,26 @@ onMounted(() => {
   background: rgba(30, 41, 59, 0.95);
 }
 
-.expand-enter-active,
-.expand-leave-active {
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-
-.expand-enter-from,
-.expand-leave-to {
-  opacity: 0;
-  max-height: 0;
-  transform: translateY(-10px);
-}
-
-.expand-enter-to,
-.expand-leave-from {
-  opacity: 1;
-  max-height: 100px;
-  transform: translateY(0);
-}
-
 button:focus-visible {
   outline: 2px solid #0ea5e9;
   outline-offset: 2px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  cursor: pointer;
+  border: none;
 }
 </style>
