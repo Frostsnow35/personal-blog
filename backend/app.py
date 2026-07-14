@@ -985,46 +985,85 @@ def search_music():
     
     page = int(request.args.get('page', 1))
     limit = int(request.args.get('limit', 20))
+    platform = request.args.get('platform', 'netease')
     
-    url = f'https://music.163.com/api/search/get/web?csrf_token=&type=1&s={urllib.parse.quote(keyword)}&offset={(page-1)*limit}&limit={limit}'
+    if platform == 'qqmusic':
+        qq_url = f'https://c.y.qq.com/soso/fcgi-bin/search_for_qq_cp?w={urllib.parse.quote(keyword)}&p={page}&n={limit}&format=json'
+        success, data = _music_request(qq_url)
+        if success:
+            try:
+                result = []
+                songs = data.get('data', {}).get('song', {}).get('list', [])
+                for song in songs:
+                    song_id = str(song.get('songmid', ''))
+                    artist_names = song.get('singer', [])[0].get('name', '') if song.get('singer') and song.get('singer').length > 0 else '未知歌手'
+                    
+                    cover_url = ''
+                    if song.get('albummid'):
+                        cover_url = f'https://y.gtimg.cn/music/photo_new/T002R300x300M000{song["albummid"]}.jpg'
+                    
+                    result.append({
+                        'id': song_id,
+                        'title': song.get('songname', ''),
+                        'artist': artist_names,
+                        'album': song.get('albumname', ''),
+                        'cover_url': cover_url,
+                        'source_url': f'https://y.qq.com/n/ryqq/songDetail/{song_id}',
+                    })
+                
+                return json_response({
+                    'success': True,
+                    'data': result,
+                    'total': data.get('data', {}).get('song', {}).get('totalnum', 0),
+                    'page': page,
+                    'limit': limit,
+                })
+            except Exception as e:
+                pass
     
-    success, data = _music_request(url)
-    if not success:
-        return json_response({'success': False, 'message': '搜索失败'})
+    proxy_urls = [
+        f'https://api.music.163.com/api/search/get/web?csrf_token=&type=1&s={urllib.parse.quote(keyword)}&offset={(page-1)*limit}&limit={limit}',
+        f'https://music.163.com/api/search/get/web?csrf_token=&type=1&s={urllib.parse.quote(keyword)}&offset={(page-1)*limit}&limit={limit}',
+    ]
     
-    try:
-        result = []
-        songs = data.get('result', {}).get('songs', [])
-        for song in songs:
-            song_id = str(song.get('id', ''))
-            album = song.get('album', {})
-            artists = song.get('artists', [])
-            artist_names = '/'.join([a.get('name', '') for a in artists])
-            
-            cover_url = ''
-            if album.get('picUrl'):
-                cover_url = album['picUrl']
-                if cover_url.startswith('http://'):
-                    cover_url = cover_url.replace('http://', 'https://')
-            
-            result.append({
-                'id': song_id,
-                'title': song.get('name', ''),
-                'artist': artist_names,
-                'album': album.get('name', ''),
-                'cover_url': cover_url,
-                'source_url': f'https://music.163.com/#/song?id={song_id}',
-            })
-        
-        return json_response({
-            'success': True,
-            'data': result,
-            'total': data.get('result', {}).get('songCount', 0),
-            'page': page,
-            'limit': limit,
-        })
-    except Exception as e:
-        return json_response({'success': False, 'message': f'搜索解析失败: {str(e)}'})
+    for url in proxy_urls:
+        success, data = _music_request(url)
+        if success:
+            try:
+                result = []
+                songs = data.get('result', {}).get('songs', [])
+                for song in songs:
+                    song_id = str(song.get('id', ''))
+                    album = song.get('album', {})
+                    artists = song.get('artists', [])
+                    artist_names = '/'.join([a.get('name', '') for a in artists])
+                    
+                    cover_url = ''
+                    if album.get('picUrl'):
+                        cover_url = album['picUrl']
+                        if cover_url.startswith('http://'):
+                            cover_url = cover_url.replace('http://', 'https://')
+                    
+                    result.append({
+                        'id': song_id,
+                        'title': song.get('name', ''),
+                        'artist': artist_names,
+                        'album': album.get('name', ''),
+                        'cover_url': cover_url,
+                        'source_url': f'https://music.163.com/#/song?id={song_id}',
+                    })
+                
+                return json_response({
+                    'success': True,
+                    'data': result,
+                    'total': data.get('result', {}).get('songCount', 0),
+                    'page': page,
+                    'limit': limit,
+                })
+            except Exception as e:
+                continue
+    
+    return json_response({'success': False, 'message': '搜索失败: 无法连接到音乐API'})
 
 
 @app.route('/music-favorites', methods=['POST'])

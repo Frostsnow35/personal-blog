@@ -32,6 +32,7 @@ const searchLoading = ref(false);
 const showSearchMode = ref(false);
 const currentPage = ref(1);
 const totalResults = ref(0);
+const currentPlatform = ref('netease');
 
 const filteredItems = computed(() => {
   if (!searchQuery.value.trim()) {
@@ -74,7 +75,7 @@ const searchMusic = async () => {
   
   searchLoading.value = true;
   try {
-    const response = await http.get<any>(`/music-search?keyword=${encodeURIComponent(searchQuery.value)}&page=${currentPage.value}`);
+    const response = await http.get<any>(`/music-search?keyword=${encodeURIComponent(searchQuery.value)}&page=${currentPage.value}&platform=${currentPlatform.value}`);
     if (response?.data) {
       searchResults.value = response.data;
       totalResults.value = response.total || 0;
@@ -195,7 +196,14 @@ onMounted(() => {
             @keyup.enter="handleSearchSubmit"
           />
         </div>
-        <div class="flex gap-2 mt-3 justify-center">
+        <div class="flex flex-wrap gap-2 mt-3 justify-center">
+          <select
+            v-model="currentPlatform"
+            class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-ocean-500"
+          >
+            <option value="netease">网易云音乐</option>
+            <option value="qqmusic">QQ音乐</option>
+          </select>
           <button
             @click="handleSearchSubmit"
             class="px-6 py-2 bg-ocean-500 hover:bg-ocean-600 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
