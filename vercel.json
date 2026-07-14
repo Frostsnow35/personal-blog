@@ -16,7 +16,10 @@
     { "source": "/friend-links/:path*", "destination": "/api/index.py" },
     { "source": "/albums/:path*", "destination": "/api/index.py" },
     { "source": "/uploads/:path*", "destination": "/api/index.py" },
-    { "source": "/api/music", "destination": "/api/music.js" },
+    { "source": "/api/music-search", "destination": "/api/index.py" },
+    { "source": "/api/music-favorites", "destination": "/api/index.py" },
+    { "source": "/api/music-favorites/:path*", "destination": "/api/index.py" },
+    { "source": "/api/music?", "destination": "/api/music.js" },
     { "source": "/api/:path*", "destination": "/api/index.py" },
     { "source": "/((?!api/|assets/|js/|.*\\..*).*)", "destination": "/index.html" }
   ]
