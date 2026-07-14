@@ -101,7 +101,7 @@
         <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">{{ editingMusic?.title }} - {{ editingMusic?.artist }}</p>
         <textarea
           v-model="editDescription"
-          placeholder="输入博主对这首歌的评价..."
+          placeholder="这首歌对于博主来说："
           class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-ocean-500 resize-none"
           rows="4"
         ></textarea>

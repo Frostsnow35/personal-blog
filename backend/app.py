@@ -905,6 +905,11 @@ def _music_to_dict(m: MusicFavorite) -> dict:
     cover_url = m.cover_url
     if cover_url and cover_url.startswith('http://'):
         cover_url = cover_url.replace('http://', 'https://')
+    if cover_url and not cover_url.startswith('http'):
+        if cover_url.isdigit() or (len(cover_url) > 10 and not '/' in cover_url and not '.' in cover_url):
+            cover_url = f'https://p1.music.126.net/{cover_url}/{cover_url}.jpg'
+        elif cover_url.startswith('/'):
+            cover_url = 'https://p1.music.126.net' + cover_url
     return {
         'id': m.id,
         'title': m.title,
