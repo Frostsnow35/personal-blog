@@ -224,6 +224,7 @@ async function getQQMusicAudioUrl(songName, artist) {
 
 async function getThirdPartyAudioUrl(songId) {
   const apiUrls = [
+    `https://netease-cloud-music-api-eta-five.vercel.app/song/url?id=${songId}`,
     `https://api.injahow.cn/meting/api?server=netease&type=song&id=${songId}`,
     `https://api.bzqll.com/music/netease/song?id=${songId}&type=json`,
     `https://music.666ccc.com/api/netease/song?id=${songId}`,
