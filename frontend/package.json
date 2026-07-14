@@ -30,7 +30,8 @@
     "three": "^0.155.0",
     "tiptap-markdown": "^0.9.0",
     "vue": "^3.3.4",
-    "vue-router": "^4.2.4"
+    "vue-router": "^4.2.4",
+    "vue3-toastify": "^0.2.9"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.10.4",
