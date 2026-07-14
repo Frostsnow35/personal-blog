@@ -47,14 +47,11 @@ const openInNetease = (item: MusicItem) => {
 
 const getCoverSrc = (src?: string) => {
   if (!src) return '';
-  try {
-    if (/^http:\/\//i.test(src)) {
-      return src.replace(/^http:\/\//i, 'https://');
-    }
-    return src;
-  } catch {
-    return src;
+  if (/^http:\/\//i.test(src)) {
+    return src.replace(/^http:\/\//i, 'https://');
   }
+  if (/^https?:\/\//i.test(src)) return src;
+  return '';
 };
 
 const onCoverError = (e: Event) => {

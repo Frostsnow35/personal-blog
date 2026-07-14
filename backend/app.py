@@ -16,8 +16,6 @@ from sqlalchemy.pool import NullPool
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 from concurrent.futures import ThreadPoolExecutor
-from Crypto.Cipher import AES
-import base64
 
 # 加载环境变量
 load_dotenv()
@@ -903,26 +901,10 @@ def admin_delete_photo(photo_id):
 
 
 # ============== 百宝箱 - 音乐/电影/友链 ==============
-
-def _encrypt_netease_id(pic_id: str) -> str:
-    key = b'0CoJUm6Qyw8W8jud'
-    iv = b'0102030405060708'
-    pad = 16 - len(pic_id) % 16
-    pic_id += chr(pad) * pad
-    cipher = AES.new(key, AES.MODE_CBC, iv)
-    encrypted = cipher.encrypt(pic_id.encode('utf-8'))
-    return base64.b64encode(encrypted).decode('utf-8')
-
 def _music_to_dict(m: MusicFavorite) -> dict:
     cover_url = m.cover_url
     if cover_url and cover_url.startswith('http://'):
         cover_url = cover_url.replace('http://', 'https://')
-    if cover_url and not cover_url.startswith('http'):
-        if cover_url.isdigit() or (len(cover_url) > 10 and not '/' in cover_url and not '.' in cover_url):
-            enc_id = _encrypt_netease_id(cover_url)
-            cover_url = f'https://p1.music.126.net/{enc_id}/{cover_url}.jpg'
-        elif cover_url.startswith('/'):
-            cover_url = 'https://p1.music.126.net' + cover_url
     return {
         'id': m.id,
         'title': m.title,
@@ -1024,7 +1006,8 @@ def search_music():
                 songs = data.get('data', {}).get('song', {}).get('list', [])
                 for song in songs:
                     song_id = str(song.get('songmid', ''))
-                    artist_names = song.get('singer', [])[0].get('name', '') if song.get('singer') and song.get('singer').length > 0 else '未知歌手'
+                    singers = song.get('singer') or []
+                    artist_names = singers[0].get('name', '') if singers else '未知歌手'
                     
                     cover_url = ''
                     if song.get('albummid'):
@@ -1103,10 +1086,10 @@ def search_music():
                         cover_url = song['pic']
                     elif song.get('cover'):
                         cover_url = song['cover']
-                    elif album.get('picId'):
-                        pic_id = str(album['picId'])
-                        enc_id = _encrypt_netease_id(pic_id)
-                        cover_url = f'https://p1.music.126.net/{enc_id}/{pic_id}.jpg'
+                    elif song.get('picUrl'):
+                        cover_url = song['picUrl']
+                    elif song.get('cover_url'):
+                        cover_url = song['cover_url']
                     
                     if cover_url and cover_url.startswith('http://'):
                         cover_url = cover_url.replace('http://', 'https://')
