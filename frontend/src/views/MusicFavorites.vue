@@ -31,13 +31,7 @@ const currentItem = computed(() => musicItems.value[currentIndex.value] || null)
 const hasNext = computed(() => currentIndex.value < musicItems.value.length - 1);
 const hasPrev = computed(() => currentIndex.value > 0);
 
-const audioSrc = computed(() => {
-  if (!currentItem.value) return '';
-  const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id;
-  const name = encodeURIComponent(currentItem.value.title || '');
-  const artist = encodeURIComponent(currentItem.value.artist || '');
-  return `/api/music?id=${songId}&name=${name}&artist=${artist}&stream=1`;
-});
+const currentAudioUrl = ref('');
 
 const loadMusic = async () => {
   try {
@@ -65,7 +59,17 @@ const initAudio = () => {
     audioElement.addEventListener('loadedmetadata', () => {
       if (audioElement) {
         duration.value = audioElement.duration;
+        console.log('音频元数据加载完成:', audioElement.duration, '秒');
       }
+    });
+    audioElement.addEventListener('canplay', () => {
+      console.log('音频可以播放了，readyState:', audioElement?.readyState);
+    });
+    audioElement.addEventListener('loadeddata', () => {
+      console.log('音频数据加载完成');
+    });
+    audioElement.addEventListener('progress', () => {
+      console.log('音频加载进度:', audioElement?.buffered?.length);
     });
     audioElement.addEventListener('ended', () => {
       if (hasNext.value) {
@@ -75,10 +79,23 @@ const initAudio = () => {
       }
     });
     audioElement.addEventListener('error', (e) => {
+      const errorCode = audioElement?.error?.code;
+      const errorMsg = audioElement?.error?.message;
+      const readyState = audioElement?.readyState;
       console.error('音频播放错误:', e);
+      console.error('错误代码:', errorCode, '错误信息:', errorMsg, 'readyState:', readyState, 'src:', audioElement?.src);
+      
+      let errorText = '音频播放失败';
+      switch (errorCode) {
+        case 1: errorText = '用户终止了音频播放'; break;
+        case 2: errorText = '网络错误'; break;
+        case 3: errorText = '解码错误'; break;
+        case 4: errorText = '资源不可用'; break;
+      }
+      
       isPlaying.value = false;
       playLoading.value = false;
-      toast.warning('当前歌曲无法直接播放，请点击"在网易云播放"按钮');
+      toast.warning(`${errorText}，请点击"在网易云播放"按钮`);
     });
   }
 };
@@ -89,16 +106,52 @@ const playSong = async (index: number) => {
   playLoading.value = true;
   progress.value = 0;
   duration.value = 0;
+  currentAudioUrl.value = '';
+  
+  const item = musicItems.value[index];
+  if (!item) {
+    toast.warning('未找到该歌曲');
+    playLoading.value = false;
+    return;
+  }
+  
+  const songId = item.source_url?.split('=')?.[1] || item.id;
+  
+  console.log('尝试播放歌曲:', item.title, 'ID:', songId);
   
   try {
+    const apiUrl = `/api/music?id=${songId}`;
+    console.log('请求音频链接:', apiUrl);
+    
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+    console.log('API响应:', data);
+    
+    if (!data.success || !data.data?.url) {
+      console.error('无法获取音频链接:', data.message);
+      toast.warning('无法获取播放链接，请点击"在网易云播放"按钮');
+      playLoading.value = false;
+      return;
+    }
+    
+    const audioUrl = data.data.url;
+    currentAudioUrl.value = audioUrl;
+    console.log('获取到音频链接:', audioUrl);
+    
     if (audioElement) {
-      audioElement.src = audioSrc.value;
+      audioElement.src = audioUrl;
+      console.log('设置音频源:', audioElement.src);
+      
       await audioElement.load();
+      console.log('音频加载完成，readyState:', audioElement.readyState);
+      
       await audioElement.play();
+      console.log('音频播放成功');
       isPlaying.value = true;
     }
   } catch (error: any) {
     console.error('播放失败:', error);
+    console.error('错误类型:', error.name, '错误信息:', error.message);
     isPlaying.value = false;
     toast.warning('当前歌曲无法直接播放，请点击"在网易云播放"按钮');
   } finally {
