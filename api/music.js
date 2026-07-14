@@ -103,7 +103,7 @@ async function getNeteaseAudioUrl(songId) {
             audioUrl = jsonData.data.url;
           }
           
-          if (audioUrl && audioUrl.startsWith('http')) {
+          if (audioUrl && audioUrl.startsWith('http') && !audioUrl.includes('404') && !audioUrl.includes('music.163.com/404')) {
             return audioUrl;
           }
         } catch (e) {
@@ -207,7 +207,7 @@ async function getThirdPartyAudioUrl(songId) {
             }
           }
           
-          if (audioUrl && audioUrl.startsWith('http')) {
+          if (audioUrl && audioUrl.startsWith('http') && !audioUrl.includes('404') && !audioUrl.includes('music.163.com/404')) {
             return audioUrl;
           }
         } catch (e) {
