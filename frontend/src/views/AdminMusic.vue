@@ -64,6 +64,17 @@
             </div>
           </div>
         </div>
+
+        <div v-if="searchResults.length > 0 && searchTotal > searchResults.length" class="text-center py-4">
+          <button
+            @click="loadMore"
+            :disabled="searchLoading"
+            class="px-6 py-2 bg-ocean-600 hover:bg-ocean-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+          >
+            {{ searchLoading ? '加载中...' : '加载更多' }}
+          </button>
+          <p class="text-xs text-gray-500 mt-2">{{ searchResults.length }} / {{ searchTotal }} 首</p>
+        </div>
       </div>
 
       <div class="border-t dark:border-gray-700 pt-6">
@@ -146,6 +157,9 @@ const searchResults = ref<SearchResult[]>([])
 const searchLoading = ref(false)
 const platform = ref('netease')
 const searchInput = ref<HTMLInputElement | null>(null)
+const searchTotal = ref(0)
+const searchPage = ref(1)
+const searchLimit = ref(20)
 const showEditModal = ref(false)
 const editingMusic = ref<Music | null>(null)
 const editDescription = ref('')
@@ -154,6 +168,16 @@ const getCoverUrl = (src: string) => {
   if (!src) return ''
   if (/^http:\/\//i.test(src)) {
     return src.replace(/^http:\/\//i, 'https://')
+  }
+  if (/^https?:\/\//i.test(src)) return src
+  if (src.startsWith('/')) {
+    return 'https://p1.music.126.net' + src
+  }
+  if (/^\d+$/.test(src) || (src.length > 10 && !src.includes('/') && !src.includes('.'))) {
+    return `https://p1.music.126.net/${src}/${src}.jpg`
+  }
+  if (src.startsWith('p1.music.126.net')) {
+    return 'https://' + src
   }
   return src
 }
@@ -179,22 +203,31 @@ const scrollToSearch = async () => {
   }
 }
 
-const searchMusic = async () => {
+const searchMusic = async (pageNum = 1) => {
   const query = searchQuery.value.trim()
   if (!query) return
 
   searchLoading.value = true
-  searchResults.value = []
+  if (pageNum === 1) {
+    searchResults.value = []
+  }
+  searchPage.value = pageNum
   try {
-    const response = await http.get<any>(`/music-search?keyword=${encodeURIComponent(query)}`)
+    const response = await http.get<any>(`/music-search?keyword=${encodeURIComponent(query)}&page=${pageNum}&limit=${searchLimit.value}`)
     if (response?.data) {
-      searchResults.value = response.data.map((song: any) => ({
+      const newResults = response.data.map((song: any) => ({
         id: song.id.toString(),
         name: song.title,
         artist: song.artist || '未知歌手',
         album: song.album || '未知专辑',
         cover: song.cover_url || ''
       }))
+      if (pageNum === 1) {
+        searchResults.value = newResults
+      } else {
+        searchResults.value = [...searchResults.value, ...newResults]
+      }
+      searchTotal.value = response.total || 0
     }
     if (!searchResults.value.length && response?.success) {
       toast.warning('未找到相关歌曲')
@@ -204,6 +237,14 @@ const searchMusic = async () => {
     toast.error('搜索失败', error?.message || String(error))
   } finally {
     searchLoading.value = false
+  }
+}
+
+const loadMore = () => {
+  if (searchLoading.value) return
+  const totalPages = Math.ceil(searchTotal.value / searchLimit.value)
+  if (searchPage.value < totalPages) {
+    searchMusic(searchPage.value + 1)
   }
 }
 
