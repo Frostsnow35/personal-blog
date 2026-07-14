@@ -138,9 +138,9 @@ onMounted(() => {
             <p class="text-gray-500 dark:text-gray-400 text-sm mb-1">{{ item.artist }}</p>
             <p class="text-gray-400 dark:text-gray-500 text-xs mb-4">{{ item.album }}</p>
 
-            <div v-if="item.description" class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 mb-5">
+            <div class="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 mb-5">
               <p class="text-gray-600 dark:text-gray-300 text-sm leading-relaxed italic">
-                "{{ item.description }}"
+                "{{ item.description || '博主好像没话说呢' }}"
               </p>
             </div>
 

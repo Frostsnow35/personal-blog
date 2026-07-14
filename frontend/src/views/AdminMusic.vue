@@ -50,7 +50,7 @@
             @click="addFromSearch(item)"
           >
             <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 1/1;">
-              <img :src="item.cover" :alt="item.name" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <img :src="getCoverUrl(item.cover)" :alt="item.name" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
               <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                 <span class="opacity-0 group-hover:opacity-100 text-white font-semibold bg-ocean-600 px-4 py-2 rounded-lg transition-opacity">
                   + 添加
@@ -150,6 +150,24 @@ const showEditModal = ref(false)
 const editingMusic = ref<Music | null>(null)
 const editDescription = ref('')
 
+const getCoverUrl = (src: string) => {
+  if (!src) return ''
+  if (/^http:\/\//i.test(src)) {
+    return src.replace(/^http:\/\//i, 'https://')
+  }
+  if (/^https?:\/\//i.test(src)) return src
+  if (src.startsWith('/')) {
+    return 'https://p1.music.126.net' + src
+  }
+  if (/^\d+$/.test(src) || (src.length > 10 && !src.includes('/') && !src.includes('.'))) {
+    return `https://p1.music.126.net/${src}/${src}.jpg`
+  }
+  if (src.startsWith('p1.music.126.net')) {
+    return 'https://' + src
+  }
+  return src
+}
+
 const load = async () => {
   loading.value = true
   try {
@@ -186,7 +204,7 @@ const searchMusic = async () => {
         artist: song.artist || '未知歌手',
         album: song.album || '未知专辑',
         cover: song.cover_url || ''
-      })).filter((m: any) => m.cover)
+      }))
     }
     if (!searchResults.value.length && response?.success) {
       toast.warning('未找到相关歌曲')
