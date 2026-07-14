@@ -53,6 +53,12 @@ async function getNeteaseAudioUrl(songId) {
   const apiUrls = [
     `https://music.163.com/api/song/enhance/player/url/v1?csrf_token=&ids=[${songId}]&level=standard&encodeType=mp3&br=320000`,
     `https://music.163.com/api/song/enhance/player/url?csrf_token=&ids=[${songId}]&br=320000`,
+    `https://api.itooi.cn/music/netease/playUrl?id=${songId}&quality=high`,
+    `https://api.bzqll.com/music/netease/song?id=${songId}&type=json`,
+    `https://music.666ccc.com/api/netease/song?id=${songId}`,
+    `https://api.injahow.cn/meting/api?server=netease&type=song&id=${songId}`,
+    `https://api.music.moreyoung.top/v1/netease/song/url?id=${songId}`,
+    `https://api.kuwo.cn/api/www/search/searchMusicBykeyWord?key=${songId}&pn=1&rn=1&httpsStatus=1`,
   ];
   
   for (const url of apiUrls) {
@@ -61,11 +67,25 @@ async function getNeteaseAudioUrl(songId) {
       if (responseData.status === 200) {
         try {
           const jsonData = JSON.parse(responseData.body);
+          
+          let audioUrl = null;
+          
           if (jsonData.data && Array.isArray(jsonData.data) && jsonData.data.length > 0) {
-            const audioUrl = jsonData.data[0].url || jsonData.data[0].mp3Url || jsonData.data[0].audio;
-            if (audioUrl && audioUrl.startsWith('http')) {
-              return audioUrl;
-            }
+            audioUrl = jsonData.data[0].url || jsonData.data[0].mp3Url || jsonData.data[0].audio;
+          } else if (jsonData.url) {
+            audioUrl = jsonData.url;
+          } else if (jsonData.data && jsonData.data.url) {
+            audioUrl = jsonData.data.url;
+          } else if (jsonData.songs && Array.isArray(jsonData.songs) && jsonData.songs.length > 0) {
+            audioUrl = jsonData.songs[0].url || jsonData.songs[0].mp3Url;
+          } else if (jsonData.data && jsonData.data.song && jsonData.data.song.url) {
+            audioUrl = jsonData.data.song.url;
+          } else if (jsonData.result && jsonData.result.url) {
+            audioUrl = jsonData.result.url;
+          }
+          
+          if (audioUrl && audioUrl.startsWith('http')) {
+            return audioUrl;
           }
         } catch (e) {
           continue;
