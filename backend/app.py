@@ -383,7 +383,6 @@ class MusicFavorite(db.Model):
     album = db.Column(db.String(200))
     cover_url = db.Column(db.String(500))
     source_url = db.Column(db.String(500), nullable=False)
-    audio_url = db.Column(db.String(500))
     description = db.Column(db.Text)
     tags = db.Column(db.JSON)
     sort_order = db.Column(db.Integer, default=0, index=True)
@@ -906,9 +905,6 @@ def _music_to_dict(m: MusicFavorite) -> dict:
     cover_url = m.cover_url
     if cover_url and cover_url.startswith('http://'):
         cover_url = cover_url.replace('http://', 'https://')
-    audio_url = m.audio_url
-    if audio_url and audio_url.startswith('http://'):
-        audio_url = audio_url.replace('http://', 'https://')
     return {
         'id': m.id,
         'title': m.title,
@@ -916,7 +912,6 @@ def _music_to_dict(m: MusicFavorite) -> dict:
         'album': m.album,
         'cover_url': cover_url,
         'source_url': m.source_url,
-        'audio_url': audio_url,
         'description': m.description,
         'tags': m.tags or [],
         'sort_order': m.sort_order,
@@ -980,6 +975,56 @@ def list_music_favorites_public():
 @app.route('/music-favorites/daily', methods=['GET'])
 def daily_music_favorite_public():
     return daily_music_favorite()
+
+
+@app.route('/api/music-search', methods=['GET'])
+def search_music():
+    keyword = request.args.get('keyword', '').strip()
+    if not keyword:
+        return json_response({'success': False, 'message': '搜索关键词不能为空'})
+    
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 20))
+    
+    url = f'https://music.163.com/api/search/get/web?csrf_token=&type=1&s={urllib.parse.quote(keyword)}&offset={(page-1)*limit}&limit={limit}'
+    
+    success, data = _music_request(url)
+    if not success:
+        return json_response({'success': False, 'message': '搜索失败'})
+    
+    try:
+        result = []
+        songs = data.get('result', {}).get('songs', [])
+        for song in songs:
+            song_id = str(song.get('id', ''))
+            album = song.get('album', {})
+            artists = song.get('artists', [])
+            artist_names = '/'.join([a.get('name', '') for a in artists])
+            
+            cover_url = ''
+            if album.get('picUrl'):
+                cover_url = album['picUrl']
+                if cover_url.startswith('http://'):
+                    cover_url = cover_url.replace('http://', 'https://')
+            
+            result.append({
+                'id': song_id,
+                'title': song.get('name', ''),
+                'artist': artist_names,
+                'album': album.get('name', ''),
+                'cover_url': cover_url,
+                'source_url': f'https://music.163.com/#/song?id={song_id}',
+            })
+        
+        return json_response({
+            'success': True,
+            'data': result,
+            'total': data.get('result', {}).get('songCount', 0),
+            'page': page,
+            'limit': limit,
+        })
+    except Exception as e:
+        return json_response({'success': False, 'message': f'搜索解析失败: {str(e)}'})
 
 
 @app.route('/music-favorites', methods=['POST'])
