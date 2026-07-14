@@ -30,7 +30,9 @@ const audioSrc = computed(() => {
  if (!currentItem.value)
  return '';
  const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id;
- return `/api/music?id=${songId}&stream=1`;
+ const name = encodeURIComponent(currentItem.value.title || '');
+ const artist = encodeURIComponent(currentItem.value.artist || '');
+ return `/api/music?id=${songId}&name=${name}&artist=${artist}&stream=1`;
 });
 const loadMusic = async () => {
  try {
