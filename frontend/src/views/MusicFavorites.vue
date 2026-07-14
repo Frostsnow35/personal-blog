@@ -51,16 +51,6 @@ const getCoverSrc = (src?: string) => {
     if (/^http:\/\//i.test(src)) {
       return src.replace(/^http:\/\//i, 'https://');
     }
-    if (/^https?:\/\//i.test(src)) return src;
-    if (src.startsWith('/')) {
-      return 'https://p1.music.126.net' + src;
-    }
-    if (/^\d+$/.test(src) || (src.length > 10 && !src.includes('/') && !src.includes('.'))) {
-      return `https://p1.music.126.net/${src}/${src}.jpg`;
-    }
-    if (src.startsWith('p1.music.126.net')) {
-      return 'https://' + src;
-    }
     return src;
   } catch {
     return src;
