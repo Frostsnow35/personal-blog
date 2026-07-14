@@ -2,7 +2,7 @@
 import { useRouter } from 'vue-router';
 import { toast } from 'vue3-toastify';
 import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-vue-next';
-import http from '@/utils/http';
+import { http } from '@/utils/http';
 const router = useRouter();
 interface MusicItem {
  id: string;
