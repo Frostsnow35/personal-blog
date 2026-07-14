@@ -977,7 +977,7 @@ def daily_music_favorite_public():
     return daily_music_favorite()
 
 
-@app.route('/music-search', methods=['GET'])
+@app.route('/api/music-search', methods=['GET'])
 def search_music():
     keyword = request.args.get('keyword', '').strip()
     if not keyword:
@@ -1022,8 +1022,9 @@ def search_music():
                 pass
     
     proxy_urls = [
-        f'https://api.music.163.com/api/search/get/web?csrf_token=&type=1&s={urllib.parse.quote(keyword)}&offset={(page-1)*limit}&limit={limit}',
-        f'https://music.163.com/api/search/get/web?csrf_token=&type=1&s={urllib.parse.quote(keyword)}&offset={(page-1)*limit}&limit={limit}',
+        f'https://netease-cloud-music-api-gold.vercel.app/search?keywords={urllib.parse.quote(keyword)}&limit={limit}&offset={(page-1)*limit}&type=1',
+        f'https://api.injahow.cn/meting/api?server=netease&type=search&keyword={urllib.parse.quote(keyword)}&page={page}&limit={limit}',
+        f'https://api.i-meto.com/meting/api?server=netease&type=search&keyword={urllib.parse.quote(keyword)}&page={page}&limit={limit}',
     ]
     
     for url in proxy_urls:
@@ -1031,36 +1032,80 @@ def search_music():
         if success:
             try:
                 result = []
-                songs = data.get('result', {}).get('songs', [])
+                total = 0
+                
+                songs = []
+                if isinstance(data, list):
+                    songs = data
+                else:
+                    songs = data.get('result', {}).get('songs', [])
+                    if not songs:
+                        songs = data.get('data', {}).get('songs', [])
+                    if not songs:
+                        songs = data.get('data', [])
+                
                 for song in songs:
-                    song_id = str(song.get('id', ''))
+                    song_id = str(song.get('id', '')) or str(song.get('song_id', ''))
+                    
+                    url_info = song.get('url', '')
+                    if url_info:
+                        id_match = url_info.split('id=')
+                        if len(id_match) > 1:
+                            song_id = id_match[1].split('&')[0]
+                    
                     album = song.get('album', {})
                     artists = song.get('artists', [])
-                    artist_names = '/'.join([a.get('name', '') for a in artists])
+                    
+                    artist_names = ''
+                    if artists:
+                        if isinstance(artists, list):
+                            artist_names = '/'.join([a.get('name', '') for a in artists])
+                        elif isinstance(artists, str):
+                            artist_names = artists
+                    
+                    if not artist_names:
+                        artist_names = song.get('artist', '未知歌手')
                     
                     cover_url = ''
                     if album.get('picUrl'):
                         cover_url = album['picUrl']
-                        if cover_url.startswith('http://'):
-                            cover_url = cover_url.replace('http://', 'https://')
+                    elif album.get('cover'):
+                        cover_url = album['cover']
+                    elif song.get('pic'):
+                        cover_url = song['pic']
+                    elif song.get('cover'):
+                        cover_url = song['cover']
+                    elif album.get('picId'):
+                        cover_url = f'https://p1.music.126.net/{album["picId"]}/{album["picId"]}.jpg'
                     
-                    result.append({
-                        'id': song_id,
-                        'title': song.get('name', ''),
-                        'artist': artist_names,
-                        'album': album.get('name', ''),
-                        'cover_url': cover_url,
-                        'source_url': f'https://music.163.com/#/song?id={song_id}',
-                    })
+                    if cover_url and cover_url.startswith('http://'):
+                        cover_url = cover_url.replace('http://', 'https://')
+                    
+                    title = song.get('name', '') or song.get('title', '')
+                    album_name = album.get('name', '') or song.get('album', '')
+                    
+                    if title:
+                        result.append({
+                            'id': song_id,
+                            'title': title,
+                            'artist': artist_names,
+                            'album': album_name,
+                            'cover_url': cover_url,
+                            'source_url': f'https://music.163.com/#/song?id={song_id}',
+                        })
                 
-                return json_response({
-                    'success': True,
-                    'data': result,
-                    'total': data.get('result', {}).get('songCount', 0),
-                    'page': page,
-                    'limit': limit,
-                })
+                total = data.get('result', {}).get('songCount', 0) or len(result)
+                
+                if result:
+                    return json_response({
+                        'success': True,
+                        'data': result,
+                        'total': total,
+                        'page': page,
+                        'limit': limit,
+                    })
             except Exception as e:
+                app.logger.error(f'Music search parse error: {e}')
                 continue
     
     return json_response({'success': False, 'message': '搜索失败: 无法连接到音乐API'})
