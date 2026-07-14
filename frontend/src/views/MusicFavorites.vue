@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue3-toastify';
-import { Music, Play, Pause, SkipBack, SkipForward, ExternalLink } from 'lucide-vue-next';
+import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ExternalLink } from 'lucide-vue-next';
 import { http } from '@/utils/http';
 
 const router = useRouter();
@@ -21,23 +21,29 @@ const musicItems = ref<MusicItem[]>([]);
 const loading = ref(true);
 const currentIndex = ref(0);
 const isPlaying = ref(false);
+const volume = ref(80);
+const isMuted = ref(false);
+const progress = ref(0);
+const duration = ref(0);
 const playLoading = ref(false);
-const currentPlatform = ref<'netease' | 'qq'>('netease');
+let audioElement: HTMLAudioElement | null = null;
 
 const currentItem = computed(() => musicItems.value[currentIndex.value] || null);
 const hasNext = computed(() => currentIndex.value < musicItems.value.length - 1);
 const hasPrev = computed(() => currentIndex.value > 0);
 
-const neteasePlayerUrl = computed(() => {
+const audioSrc = computed(() => {
   if (!currentItem.value) return '';
   const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id;
-  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=0&height=100`;
+  const name = encodeURIComponent(currentItem.value.title || '');
+  const artist = encodeURIComponent(currentItem.value.artist || '');
+  return `/api/music?id=${songId}&name=${name}&artist=${artist}&stream=1`;
 });
 
-const qqPlayerUrl = computed(() => {
+const neteaseUrl = computed(() => {
   if (!currentItem.value) return '';
   const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id;
-  return `https://y.qq.com/n/ryqq/player/player.html?songmid=${songId}&type=song&auto=0&theme=0&showcover=0`;
+  return `https://music.163.com/#/song?id=${songId}`;
 });
 
 const loadMusic = async () => {
@@ -54,18 +60,78 @@ const loadMusic = async () => {
   }
 };
 
-const playSong = async (index: number) => {
-  currentIndex.value = index;
-  playLoading.value = true;
-  setTimeout(() => {
-    isPlaying.value = true;
-    playLoading.value = false;
-  }, 500);
+const initAudio = () => {
+  if (!audioElement) {
+    audioElement = new Audio();
+    audioElement.volume = volume.value / 100;
+    audioElement.addEventListener('timeupdate', () => {
+      if (audioElement && audioElement.duration) {
+        progress.value = (audioElement.currentTime / audioElement.duration) * 100;
+      }
+    });
+    audioElement.addEventListener('loadedmetadata', () => {
+      if (audioElement) {
+        duration.value = audioElement.duration;
+      }
+    });
+    audioElement.addEventListener('ended', () => {
+      if (hasNext.value) {
+        playSong(currentIndex.value + 1);
+      } else {
+        isPlaying.value = false;
+      }
+    });
+    audioElement.addEventListener('error', (e) => {
+      console.error('音频播放错误:', e);
+      isPlaying.value = false;
+      playLoading.value = false;
+      toast.warning('当前歌曲无法直接播放，请点击"在网易云播放"按钮');
+    });
+  }
 };
 
-const togglePlay = () => {
-  if (!currentItem.value) return;
-  isPlaying.value = !isPlaying.value;
+const playSong = async (index: number) => {
+  initAudio();
+  currentIndex.value = index;
+  playLoading.value = true;
+  progress.value = 0;
+  duration.value = 0;
+  
+  try {
+    if (audioElement) {
+      audioElement.src = audioSrc.value;
+      await audioElement.load();
+      await audioElement.play();
+      isPlaying.value = true;
+    }
+  } catch (error: any) {
+    console.error('播放失败:', error);
+    isPlaying.value = false;
+    toast.warning('当前歌曲无法直接播放，请点击"在网易云播放"按钮');
+  } finally {
+    playLoading.value = false;
+  }
+};
+
+const togglePlay = async () => {
+  if (!audioElement) {
+    if (currentItem.value) {
+      await playSong(currentIndex.value);
+    }
+    return;
+  }
+  if (isPlaying.value) {
+    audioElement.pause();
+    isPlaying.value = false;
+  } else {
+    try {
+      await audioElement.play();
+      isPlaying.value = true;
+    } catch (error) {
+      console.error('播放失败:', error);
+      toast.warning('无法播放，请点击"在网易云播放"按钮');
+    }
+  }
 };
 
 const playPrev = () => {
@@ -80,8 +146,37 @@ const playNext = () => {
   }
 };
 
-const togglePlatform = () => {
-  currentPlatform.value = currentPlatform.value === 'netease' ? 'qq' : 'netease';
+const setProgress = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (audioElement && audioElement.duration) {
+    audioElement.currentTime = (parseFloat(target.value) / 100) * audioElement.duration;
+  }
+};
+
+const setVolume = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  volume.value = parseFloat(target.value);
+  if (audioElement) {
+    audioElement.volume = volume.value / 100;
+  }
+};
+
+const toggleMute = () => {
+  if (!audioElement) return;
+  isMuted.value = !isMuted.value;
+  audioElement.muted = isMuted.value;
+};
+
+const formatTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+const openInNetease = () => {
+  if (neteaseUrl.value) {
+    window.open(neteaseUrl.value, '_blank');
+  }
 };
 
 loadMusic();
@@ -143,21 +238,21 @@ loadMusic();
         </div>
 
         <div class="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-lg border-t border-white/10 p-4">
-          <div class="max-w-6xl mx-auto">
-            <div class="flex items-center gap-6 mb-3">
-              <div v-if="currentItem" class="flex items-center gap-4 flex-shrink-0">
-                <img
-                  :src="currentItem.cover"
-                  :alt="currentItem.title"
-                  class="w-16 h-16 rounded-lg object-cover"
-                />
-                <div class="min-w-0">
-                  <h4 class="text-white font-medium truncate">{{ currentItem.title }}</h4>
-                  <p class="text-gray-400 text-sm">{{ currentItem.artist }}</p>
-                </div>
+          <div class="max-w-6xl mx-auto flex items-center gap-6">
+            <div v-if="currentItem" class="flex items-center gap-4 flex-shrink-0">
+              <img
+                :src="currentItem.cover"
+                :alt="currentItem.title"
+                class="w-16 h-16 rounded-lg object-cover"
+              />
+              <div class="min-w-0">
+                <h4 class="text-white font-medium truncate">{{ currentItem.title }}</h4>
+                <p class="text-gray-400 text-sm">{{ currentItem.artist }}</p>
               </div>
+            </div>
 
-              <div class="flex-1 flex items-center gap-4">
+            <div class="flex-1 flex flex-col items-center gap-2">
+              <div class="flex items-center gap-4">
                 <button
                   @click="playPrev"
                   :disabled="!hasPrev"
@@ -180,58 +275,51 @@ loadMusic();
                 >
                   <SkipForward class="w-6 h-6" />
                 </button>
+              </div>
 
-                <div class="flex-1"></div>
-
-                <button
-                  @click="togglePlatform"
-                  class="px-4 py-2 rounded-lg transition-colors font-medium"
-                  :class="currentPlatform === 'netease' ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-green-600 text-white hover:bg-green-500'"
-                >
-                  {{ currentPlatform === 'netease' ? '网易云音乐' : 'QQ音乐' }}
-                </button>
+              <div class="w-full max-w-md flex items-center gap-3">
+                <span class="text-gray-400 text-sm">{{ formatTime((progress / 100) * duration) }}</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  :value="progress"
+                  @input="setProgress"
+                  class="flex-1 h-1 bg-gray-600 rounded-full appearance-none cursor-pointer accent-purple-500"
+                />
+                <span class="text-gray-400 text-sm">{{ formatTime(duration) }}</span>
               </div>
             </div>
 
-            <div v-if="currentItem" class="bg-gray-800/50 rounded-lg p-2">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-gray-400 text-sm flex items-center gap-2">
-                  <ExternalLink class="w-4 h-4" />
-                  {{ currentPlatform === 'netease' ? '网易云外链播放器' : 'QQ音乐外链播放器' }}
-                </span>
-                <span class="text-gray-500 text-xs">点击播放器内的播放按钮开始播放</span>
-              </div>
-              <iframe
-                v-if="currentPlatform === 'netease'"
-                :src="neteasePlayerUrl"
-                frameborder="no"
-                border="0"
-                marginwidth="0"
-                marginheight="0"
-                width="100%"
-                height="100"
-                class="rounded bg-black/50"
-                title="网易云音乐播放器"
-                sandbox="allow-scripts allow-same-origin allow-top-navigation"
-              ></iframe>
-              <iframe
-                v-else
-                :src="qqPlayerUrl"
-                frameborder="no"
-                border="0"
-                marginwidth="0"
-                marginheight="0"
-                width="100%"
-                height="100"
-                class="rounded bg-black/50"
-                title="QQ音乐播放器"
-                sandbox="allow-scripts allow-same-origin allow-top-navigation"
-              ></iframe>
+            <div class="flex items-center gap-3 flex-shrink-0">
+              <button
+                @click="openInNetease"
+                :disabled="!currentItem"
+                class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ExternalLink class="w-4 h-4" />
+                在网易云播放
+              </button>
+              <button
+                @click="toggleMute"
+                class="p-2 text-white hover:text-purple-400 transition-colors"
+              >
+                <VolumeX v-if="isMuted" class="w-6 h-6" />
+                <Volume2 v-else class="w-6 h-6" />
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                :value="volume"
+                @input="setVolume"
+                class="w-24 h-1 bg-gray-600 rounded-full appearance-none cursor-pointer accent-purple-500"
+              />
             </div>
           </div>
         </div>
 
-        <div class="h-52"></div>
+        <div class="h-32"></div>
       </div>
     </div>
   </div>
