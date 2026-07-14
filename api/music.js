@@ -232,8 +232,8 @@ async function getThirdPartyAudioUrl(songId) {
     `https://api.paugram.com/music/netease?id=${songId}`,
     `https://api.zhaoge.club/api/netease/song?id=${songId}`,
     `https://api.dogecloud.cn/api/netease/song?id=${songId}`,
-    `https://api.y.qq.com/v1/music/fcgi-bin/music_mini_player?songid=${songId}`,
-    `https://api.kugou.com/yy/index.php?r=play/getdata&hash=${songId}&mid=1`,
+    `https://music.163.com/api/song/enhance/player/url/v1?csrf_token=&ids=[${songId}]&level=exhigh&encodeType=flac&songid=${songId}&offset=0&total=true&limit=1`,
+    `https://music.163.com/api/song/enhance/player/url?csrf_token=&ids=[${songId}]&br=320000&csrf_token=`,
   ];
   
   for (const url of apiUrls) {
@@ -241,7 +241,14 @@ async function getThirdPartyAudioUrl(songId) {
       const responseData = await fetchUrl(url);
       if (responseData.status === 200) {
         try {
-          const jsonData = JSON.parse(responseData.body);
+          const body = responseData.body;
+          let jsonData;
+          
+          if (body.length > 100 && !body.startsWith('{')) {
+            jsonData = decryptNeteaseData(body);
+          } else {
+            jsonData = JSON.parse(body);
+          }
           
           let audioUrl = null;
           
