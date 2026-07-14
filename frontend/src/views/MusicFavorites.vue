@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue3-toastify';
-import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ExternalLink } from 'lucide-vue-next';
+import { Music, Play, Pause, SkipBack, SkipForward, ExternalLink } from 'lucide-vue-next';
 import { http } from '@/utils/http';
 
 const router = useRouter();
@@ -21,8 +21,6 @@ const musicItems = ref<MusicItem[]>([]);
 const loading = ref(true);
 const currentIndex = ref(0);
 const isPlaying = ref(false);
-const volume = ref(80);
-const isMuted = ref(false);
 const playLoading = ref(false);
 const currentPlatform = ref<'netease' | 'qq'>('netease');
 
@@ -33,14 +31,13 @@ const hasPrev = computed(() => currentIndex.value > 0);
 const neteasePlayerUrl = computed(() => {
   if (!currentItem.value) return '';
   const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id;
-  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=1&height=66`;
+  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=0&height=100`;
 });
 
 const qqPlayerUrl = computed(() => {
   if (!currentItem.value) return '';
-  const name = encodeURIComponent(currentItem.value.title || '');
-  const artist = encodeURIComponent(currentItem.value.artist || '');
-  return `https://y.qq.com/n/ryqq/player/song/${name}+${artist}`;
+  const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id;
+  return `https://y.qq.com/n/ryqq/player/player.html?songmid=${songId}&type=song&auto=0&theme=0&showcover=0`;
 });
 
 const loadMusic = async () => {
@@ -147,7 +144,7 @@ loadMusic();
 
         <div class="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-lg border-t border-white/10 p-4">
           <div class="max-w-6xl mx-auto">
-            <div class="flex items-center gap-6 mb-4">
+            <div class="flex items-center gap-6 mb-3">
               <div v-if="currentItem" class="flex items-center gap-4 flex-shrink-0">
                 <img
                   :src="currentItem.cover"
@@ -188,8 +185,8 @@ loadMusic();
 
                 <button
                   @click="togglePlatform"
-                  class="px-4 py-2 rounded-lg transition-colors"
-                  :class="currentPlatform === 'netease' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'"
+                  class="px-4 py-2 rounded-lg transition-colors font-medium"
+                  :class="currentPlatform === 'netease' ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-green-600 text-white hover:bg-green-500'"
                 >
                   {{ currentPlatform === 'netease' ? '网易云音乐' : 'QQ音乐' }}
                 </button>
@@ -197,6 +194,13 @@ loadMusic();
             </div>
 
             <div v-if="currentItem" class="bg-gray-800/50 rounded-lg p-2">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-400 text-sm flex items-center gap-2">
+                  <ExternalLink class="w-4 h-4" />
+                  {{ currentPlatform === 'netease' ? '网易云外链播放器' : 'QQ音乐外链播放器' }}
+                </span>
+                <span class="text-gray-500 text-xs">点击播放器内的播放按钮开始播放</span>
+              </div>
               <iframe
                 v-if="currentPlatform === 'netease'"
                 :src="neteasePlayerUrl"
@@ -205,9 +209,10 @@ loadMusic();
                 marginwidth="0"
                 marginheight="0"
                 width="100%"
-                height="66"
-                class="rounded"
+                height="100"
+                class="rounded bg-black/50"
                 title="网易云音乐播放器"
+                sandbox="allow-scripts allow-same-origin allow-top-navigation"
               ></iframe>
               <iframe
                 v-else
@@ -218,14 +223,15 @@ loadMusic();
                 marginheight="0"
                 width="100%"
                 height="100"
-                class="rounded"
+                class="rounded bg-black/50"
                 title="QQ音乐播放器"
+                sandbox="allow-scripts allow-same-origin allow-top-navigation"
               ></iframe>
             </div>
           </div>
         </div>
 
-        <div class="h-48"></div>
+        <div class="h-52"></div>
       </div>
     </div>
   </div>
