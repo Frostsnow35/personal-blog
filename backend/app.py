@@ -1548,6 +1548,8 @@ def _get_audio_url(song_id: str, song_name: str = '', artist: str = '') -> str |
                     audio_url = data['url']
                 
                 if audio_url and audio_url.startswith('http') and '404' not in audio_url:
+                    if audio_url.startswith('http://'):
+                        audio_url = audio_url.replace('http://', 'https://')
                     return audio_url
             except Exception:
                 continue
@@ -1569,6 +1571,8 @@ def _get_audio_url(song_id: str, song_name: str = '', artist: str = '') -> str |
                     audio_url = data['url']
                 
                 if audio_url and audio_url.startswith('http') and '404' not in audio_url:
+                    if audio_url.startswith('http://'):
+                        audio_url = audio_url.replace('http://', 'https://')
                     return audio_url
             except Exception:
                 continue
