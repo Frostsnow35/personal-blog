@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onBeforeUnmount } from 'vue';
 import { toast } from 'vue3-toastify';
 import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ExternalLink } from 'lucide-vue-next';
 import { http } from '@/utils/http';
-
-const router = useRouter();
+import SiteNav from '@/components/SiteNav.vue';
+import AmbientBackdrop from '@/components/AmbientBackdrop.vue';
 
 interface MusicItem {
   id: string;
@@ -38,12 +37,6 @@ const audioSrc = computed(() => {
   const name = encodeURIComponent(currentItem.value.title || '');
   const artist = encodeURIComponent(currentItem.value.artist || '');
   return `/api/music?id=${songId}&name=${name}&artist=${artist}&stream=1`;
-});
-
-const neteaseUrl = computed(() => {
-  if (!currentItem.value) return '';
-  const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id;
-  return `https://music.163.com/#/song?id=${songId}`;
 });
 
 const loadMusic = async () => {
@@ -173,136 +166,172 @@ const formatTime = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-const openInNetease = () => {
-  if (neteaseUrl.value) {
-    window.open(neteaseUrl.value, '_blank');
+const openInNetease = (item: MusicItem) => {
+  const songId = item.source_url?.split('=')?.[1] || item.id;
+  const url = `https://music.163.com/#/song?id=${songId}`;
+  window.open(url, '_blank');
+};
+
+const getCoverSrc = (src?: string) => {
+  if (!src) return '';
+  try {
+    if (/^https?:\/\//i.test(src) || src.startsWith('/')) return src;
+    return `/${src.replace(/^\/+/, '')}`;
+  } catch {
+    return src;
   }
 };
+
+const onCoverError = (e: Event) => {
+  const target = e.target as HTMLImageElement;
+  target.style.objectFit = 'contain';
+  target.src = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450'>
+      <defs>
+        <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+          <stop stop-color='#e5e7eb' offset='0%'/>
+          <stop stop-color='#d1d5db' offset='100%'/>
+        </linearGradient>
+      </defs>
+      <rect width='100%' height='100%' fill='url(#g)'/>
+    </svg>`
+  );
+};
+
+onBeforeUnmount(() => {
+  if (audioElement) {
+    audioElement.pause();
+    audioElement.removeEventListener('timeupdate', () => {});
+    audioElement.removeEventListener('loadedmetadata', () => {});
+    audioElement.removeEventListener('ended', () => {});
+    audioElement.removeEventListener('error', () => {});
+    audioElement = null;
+  }
+});
 
 loadMusic();
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="flex items-center justify-between mb-8">
-        <h1 class="text-4xl font-bold text-white flex items-center gap-3">
-          <Music class="w-10 h-10 text-purple-400" />
+  <div class="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-sea-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 relative overflow-hidden">
+    <AmbientBackdrop />
+    <SiteNav />
+
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center justify-center gap-3">
+          <Music class="w-10 h-10 text-ocean-600 dark:text-ocean-400" />
           个人喜爱音乐
         </h1>
-        <button
-          @click="router.push('/')"
-          class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors backdrop-blur-sm"
-        >
-          返回首页
-        </button>
+        <p class="text-gray-500 dark:text-gray-400 mt-2">🎵 每日精选 · 我的音乐品味</p>
       </div>
 
       <div v-if="loading" class="flex justify-center items-center py-20">
-        <div class="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+        <div class="w-12 h-12 border-4 border-ocean-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
 
       <div v-else-if="musicItems.length === 0" class="text-center py-20">
-        <Music class="w-20 h-20 text-gray-600 mx-auto mb-4" />
-        <p class="text-gray-400 text-xl">暂无收藏音乐</p>
+        <Music class="w-20 h-20 text-gray-400 mx-auto mb-4" />
+        <p class="text-gray-500 dark:text-gray-400 text-xl">暂无收藏音乐</p>
       </div>
 
       <div v-else>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
+        <TransitionGroup name="list" tag="div" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-12">
           <div
             v-for="(item, index) in musicItems"
             :key="item.id"
             @click="playSong(index)"
             :class="[
-              'bg-white/10 backdrop-blur-sm rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:bg-white/20',
-              currentIndex === index ? 'ring-2 ring-purple-500' : ''
+              'card overflow-hidden cursor-pointer hover-lift',
+              currentIndex === index ? 'ring-2 ring-ocean-500' : ''
             ]"
           >
-            <div class="relative aspect-square overflow-hidden">
-              <img
-                :src="item.cover"
-                :alt="item.title"
-                class="w-full h-full object-cover"
-              />
-              <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                <Play v-if="currentIndex !== index || !isPlaying" class="w-16 h-16 text-white" />
-                <Pause v-else class="w-16 h-16 text-white" />
-              </div>
-            </div>
-            <div class="p-4">
-              <h3 class="text-white font-semibold truncate">{{ item.title }}</h3>
-              <p class="text-gray-400 text-sm truncate">{{ item.artist }}</p>
-              <p class="text-gray-500 text-xs truncate">{{ item.album }}</p>
+          <div class="relative aspect-square overflow-hidden">
+            <img
+              v-lazy-img="getCoverSrc(item.cover)"
+              :alt="item.title"
+              class="w-full h-full object-cover bg-gray-200 dark:bg-gray-700"
+              @error="onCoverError($event)"
+            />
+            <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+              <Play v-if="currentIndex !== index || !isPlaying" class="w-16 h-16 text-white" />
+              <Pause v-else class="w-16 h-16 text-white" />
             </div>
           </div>
-        </div>
+          <div class="p-4">
+            <h3 class="text-gray-900 dark:text-gray-100 font-semibold truncate">{{ item.title }}</h3>
+            <p class="text-gray-500 dark:text-gray-400 text-sm truncate">{{ item.artist }}</p>
+            <p class="text-gray-400 dark:text-gray-500 text-xs truncate">{{ item.album }}</p>
+            <button
+              @click.stop="openInNetease(item)"
+              class="mt-3 w-full px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-800/40 text-red-600 dark:text-red-400 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm press"
+            >
+              <ExternalLink class="w-4 h-4" />
+              在网易云播放
+            </button>
+          </div>
+          </div>
+        </TransitionGroup>
 
-        <div class="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-lg border-t border-white/10 p-4">
-          <div class="max-w-6xl mx-auto flex items-center gap-6">
-            <div v-if="currentItem" class="flex items-center gap-4 flex-shrink-0">
+        <div class="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 px-3 py-2 sm:px-4 sm:py-3">
+          <div class="max-w-6xl mx-auto flex items-center gap-3 sm:gap-6">
+            <div v-if="currentItem" class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
               <img
-                :src="currentItem.cover"
+                v-lazy-img="getCoverSrc(currentItem.cover)"
                 :alt="currentItem.title"
-                class="w-16 h-16 rounded-lg object-cover"
+                class="w-10 h-10 sm:w-16 sm:h-16 rounded-lg object-cover bg-gray-200 dark:bg-gray-700"
+                @error="onCoverError($event)"
               />
-              <div class="min-w-0">
-                <h4 class="text-white font-medium truncate">{{ currentItem.title }}</h4>
-                <p class="text-gray-400 text-sm">{{ currentItem.artist }}</p>
+              <div class="min-w-0 w-20 sm:w-auto">
+                <h4 class="text-sm sm:text-base text-gray-900 dark:text-gray-100 font-medium truncate">{{ currentItem.title }}</h4>
+                <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">{{ currentItem.artist }}</p>
               </div>
             </div>
 
-            <div class="flex-1 flex flex-col items-center gap-2">
-              <div class="flex items-center gap-4">
+            <div class="flex-1 flex flex-col items-center gap-1 sm:gap-2">
+              <div class="flex items-center gap-2 sm:gap-4">
                 <button
                   @click="playPrev"
                   :disabled="!hasPrev"
-                  class="p-2 text-white hover:text-purple-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  class="p-1.5 sm:p-2 text-gray-600 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors press"
                 >
-                  <SkipBack class="w-6 h-6" />
+                  <SkipBack class="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
                 <button
                   @click="togglePlay"
-                  class="p-4 bg-purple-600 hover:bg-purple-500 rounded-full text-white transition-colors"
+                  class="p-2.5 sm:p-4 bg-ocean-600 hover:bg-ocean-500 rounded-full text-white transition-colors press"
                 >
-                  <span v-if="playLoading" class="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  <Pause v-else-if="isPlaying" class="w-8 h-8" />
-                  <Play v-else class="w-8 h-8" />
+                  <span v-if="playLoading" class="w-5 h-5 sm:w-6 sm:h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <Pause v-else-if="isPlaying" class="w-6 h-6 sm:w-8 sm:h-8" />
+                  <Play v-else class="w-6 h-6 sm:w-8 sm:h-8" />
                 </button>
                 <button
                   @click="playNext"
                   :disabled="!hasNext"
-                  class="p-2 text-white hover:text-purple-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  class="p-1.5 sm:p-2 text-gray-600 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors press"
                 >
-                  <SkipForward class="w-6 h-6" />
+                  <SkipForward class="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
 
-              <div class="w-full max-w-md flex items-center gap-3">
-                <span class="text-gray-400 text-sm">{{ formatTime((progress / 100) * duration) }}</span>
+              <div class="w-full max-w-md flex items-center gap-2 sm:gap-3">
+                <span class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{{ formatTime((progress / 100) * duration) }}</span>
                 <input
                   type="range"
                   min="0"
                   max="100"
                   :value="progress"
                   @input="setProgress"
-                  class="flex-1 h-1 bg-gray-600 rounded-full appearance-none cursor-pointer accent-purple-500"
+                  class="flex-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-ocean-500 transition-all duration-150"
                 />
-                <span class="text-gray-400 text-sm">{{ formatTime(duration) }}</span>
+                <span class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{{ formatTime(duration) }}</span>
               </div>
             </div>
 
-            <div class="flex items-center gap-3 flex-shrink-0">
-              <button
-                @click="openInNetease"
-                :disabled="!currentItem"
-                class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ExternalLink class="w-4 h-4" />
-                在网易云播放
-              </button>
+            <div class="hidden sm:flex items-center gap-3 flex-shrink-0">
               <button
                 @click="toggleMute"
-                class="p-2 text-white hover:text-purple-400 transition-colors"
+                class="p-2 text-gray-600 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors press"
               >
                 <VolumeX v-if="isMuted" class="w-6 h-6" />
                 <Volume2 v-else class="w-6 h-6" />
@@ -313,8 +342,16 @@ loadMusic();
                 max="100"
                 :value="volume"
                 @input="setVolume"
-                class="w-24 h-1 bg-gray-600 rounded-full appearance-none cursor-pointer accent-purple-500"
+                class="w-24 h-1 bg-gray-300 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-ocean-500 transition-all duration-150"
               />
+              <button
+                v-if="currentItem"
+                @click="openInNetease(currentItem)"
+                class="p-2 text-red-500 hover:text-red-400 transition-colors press"
+                title="在网易云播放"
+              >
+                <ExternalLink class="w-5 h-5" />
+              </button>
             </div>
           </div>
         </div>
