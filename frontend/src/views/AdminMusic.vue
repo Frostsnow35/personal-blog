@@ -156,14 +156,14 @@ const searchMusic = async () => {
   searchLoading.value = true
   searchResults.value = []
   try {
-    const response = await http.get<any>(`/music?keywords=${encodeURIComponent(query)}`)
-    if (response?.success && response.data?.result?.songs) {
-      searchResults.value = response.data.result.songs.map((song: any) => ({
+    const response = await http.get<any>(`/music-search?keyword=${encodeURIComponent(query)}`)
+    if (response?.data) {
+      searchResults.value = response.data.map((song: any) => ({
         id: song.id.toString(),
-        name: song.name,
-        artist: song.ar && song.ar.length > 0 ? song.ar[0].name : '未知歌手',
-        album: song.al ? song.al.name : '未知专辑',
-        cover: song.al && song.al.picUrl ? `${song.al.picUrl}?param=300x300` : ''
+        name: song.title,
+        artist: song.artist || '未知歌手',
+        album: song.album || '未知专辑',
+        cover: song.cover_url || ''
       })).filter((m: any) => m.cover)
     }
     if (!searchResults.value.length && response?.success) {
