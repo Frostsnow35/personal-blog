@@ -1116,13 +1116,14 @@ def search_music():
                                 'source_url': f'https://music.163.com/#/song?id={song_id}',
                             })
 
-                    total = data.get('result', {}).get('songCount', 0) or len(result)
+                    song_count = data.get('result', {}).get('songCount', 0) if isinstance(data, dict) else 0
+                    total = song_count if song_count > 0 else len(result)
 
-                    # 批量获取缺失的封面URL（限制15首避免超时）
-                    missing_ids = [r['id'] for r in result if not r.get('cover_url')]
-                    if missing_ids:
+                    # 批量获取所有结果的封面URL（搜索API不返回picUrl）
+                    all_ids = [r['id'] for r in result if r.get('id')]
+                    if all_ids:
                         try:
-                            ids_str = ','.join(missing_ids[:15])
+                            ids_str = ','.join(all_ids)
                             detail_url = f'https://netease-cloud-music-api-gold.vercel.app/song/detail?ids={ids_str}'
                             detail_success, detail_data = _music_request(detail_url)
                             if detail_success and detail_data:
@@ -1132,9 +1133,12 @@ def search_music():
                                     ds_id = str(ds.get('id', ''))
                                     al = ds.get('al', {}) or {}
                                     if al.get('picUrl'):
-                                        cover_map[ds_id] = al['picUrl']
+                                        cover_url = al['picUrl']
+                                        if cover_url.startswith('http://'):
+                                            cover_url = cover_url.replace('http://', 'https://')
+                                        cover_map[ds_id] = cover_url
                                 for r in result:
-                                    if not r.get('cover_url') and r['id'] in cover_map:
+                                    if r['id'] in cover_map:
                                         r['cover_url'] = cover_map[r['id']]
                         except Exception as e:
                             app.logger.error(f'Cover fetch error: {e}')

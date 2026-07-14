@@ -21,7 +21,7 @@
             v-model="searchQuery"
             type="text"
             placeholder="输入歌曲名或歌手..."
-            @keydown.enter="searchMusic"
+            @keydown.enter="searchMusic()"
             class="flex-1 min-w-0 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-ocean-500"
           />
           <select v-model="platform" class="px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-ocean-500">
@@ -45,7 +45,7 @@
 
         <!-- 骨架屏 -->
         <div v-if="searchLoading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          <div v-for="n in 20" :key="'sk'+n" class="card overflow-hidden">
+          <div v-for="n in 12" :key="'sk'+n" class="card overflow-hidden">
             <div class="w-full bg-gray-200 dark:bg-gray-700 animate-pulse" style="aspect-ratio: 1/1;"></div>
             <div class="p-3">
               <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
@@ -193,7 +193,7 @@ const platform = ref('netease')
 const searchInput = ref<HTMLInputElement | null>(null)
 const searchTotal = ref(0)
 const searchPage = ref(1)
-const searchLimit = ref(20)
+const searchLimit = ref(12)
 const hasSearched = ref(false)
 const showEditModal = ref(false)
 const editingMusic = ref<Music | null>(null)
