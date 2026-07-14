@@ -67,15 +67,41 @@
               </div>
             </div>
             <div class="p-4">
-              <iframe
-                :key="iframeKey"
-                :src="currentIframeUrl"
-                frameborder="0"
-                class="w-full"
-                style="height: 100px;"
-                allow="autoplay"
-              ></iframe>
-              <p class="text-xs text-gray-500 text-center mt-2">点击播放器中的播放按钮开始播放</p>
+              <div class="flex gap-2 mb-4">
+                <button
+                  @click="playPlatform = 'netease'"
+                  :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors', playPlatform === 'netease' ? 'bg-red-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600']"
+                >
+                  🎵 网易云音乐
+                </button>
+                <button
+                  @click="playPlatform = 'qq'"
+                  :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors', playPlatform === 'qq' ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600']"
+                >
+                  🎧 QQ音乐
+                </button>
+              </div>
+              <div v-if="playPlatform === 'netease'">
+                <iframe
+                  :key="iframeKey + '-netease'"
+                  :src="neteaseIframeUrl"
+                  frameborder="0"
+                  class="w-full"
+                  style="height: 66px;"
+                  allow="autoplay"
+                ></iframe>
+              </div>
+              <div v-else>
+                <iframe
+                  :key="iframeKey + '-qq'"
+                  :src="qqIframeUrl"
+                  frameborder="0"
+                  class="w-full"
+                  style="height: 66px;"
+                  allow="autoplay"
+                ></iframe>
+              </div>
+              <p class="text-xs text-gray-500 text-center mt-2">请点击播放器中的播放按钮开始播放</p>
             </div>
           </div>
         </div>
@@ -104,13 +130,19 @@ const items = ref<Music[]>([])
 const loading = ref(false)
 const currentIndex = ref(-1)
 const iframeKey = ref(0)
+const playPlatform = ref<'netease' | 'qq'>('netease')
 
 const currentItem = computed(() => items.value[currentIndex.value] || null)
 
-const currentIframeUrl = computed(() => {
+const neteaseIframeUrl = computed(() => {
   if (!currentItem.value) return ''
   const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id
-  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=0&height=100`
+  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=0&height=66`
+})
+
+const qqIframeUrl = computed(() => {
+  if (!currentItem.value) return ''
+  return `https://y.qq.com/n/ryqq/player/song/${encodeURIComponent(currentItem.value.title + ' ' + (currentItem.value.artist || ''))}`
 })
 
 const load = async () => {
