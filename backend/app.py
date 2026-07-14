@@ -1527,6 +1527,121 @@ def proxy_music_playlist():
         return jsonify({'success': False, 'message': '暂不支持该平台'}), 400
 
 
+def _get_audio_url(song_id: str, song_name: str = '', artist: str = '') -> str | None:
+    api_urls = [
+        f'https://music.163.com/api/song/enhance/player/url/v1?csrf_token=&ids=[{song_id}]&level=standard&encodeType=mp3&br=320000',
+        f'https://music.163.com/api/song/enhance/player/url?csrf_token=&ids=[{song_id}]&br=320000',
+        f'https://music.163.com/song/media/outer/url?id={song_id}.mp3',
+    ]
+    
+    for url in api_urls:
+        success, data = _music_request(url)
+        if success:
+            try:
+                audio_url = None
+                if data.get('data') and isinstance(data['data'], list) and len(data['data']) > 0:
+                    audio_url = data['data'][0].get('url') or data['data'][0].get('mp3Url')
+                elif data.get('url'):
+                    audio_url = data['url']
+                
+                if audio_url and audio_url.startswith('http') and '404' not in audio_url:
+                    return audio_url
+            except Exception:
+                continue
+    
+    third_party_urls = [
+        f'https://netease-cloud-music-api-eta-five.vercel.app/song/url?id={song_id}',
+        f'https://api.injahow.cn/meting/api?server=netease&type=song&id={song_id}',
+        f'https://api.bzqll.com/music/netease/song?id={song_id}&type=json',
+    ]
+    
+    for url in third_party_urls:
+        success, data = _music_request(url)
+        if success:
+            try:
+                audio_url = None
+                if data.get('data') and isinstance(data['data'], list) and len(data['data']) > 0:
+                    audio_url = data['data'][0].get('url')
+                elif data.get('url'):
+                    audio_url = data['url']
+                
+                if audio_url and audio_url.startswith('http') and '404' not in audio_url:
+                    return audio_url
+            except Exception:
+                continue
+    
+    return None
+
+
+@app.route('/api/music', methods=['GET', 'OPTIONS'])
+def proxy_music_audio():
+    if request.method == 'OPTIONS':
+        response = jsonify({'success': True})
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Range'
+        return response
+    
+    song_id = request.args.get('id', '')
+    stream = request.args.get('stream', '')
+    name = request.args.get('name', '')
+    artist = request.args.get('artist', '')
+    
+    if not song_id:
+        return jsonify({'success': False, 'message': '歌曲ID不能为空'}), 400
+    
+    audio_url = _get_audio_url(song_id, name, artist)
+    
+    if not audio_url:
+        return jsonify({'success': False, 'message': '无法获取播放链接，可能是版权限制', 'data': None})
+    
+    if not stream:
+        return jsonify({'success': True, 'data': {'url': audio_url}})
+    
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        
+        req = urllib.request.Request(
+            audio_url,
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://music.163.com/',
+                'Range': request.headers.get('Range', ''),
+            },
+            context=ctx
+        )
+        
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            status_code = resp.status
+            headers = dict(resp.headers)
+            
+            response_headers = {
+                'Content-Type': headers.get('Content-Type', 'audio/mpeg'),
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Range',
+            }
+            
+            if 'Content-Length' in headers:
+                response_headers['Content-Length'] = headers['Content-Length']
+            if 'Content-Range' in headers:
+                response_headers['Content-Range'] = headers['Content-Range']
+                status_code = 206
+            if 'Accept-Ranges' in headers:
+                response_headers['Accept-Ranges'] = headers['Accept-Ranges']
+            
+            from flask import Response
+            return Response(
+                resp.read(),
+                status=status_code,
+                headers=response_headers
+            )
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'音频流代理失败: {str(e)}'}), 500
+
+
 def _get_site_url() -> str:
     site_url = (os.getenv('SITE_URL') or '').strip()
     if site_url:

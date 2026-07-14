@@ -11,7 +11,7 @@ interface MusicItem {
   title: string;
   artist: string;
   album: string;
-  cover: string;
+  cover_url: string;
   source_url: string;
   created_at: string;
 }
@@ -248,7 +248,7 @@ loadMusic();
           >
           <div class="relative aspect-square overflow-hidden">
             <img
-              v-lazy-img="getCoverSrc(item.cover)"
+              v-lazy-img="getCoverSrc(item.cover_url)"
               :alt="item.title"
               class="w-full h-full object-cover bg-gray-200 dark:bg-gray-700"
               @error="onCoverError($event)"
