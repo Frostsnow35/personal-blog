@@ -52,7 +52,7 @@ const extractSongId = (sourceUrl: string): string => {
 
 const loadMusic = async () => {
   try {
-    const response = await http.get<any>('/api/music-favorites');
+    const response = await http.get<any>('/music-favorites');
     if (response?.data) {
       musicItems.value = response.data;
     }
@@ -74,7 +74,7 @@ const searchMusic = async () => {
   
   searchLoading.value = true;
   try {
-    const response = await http.get<any>(`/api/music-search?keyword=${encodeURIComponent(searchQuery.value)}&page=${currentPage.value}`);
+    const response = await http.get<any>(`/music-search?keyword=${encodeURIComponent(searchQuery.value)}&page=${currentPage.value}`);
     if (response?.data) {
       searchResults.value = response.data;
       totalResults.value = response.total || 0;
@@ -90,7 +90,7 @@ const searchMusic = async () => {
 
 const addToFavorites = async (item: MusicItem) => {
   try {
-    await http.post('/api/music-favorites', {
+    await http.post('/music-favorites', {
       title: item.title,
       artist: item.artist,
       album: item.album,
@@ -106,7 +106,7 @@ const addToFavorites = async (item: MusicItem) => {
 
 const removeFromFavorites = async (item: MusicItem) => {
   try {
-    await http.delete(`/api/music-favorites/${item.id}`);
+    await http.delete(`/music-favorites/${item.id}`);
     toast.success('移除成功');
     await loadMusic();
   } catch (error: any) {

@@ -6,6 +6,7 @@
   "rewrites": [
     { "source": "/music-favorites", "destination": "/api/index.py" },
     { "source": "/music-favorites/:path*", "destination": "/api/index.py" },
+    { "source": "/music-search", "destination": "/api/index.py" },
     { "source": "/movie-favorites/:path*", "destination": "/api/index.py" },
     { "source": "/friend-links/:path*", "destination": "/api/index.py" },
     { "source": "/albums/:path*", "destination": "/api/index.py" },
