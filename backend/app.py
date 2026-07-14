@@ -1108,7 +1108,28 @@ def search_music():
                         })
                 
                 total = data.get('result', {}).get('songCount', 0) or len(result)
-                
+
+                # 批量获取缺失的封面URL
+                missing_ids = [r['id'] for r in result if not r.get('cover_url')]
+                if missing_ids:
+                    try:
+                        ids_str = ','.join(missing_ids[:30])
+                        detail_url = f'https://netease-cloud-music-api-gold.vercel.app/song/detail?ids={ids_str}'
+                        detail_success, detail_data = _music_request(detail_url)
+                        if detail_success and detail_data:
+                            detail_songs = detail_data.get('songs', []) if isinstance(detail_data, dict) else []
+                            cover_map = {}
+                            for ds in detail_songs:
+                                ds_id = str(ds.get('id', ''))
+                                al = ds.get('al', {}) or {}
+                                if al.get('picUrl'):
+                                    cover_map[ds_id] = al['picUrl']
+                            for r in result:
+                                if not r.get('cover_url') and r['id'] in cover_map:
+                                    r['cover_url'] = cover_map[r['id']]
+                    except Exception as e:
+                        app.logger.error(f'Cover fetch error: {e}')
+
                 if result:
                     return json_response({
                         'success': True,

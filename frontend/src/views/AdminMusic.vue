@@ -50,7 +50,8 @@
             @click="addFromSearch(item)"
           >
             <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 1/1;">
-              <img :src="getCoverUrl(item.cover)" :alt="item.name" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <img v-if="getCoverUrl(item.cover)" :src="getCoverUrl(item.cover)" :alt="item.name" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" @error="onSearchImgError" />
+              <div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 text-3xl">🎵</div>
               <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                 <span class="opacity-0 group-hover:opacity-100 text-white font-semibold bg-ocean-600 px-4 py-2 rounded-lg transition-opacity">
                   + 添加
@@ -171,6 +172,18 @@ const getCoverUrl = (src: string) => {
   }
   if (/^https?:\/\//i.test(src)) return src
   return ''
+}
+
+const onSearchImgError = (e: Event) => {
+  const target = e.target as HTMLImageElement
+  target.style.display = 'none'
+  const parent = target.parentElement
+  if (parent) {
+    const placeholder = document.createElement('div')
+    placeholder.className = 'absolute inset-0 flex items-center justify-center text-gray-400 text-3xl'
+    placeholder.textContent = '🎵'
+    parent.appendChild(placeholder)
+  }
 }
 
 const load = async () => {
