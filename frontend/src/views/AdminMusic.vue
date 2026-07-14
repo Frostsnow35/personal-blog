@@ -84,11 +84,30 @@
             <div class="p-3">
               <h3 class="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-1">{{ m.title }}</h3>
               <p v-if="m.artist" class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{{ m.artist }}</p>
+              <p v-if="m.description" class="text-xs text-gray-400 dark:text-gray-500 mt-1 line-clamp-2 italic">"{{ m.description }}"</p>
               <div class="mt-2 flex gap-1 flex-wrap">
+                <button @click="openEditModal(m)" class="px-2 py-1 text-xs bg-ocean-600 hover:bg-ocean-700 text-white rounded transition-colors">编辑评语</button>
                 <button @click="del(m)" class="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors">删除</button>
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showEditModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showEditModal = false">
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">编辑评语</h3>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">{{ editingMusic?.title }} - {{ editingMusic?.artist }}</p>
+        <textarea
+          v-model="editDescription"
+          placeholder="输入博主对这首歌的评价..."
+          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-ocean-500 resize-none"
+          rows="4"
+        ></textarea>
+        <div class="mt-4 flex justify-end gap-3">
+          <button @click="showEditModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors">取消</button>
+          <button @click="saveDescription" class="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg transition-colors">保存</button>
         </div>
       </div>
     </div>
@@ -127,6 +146,9 @@ const searchResults = ref<SearchResult[]>([])
 const searchLoading = ref(false)
 const platform = ref('netease')
 const searchInput = ref<HTMLInputElement | null>(null)
+const showEditModal = ref(false)
+const editingMusic = ref<Music | null>(null)
+const editDescription = ref('')
 
 const load = async () => {
   loading.value = true
@@ -210,6 +232,30 @@ const del = async (m: Music) => {
     else toast.error('删除失败', r?.message)
   } catch (e: any) {
     toast.error('删除失败', e?.message)
+  }
+}
+
+const openEditModal = (m: Music) => {
+  editingMusic.value = m
+  editDescription.value = m.description || ''
+  showEditModal.value = true
+}
+
+const saveDescription = async () => {
+  if (!editingMusic.value) return
+  try {
+    const r = await http.put<any>(`/admin/music-favorites/${editingMusic.value.id}`, {
+      description: editDescription.value.trim() || null
+    })
+    if (r?.success) {
+      toast.success('保存成功')
+      showEditModal.value = false
+      await load()
+    } else {
+      toast.error('保存失败', r?.message)
+    }
+  } catch (e: any) {
+    toast.error('保存失败', e?.message)
   }
 }
 

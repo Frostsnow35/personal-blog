@@ -967,6 +967,16 @@ def daily_music_favorite():
     return json_response({'success': True, 'data': [_music_to_dict(m) for m in shuffled]})
 
 
+@app.route('/api/music-favorites/random', methods=['GET'])
+def random_music_favorites():
+    rows = MusicFavorite.query.all()
+    if not rows:
+        return json_response({'success': True, 'data': []})
+    count = min(len(rows), 3)
+    shuffled = random.sample(rows, count)
+    return json_response({'success': True, 'data': [_music_to_dict(m) for m in shuffled]})
+
+
 @app.route('/music-favorites', methods=['GET'])
 def list_music_favorites_public():
     return list_music_favorites()
