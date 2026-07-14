@@ -4,7 +4,25 @@
 
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 text-center">🎬 今日电影</h1>
-      <p class="text-center text-gray-500 dark:text-gray-400 mb-8">每日精选 · 今日博主推荐</p>
+      <p class="text-center text-gray-500 dark:text-gray-400 mb-6">每日精选 · 今日博主推荐</p>
+      <div v-if="item" class="text-center mb-8">
+        <button
+          @click="refreshMovie"
+          :disabled="refreshing"
+          class="inline-flex items-center gap-2 px-5 py-2 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm font-medium transition-all shadow-sm hover:shadow"
+        >
+          <svg
+            :class="{ 'animate-spin': refreshing }"
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {{ refreshing ? '换一部中...' : '换一部' }}
+        </button>
+      </div>
 
       <div v-if="loading" class="text-center py-12 text-gray-500">加载中…</div>
       <div v-else-if="!item" class="text-center py-16 text-gray-500 dark:text-gray-400">
@@ -58,14 +76,22 @@ interface Movie {
 
 const item = ref<Movie | null>(null)
 const loading = ref(false)
+const refreshing = ref(false)
 
-const load = async () => {
-  loading.value = true
+const load = async (forceRandom = false) => {
+  loading.value = !forceRandom
+  refreshing.value = forceRandom
   try {
-    const r = await http.get<any>('/movie-favorites/daily')
+    const url = forceRandom ? '/movie-favorites/daily?refresh=1' : '/movie-favorites/daily'
+    const r = await http.get<any>(url)
     if (r?.success) item.value = r.data || null
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+    refreshing.value = false
+  }
 }
 
-onMounted(load)
+const refreshMovie = () => load(true)
+
+onMounted(() => load())
 </script>

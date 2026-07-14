@@ -1311,9 +1311,13 @@ def daily_movie_favorite():
     rows = MovieFavorite.query.all()
     if not rows:
         return json_response({'success': True, 'data': None})
-    today = datetime.now(timezone.utc).date().isoformat()
-    random.seed(today)
-    selected = random.choice(rows)
+    force_random = request.args.get('refresh', '0') == '1'
+    if force_random:
+        selected = random.choice(rows)
+    else:
+        today = datetime.now(timezone.utc).date().isoformat()
+        random.seed(today)
+        selected = random.choice(rows)
     return json_response({'success': True, 'data': _movie_to_dict(selected)})
 
 
