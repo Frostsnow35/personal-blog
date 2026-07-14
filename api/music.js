@@ -89,6 +89,13 @@ async function verifyUrl(url) {
   }
 }
 
+function ensureHttps(url) {
+  if (url && url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+  return url;
+}
+
 async function getAudioUrl(songId) {
   const apis = [
     `https://music.163.com/song/media/outer/url?id=${songId}.mp3`,
@@ -105,8 +112,9 @@ async function getAudioUrl(songId) {
         if (url.includes('outer/url')) {
           const location = responseData.headers['location'];
           if (location && location.startsWith('http') && !location.includes('404')) {
-            const isValid = await verifyUrl(location);
-            if (isValid) return location;
+            const httpsUrl = ensureHttps(location);
+            const isValid = await verifyUrl(httpsUrl);
+            if (isValid) return httpsUrl;
           }
           continue;
         }
@@ -129,14 +137,16 @@ async function getAudioUrl(songId) {
         }
         
         if (audioUrl && audioUrl.startsWith('http') && !audioUrl.includes('404')) {
-          const isValid = await verifyUrl(audioUrl);
-          if (isValid) return audioUrl;
+          const httpsUrl = ensureHttps(audioUrl);
+          const isValid = await verifyUrl(httpsUrl);
+          if (isValid) return httpsUrl;
         }
       } else if (responseData.status === 302 && responseData.headers['location']) {
         const loc = responseData.headers['location'];
         if (loc && loc.startsWith('http') && !loc.includes('404')) {
-          const isValid = await verifyUrl(loc);
-          if (isValid) return loc;
+          const httpsUrl = ensureHttps(loc);
+          const isValid = await verifyUrl(httpsUrl);
+          if (isValid) return httpsUrl;
         }
       }
     } catch (e) {
@@ -152,6 +162,8 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   
   if (req.method === 'OPTIONS') {
     res.status(200).end();
