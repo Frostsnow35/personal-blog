@@ -45,7 +45,7 @@
 
         <!-- 骨架屏 -->
         <div v-if="searchLoading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          <div v-for="n in 12" :key="'sk'+n" class="card overflow-hidden">
+          <div v-for="n in 15" :key="'sk'+n" class="card overflow-hidden">
             <div class="w-full bg-gray-200 dark:bg-gray-700 animate-pulse" style="aspect-ratio: 1/1;"></div>
             <div class="p-3">
               <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
@@ -193,7 +193,7 @@ const platform = ref('netease')
 const searchInput = ref<HTMLInputElement | null>(null)
 const searchTotal = ref(0)
 const searchPage = ref(1)
-const searchLimit = ref(12)
+const searchLimit = ref(15)
 const hasSearched = ref(false)
 const showEditModal = ref(false)
 const editingMusic = ref<Music | null>(null)
