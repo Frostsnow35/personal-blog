@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { toast } from 'vue3-toastify';
-import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ExternalLink } from 'lucide-vue-next';
+import { Music, Play, Pause, SkipBack, SkipForward, ExternalLink } from 'lucide-vue-next';
 import { http } from '@/utils/http';
 import SiteNav from '@/components/SiteNav.vue';
 import AmbientBackdrop from '@/components/AmbientBackdrop.vue';
@@ -20,18 +20,20 @@ const musicItems = ref<MusicItem[]>([]);
 const loading = ref(true);
 const currentIndex = ref(0);
 const isPlaying = ref(false);
-const volume = ref(80);
-const isMuted = ref(false);
-const progress = ref(0);
-const duration = ref(0);
 const playLoading = ref(false);
-let audioElement: HTMLAudioElement | null = null;
 
 const currentItem = computed(() => musicItems.value[currentIndex.value] || null);
 const hasNext = computed(() => currentIndex.value < musicItems.value.length - 1);
 const hasPrev = computed(() => currentIndex.value > 0);
 
-const currentAudioUrl = ref('');
+const getSongId = (item: MusicItem): string => {
+  return item.source_url?.split('=')?.[1] || item.id;
+};
+
+const getNeteaseEmbedUrl = (item: MusicItem): string => {
+  const songId = getSongId(item);
+  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=1&height=32`;
+};
 
 const loadMusic = async () => {
   try {
@@ -47,136 +49,28 @@ const loadMusic = async () => {
   }
 };
 
-const initAudio = () => {
-  if (!audioElement) {
-    audioElement = new Audio();
-    audioElement.volume = volume.value / 100;
-    audioElement.addEventListener('timeupdate', () => {
-      if (audioElement && audioElement.duration) {
-        progress.value = (audioElement.currentTime / audioElement.duration) * 100;
-      }
-    });
-    audioElement.addEventListener('loadedmetadata', () => {
-      if (audioElement) {
-        duration.value = audioElement.duration;
-        console.log('音频元数据加载完成:', audioElement.duration, '秒');
-      }
-    });
-    audioElement.addEventListener('canplay', () => {
-      console.log('音频可以播放了，readyState:', audioElement?.readyState);
-    });
-    audioElement.addEventListener('loadeddata', () => {
-      console.log('音频数据加载完成');
-    });
-    audioElement.addEventListener('progress', () => {
-      console.log('音频加载进度:', audioElement?.buffered?.length);
-    });
-    audioElement.addEventListener('ended', () => {
-      if (hasNext.value) {
-        playSong(currentIndex.value + 1);
-      } else {
-        isPlaying.value = false;
-      }
-    });
-    audioElement.addEventListener('error', (e) => {
-      const errorCode = audioElement?.error?.code;
-      const errorMsg = audioElement?.error?.message;
-      const readyState = audioElement?.readyState;
-      console.error('音频播放错误:', e);
-      console.error('错误代码:', errorCode, '错误信息:', errorMsg, 'readyState:', readyState, 'src:', audioElement?.src);
-      
-      let errorText = '音频播放失败';
-      switch (errorCode) {
-        case 1: errorText = '用户终止了音频播放'; break;
-        case 2: errorText = '网络错误'; break;
-        case 3: errorText = '解码错误'; break;
-        case 4: errorText = '资源不可用'; break;
-      }
-      
-      isPlaying.value = false;
-      playLoading.value = false;
-      toast.warning(`${errorText}，请点击"在网易云播放"按钮`);
-    });
-  }
-};
-
 const playSong = async (index: number) => {
-  initAudio();
   currentIndex.value = index;
   playLoading.value = true;
-  progress.value = 0;
-  duration.value = 0;
-  currentAudioUrl.value = '';
   
-  const item = musicItems.value[index];
-  if (!item) {
-    toast.warning('未找到该歌曲');
-    playLoading.value = false;
-    return;
-  }
+  await nextTick();
   
-  const songId = item.source_url?.split('=')?.[1] || item.id;
-  
-  console.log('尝试播放歌曲:', item.title, 'ID:', songId);
-  
-  try {
-    const apiUrl = `/api/music?id=${songId}`;
-    console.log('请求音频链接:', apiUrl);
-    
-    const response = await fetch(apiUrl);
-    const data = await response.json();
-    console.log('API响应:', data);
-    
-    if (!data.success || !data.data?.url) {
-      console.error('无法获取音频链接:', data.message);
-      toast.warning('无法获取播放链接，请点击"在网易云播放"按钮');
-      playLoading.value = false;
-      return;
-    }
-    
-    const audioUrl = data.data.url;
-    currentAudioUrl.value = audioUrl;
-    console.log('获取到音频链接:', audioUrl);
-    
-    if (audioElement) {
-      audioElement.src = audioUrl;
-      console.log('设置音频源:', audioElement.src);
-      
-      await audioElement.load();
-      console.log('音频加载完成，readyState:', audioElement.readyState);
-      
-      await audioElement.play();
-      console.log('音频播放成功');
-      isPlaying.value = true;
-    }
-  } catch (error: any) {
-    console.error('播放失败:', error);
-    console.error('错误类型:', error.name, '错误信息:', error.message);
-    isPlaying.value = false;
-    toast.warning('当前歌曲无法直接播放，请点击"在网易云播放"按钮');
-  } finally {
-    playLoading.value = false;
-  }
+  isPlaying.value = true;
+  playLoading.value = false;
 };
 
-const togglePlay = async () => {
-  if (!audioElement) {
-    if (currentItem.value) {
-      await playSong(currentIndex.value);
+const togglePlay = () => {
+  if (!currentItem.value) {
+    if (musicItems.value.length > 0) {
+      playSong(0);
     }
     return;
   }
+  
   if (isPlaying.value) {
-    audioElement.pause();
     isPlaying.value = false;
   } else {
-    try {
-      await audioElement.play();
-      isPlaying.value = true;
-    } catch (error) {
-      console.error('播放失败:', error);
-      toast.warning('无法播放，请点击"在网易云播放"按钮');
-    }
+    isPlaying.value = true;
   }
 };
 
@@ -192,35 +86,8 @@ const playNext = () => {
   }
 };
 
-const setProgress = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  if (audioElement && audioElement.duration) {
-    audioElement.currentTime = (parseFloat(target.value) / 100) * audioElement.duration;
-  }
-};
-
-const setVolume = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  volume.value = parseFloat(target.value);
-  if (audioElement) {
-    audioElement.volume = volume.value / 100;
-  }
-};
-
-const toggleMute = () => {
-  if (!audioElement) return;
-  isMuted.value = !isMuted.value;
-  audioElement.muted = isMuted.value;
-};
-
-const formatTime = (seconds: number) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
 const openInNetease = (item: MusicItem) => {
-  const songId = item.source_url?.split('=')?.[1] || item.id;
+  const songId = getSongId(item);
   const url = `https://music.163.com/#/song?id=${songId}`;
   window.open(url, '_blank');
 };
@@ -245,27 +112,22 @@ const onCoverError = (e: Event) => {
     `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450'>
       <defs>
         <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
-          <stop stop-color='#e5e7eb' offset='0%'/>
-          <stop stop-color='#d1d5db' offset='100%'/>
+          <stop offset='0%' stop-color='#60a5fa'/>
+          <stop offset='100%' stop-color='#0ea5e9'/>
         </linearGradient>
       </defs>
-      <rect width='100%' height='100%' fill='url(#g)'/>
+      <rect fill='url(#g)' width='100%' height='100%'/>
+      <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='48' font-family='sans-serif'>Music</text>
     </svg>`
   );
 };
 
-onBeforeUnmount(() => {
-  if (audioElement) {
-    audioElement.pause();
-    audioElement.removeEventListener('timeupdate', () => {});
-    audioElement.removeEventListener('loadedmetadata', () => {});
-    audioElement.removeEventListener('ended', () => {});
-    audioElement.removeEventListener('error', () => {});
-    audioElement = null;
-  }
+onMounted(() => {
+  loadMusic();
 });
 
-loadMusic();
+onBeforeUnmount(() => {
+});
 </script>
 
 <template>
@@ -370,36 +232,22 @@ loadMusic();
                 </button>
               </div>
 
-              <div class="w-full max-w-md flex items-center gap-2 sm:gap-3">
-                <span class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{{ formatTime((progress / 100) * duration) }}</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  :value="progress"
-                  @input="setProgress"
-                  class="flex-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-ocean-500 transition-all duration-150"
-                />
-                <span class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{{ formatTime(duration) }}</span>
+              <div v-if="currentItem" class="w-full max-w-md">
+                <iframe
+                  :key="currentIndex + '-' + isPlaying"
+                  :src="getNeteaseEmbedUrl(currentItem)"
+                  frameborder="no"
+                  border="0"
+                  marginwidth="0"
+                  marginheight="0"
+                  width="100%"
+                  height="32"
+                  allow="autoplay"
+                ></iframe>
               </div>
             </div>
 
             <div class="hidden sm:flex items-center gap-3 flex-shrink-0">
-              <button
-                @click="toggleMute"
-                class="p-2 text-gray-600 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors press"
-              >
-                <VolumeX v-if="isMuted" class="w-6 h-6" />
-                <Volume2 v-else class="w-6 h-6" />
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                :value="volume"
-                @input="setVolume"
-                class="w-24 h-1 bg-gray-300 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-ocean-500 transition-all duration-150"
-              />
               <button
                 v-if="currentItem"
                 @click="openInNetease(currentItem)"
@@ -417,3 +265,58 @@ loadMusic();
     </div>
   </div>
 </template>
+
+<style scoped>
+.card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.dark .card {
+  background: rgba(30, 41, 59, 0.9);
+}
+
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.4s ease;
+}
+
+.list-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.list-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.list-move {
+  transition: transform 0.4s ease;
+}
+
+button:focus-visible {
+  outline: 2px solid #0ea5e9;
+  outline-offset: 2px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  cursor: pointer;
+  border: none;
+}
+</style>
