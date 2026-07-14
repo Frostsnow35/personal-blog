@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import { toast } from 'vue3-toastify';
-import { Music, Play, Pause, SkipBack, SkipForward, ExternalLink } from 'lucide-vue-next';
+import { Music, Play, ExternalLink, Heart } from 'lucide-vue-next';
 import { http } from '@/utils/http';
 import SiteNav from '@/components/SiteNav.vue';
 import AmbientBackdrop from '@/components/AmbientBackdrop.vue';
@@ -13,104 +13,22 @@ interface MusicItem {
   album: string;
   cover_url: string;
   source_url: string;
-  audio_url: string;
   created_at: string;
 }
 
 const musicItems = ref<MusicItem[]>([]);
 const loading = ref(true);
-const currentIndex = ref(0);
-const isPlaying = ref(false);
-const progress = ref(0);
-const duration = ref(0);
-const currentTime = ref(0);
+const selectedId = ref<string | null>(null);
+const playerError = ref<string | null>(null);
 
-const audioElement = ref<HTMLAudioElement | null>(null);
-
-const currentItem = computed(() => musicItems.value[currentIndex.value] || null);
-const hasNext = computed(() => currentIndex.value < musicItems.value.length - 1);
-const hasPrev = computed(() => currentIndex.value > 0);
-
-const playSong = (index: number) => {
-  if (!musicItems.value[index]) return;
-  
-  currentIndex.value = index;
-  isPlaying.value = false;
-  
-  const audio = audioElement.value;
-  if (audio) {
-    audio.src = musicItems.value[index].audio_url || '';
-    audio.load();
-    
-    setTimeout(() => {
-      audio.play().then(() => {
-        isPlaying.value = true;
-      }).catch((error) => {
-        console.error('播放失败:', error);
-        toast.error('播放失败，请检查音频文件');
-      });
-    }, 100);
-  }
+const extractSongId = (sourceUrl: string): string => {
+  const match = sourceUrl.match(/id=(\d+)/);
+  return match ? match[1] : '';
 };
 
-const togglePlay = () => {
-  if (!currentItem.value) {
-    if (musicItems.value.length > 0) {
-      playSong(0);
-    }
-    return;
-  }
-  
-  const audio = audioElement.value;
-  if (!audio) return;
-  
-  if (isPlaying.value) {
-    audio.pause();
-    isPlaying.value = false;
-  } else {
-    audio.play().then(() => {
-      isPlaying.value = true;
-    }).catch((error) => {
-      console.error('播放失败:', error);
-      toast.error('播放失败，请检查音频文件');
-    });
-  }
-};
-
-const playPrev = () => {
-  if (hasPrev.value) {
-    playSong(currentIndex.value - 1);
-  }
-};
-
-const playNext = () => {
-  if (hasNext.value) {
-    playSong(currentIndex.value + 1);
-  }
-};
-
-const updateProgress = () => {
-  const audio = audioElement.value;
-  if (audio) {
-    currentTime.value = audio.currentTime;
-    duration.value = audio.duration;
-    progress.value = audio.duration > 0 ? (audio.currentTime / audio.duration) * 100 : 0;
-  }
-};
-
-const seekTo = (e: Event) => {
-  const target = e.target as HTMLInputElement;
-  const audio = audioElement.value;
-  if (audio && duration.value > 0) {
-    audio.currentTime = (parseFloat(target.value) / 100) * duration.value;
-  }
-};
-
-const formatTime = (seconds: number): string => {
-  if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
+const getNeteaseEmbedUrl = (item: MusicItem): string => {
+  const songId = extractSongId(item.source_url);
+  return `https://music.163.com/outchain/player?type=2&id=${songId}&auto=0&height=66`;
 };
 
 const loadMusic = async () => {
@@ -127,8 +45,17 @@ const loadMusic = async () => {
   }
 };
 
+const selectSong = (item: MusicItem) => {
+  playerError.value = null;
+  if (selectedId.value === item.id) {
+    selectedId.value = null;
+  } else {
+    selectedId.value = item.id;
+  }
+};
+
 const openInNetease = (item: MusicItem) => {
-  const songId = item.source_url?.split('=')?.[1] || item.id;
+  const songId = extractSongId(item.source_url);
   const url = `https://music.163.com/#/song?id=${songId}`;
   window.open(url, '_blank');
 };
@@ -163,30 +90,8 @@ const onCoverError = (e: Event) => {
   );
 };
 
-const handleEnded = () => {
-  if (hasNext.value) {
-    playSong(currentIndex.value + 1);
-  } else {
-    isPlaying.value = false;
-  }
-};
-
 onMounted(() => {
   loadMusic();
-});
-
-onBeforeUnmount(() => {
-  if (audioElement.value) {
-    audioElement.value.pause();
-    audioElement.value.src = '';
-  }
-});
-
-watch(currentIndex, () => {
-  if (audioElement.value && currentItem.value) {
-    audioElement.value.src = currentItem.value.audio_url || '';
-    audioElement.value.load();
-  }
 });
 </script>
 
@@ -196,12 +101,14 @@ watch(currentIndex, () => {
     <SiteNav />
 
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
-      <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center justify-center gap-3">
-          <Music class="w-10 h-10 text-ocean-600 dark:text-ocean-400" />
+      <div class="text-center mb-10">
+        <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-ocean-500 to-sea-500 rounded-2xl shadow-lg mb-4">
+          <Music class="w-10 h-10 text-white" />
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100">
           个人喜爱音乐
         </h1>
-        <p class="text-gray-500 dark:text-gray-400 mt-2">🎵 每日精选 · 我的音乐品味</p>
+        <p class="text-gray-500 dark:text-gray-400 mt-2 text-lg">🎵 每日精选 · 我的音乐品味</p>
       </div>
 
       <div v-if="loading" class="flex justify-center items-center py-20">
@@ -209,106 +116,80 @@ watch(currentIndex, () => {
       </div>
 
       <div v-else-if="musicItems.length === 0" class="text-center py-20">
-        <Music class="w-20 h-20 text-gray-400 mx-auto mb-4" />
+        <Heart class="w-20 h-20 text-gray-300 mx-auto mb-4" />
         <p class="text-gray-500 dark:text-gray-400 text-xl">暂无收藏音乐</p>
       </div>
 
-      <div v-else>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-24">
-          <div
-            v-for="(item, index) in musicItems"
-            :key="item.id"
-            @click="playSong(index)"
-            :class="[
-              'card overflow-hidden cursor-pointer hover-lift transition-all duration-300',
-              currentIndex === index ? 'ring-2 ring-ocean-500' : ''
-            ]"
-          >
-            <div class="relative aspect-square overflow-hidden">
-              <img
-                v-lazy-img="getCoverSrc(item.cover_url)"
-                :alt="item.title"
-                class="w-full h-full object-cover bg-gray-200 dark:bg-gray-700"
-                @error="onCoverError($event)"
-              />
-              <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                <div class="text-center text-white">
-                  <Play v-if="currentIndex !== index || !isPlaying" class="w-12 h-12 mx-auto" />
-                  <Pause v-else class="w-12 h-12 mx-auto" />
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div
+          v-for="item in musicItems"
+          :key="item.id"
+          :class="[
+            'music-card group cursor-pointer transition-all duration-300',
+            selectedId === item.id ? 'ring-2 ring-ocean-500 scale-[1.02]' : ''
+          ]"
+          @click="selectSong(item)"
+        >
+          <div class="relative aspect-[4/3] overflow-hidden rounded-xl mb-4">
+            <img
+              v-lazy-img="getCoverSrc(item.cover_url)"
+              :alt="item.title"
+              class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              @error="onCoverError($event)"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="absolute bottom-3 left-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+              <div class="flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full px-3 py-1.5 inline-flex">
+                <Play class="w-4 h-4 text-ocean-600" />
+                <span class="text-sm font-medium text-gray-800 dark:text-gray-200">点击播放</span>
+              </div>
+            </div>
+            <div v-if="selectedId === item.id" class="absolute top-3 right-3">
+              <div class="w-8 h-8 bg-ocean-500 rounded-full flex items-center justify-center">
+                <Play class="w-4 h-4 text-white fill-white" />
+              </div>
+            </div>
+          </div>
+
+          <div class="px-1">
+            <h3 class="text-gray-900 dark:text-gray-100 font-semibold text-lg truncate group-hover:text-ocean-600 dark:group-hover:text-ocean-400 transition-colors">
+              {{ item.title }}
+            </h3>
+            <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">{{ item.artist }}</p>
+            <p class="text-gray-400 dark:text-gray-500 text-xs mt-0.5">{{ item.album }}</p>
+          </div>
+
+          <Transition name="slide-up">
+            <div v-if="selectedId === item.id" class="mt-4 px-1">
+              <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
+                <div v-if="extractSongId(item.source_url)" class="player-container">
+                  <iframe
+                    :src="getNeteaseEmbedUrl(item)"
+                    frameborder="no"
+                    border="0"
+                    marginwidth="0"
+                    marginheight="0"
+                    width="100%"
+                    height="66"
+                    allow="autoplay"
+                  ></iframe>
+                </div>
+                <div v-else class="text-center py-3">
+                  <p class="text-gray-500 dark:text-gray-400 text-sm">无法获取播放链接</p>
                 </div>
               </div>
             </div>
-            <div class="p-4">
-              <h3 class="text-gray-900 dark:text-gray-100 font-semibold truncate">{{ item.title }}</h3>
-              <p class="text-gray-500 dark:text-gray-400 text-sm truncate">{{ item.artist }}</p>
-              <p class="text-gray-400 dark:text-gray-500 text-xs truncate">{{ item.album }}</p>
-              <button
-                @click.stop="openInNetease(item)"
-                class="mt-3 w-full px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-800/40 text-red-600 dark:text-red-400 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm press"
-              >
-                <ExternalLink class="w-4 h-4" />
-                在网易云播放
-              </button>
-            </div>
+          </Transition>
+
+          <div class="mt-3 flex gap-2">
+            <button
+              @click.stop="openInNetease(item)"
+              class="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-sm font-medium shadow-sm hover:shadow-md"
+            >
+              <ExternalLink class="w-4 h-4" />
+              在网易云播放
+            </button>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <audio
-      ref="audioElement"
-      @timeupdate="updateProgress"
-      @loadedmetadata="updateProgress"
-      @ended="handleEnded"
-      @error="(e) => { console.error('音频错误:', e); isPlaying.value = false; }"
-    ></audio>
-
-    <div v-if="currentItem" class="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 px-4 py-3 z-50">
-      <div class="max-w-6xl mx-auto flex items-center gap-4">
-        <img
-          v-lazy-img="getCoverSrc(currentItem.cover_url)"
-          :alt="currentItem.title"
-          class="w-12 h-12 rounded-lg object-cover bg-gray-200 dark:bg-gray-700"
-          @error="onCoverError($event)"
-        />
-        <div class="flex-1 min-w-0">
-          <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{{ currentItem.title }}</h4>
-          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ currentItem.artist }}</p>
-        </div>
-        <div class="flex items-center gap-3">
-          <button
-            @click="playPrev"
-            :disabled="!hasPrev"
-            class="p-2 text-gray-600 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors press"
-          >
-            <SkipBack class="w-5 h-5" />
-          </button>
-          <button
-            @click="togglePlay"
-            class="p-3 bg-ocean-600 hover:bg-ocean-500 rounded-full text-white transition-colors press"
-          >
-            <Pause v-if="isPlaying" class="w-6 h-6" />
-            <Play v-else class="w-6 h-6" />
-          </button>
-          <button
-            @click="playNext"
-            :disabled="!hasNext"
-            class="p-2 text-gray-600 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors press"
-          >
-            <SkipForward class="w-5 h-5" />
-          </button>
-        </div>
-        <div class="hidden sm:flex items-center gap-3 w-48">
-          <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatTime(currentTime) }}</span>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            :value="progress"
-            @input="seekTo"
-            class="flex-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-ocean-500"
-          />
-          <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatTime(duration) }}</span>
         </div>
       </div>
     </div>
@@ -316,37 +197,46 @@ watch(currentIndex, () => {
 </template>
 
 <style scoped>
-.card {
-  background: rgba(255, 255, 255, 0.95);
+.music-card {
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
-  border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
 }
 
-.dark .card {
-  background: rgba(30, 41, 59, 0.95);
+.dark .music-card {
+  background: rgba(30, 41, 59, 0.9);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease-out;
+  overflow: hidden;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(10px);
+}
+
+.slide-up-enter-to,
+.slide-up-leave-from {
+  opacity: 1;
+  max-height: 120px;
+  transform: translateY(0);
+}
+
+.player-container {
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 button:focus-visible {
   outline: 2px solid #0ea5e9;
   outline-offset: 2px;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #0ea5e9;
-  cursor: pointer;
-}
-
-input[type="range"]::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #0ea5e9;
-  cursor: pointer;
-  border: none;
 }
 </style>
