@@ -902,12 +902,15 @@ def admin_delete_photo(photo_id):
 
 # ============== 百宝箱 - 音乐/电影/友链 ==============
 def _music_to_dict(m: MusicFavorite) -> dict:
+    cover_url = m.cover_url
+    if cover_url and cover_url.startswith('http://'):
+        cover_url = cover_url.replace('http://', 'https://')
     return {
         'id': m.id,
         'title': m.title,
         'artist': m.artist,
         'album': m.album,
-        'cover_url': m.cover_url,
+        'cover_url': cover_url,
         'source_url': m.source_url,
         'description': m.description,
         'tags': m.tags or [],

@@ -228,6 +228,9 @@ const openInNetease = (item: MusicItem) => {
 const getCoverSrc = (src?: string) => {
   if (!src) return '';
   try {
+    if (/^http:\/\//i.test(src)) {
+      return src.replace(/^http:\/\//i, 'https://');
+    }
     if (/^https?:\/\//i.test(src) || src.startsWith('/')) return src;
     return `/${src.replace(/^\/+/, '')}`;
   } catch {
