@@ -38,11 +38,28 @@
         </div>
       </div>
 
-      
 
-      <div v-if="searchResults.length" class="mb-8">
+
+      <div v-if="searchResults.length || searchLoading || hasSearched" class="mb-8">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">搜索结果</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+
+        <!-- 骨架屏 -->
+        <div v-if="searchLoading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div v-for="n in 20" :key="'sk'+n" class="card overflow-hidden">
+            <div class="w-full bg-gray-200 dark:bg-gray-700 animate-pulse" style="aspect-ratio: 1/1;"></div>
+            <div class="p-3">
+              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
+              <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-2/3"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 搜索结果 -->
+        <div
+          v-else-if="searchResults.length"
+          :key="'page-' + searchPage"
+          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 slide-page"
+        >
           <div
             v-for="item in searchResults"
             :key="item.id"
@@ -66,15 +83,31 @@
           </div>
         </div>
 
-        <div v-if="searchResults.length > 0 && searchTotal > searchResults.length" class="text-center py-4">
+        <!-- 空结果 -->
+        <div v-else class="text-center py-12 text-gray-500 dark:text-gray-400">
+          <p class="text-4xl mb-3">🔍</p>
+          <p>未找到相关歌曲</p>
+        </div>
+
+        <!-- 分页控件 -->
+        <div v-if="!searchLoading && searchResults.length && searchTotal > 0" class="flex items-center justify-center gap-4 py-6">
           <button
-            @click="loadMore"
-            :disabled="searchLoading"
-            class="px-6 py-2 bg-ocean-600 hover:bg-ocean-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+            @click="goPrevPage"
+            :disabled="searchPage <= 1"
+            class="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
           >
-            {{ searchLoading ? '加载中...' : '加载更多' }}
+            ← 上一页
           </button>
-          <p class="text-xs text-gray-500 mt-2">{{ searchResults.length }} / {{ searchTotal }} 首</p>
+          <span class="text-sm text-gray-600 dark:text-gray-400 font-medium">
+            {{ searchPage }} / {{ totalPages }}
+          </span>
+          <button
+            @click="goNextPage"
+            :disabled="searchPage >= totalPages"
+            class="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
+          >
+            下一页 →
+          </button>
         </div>
       </div>
 
@@ -127,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { http } from '../utils/http'
 import { toast } from '../composables/useToast'
 
@@ -161,9 +194,12 @@ const searchInput = ref<HTMLInputElement | null>(null)
 const searchTotal = ref(0)
 const searchPage = ref(1)
 const searchLimit = ref(20)
+const hasSearched = ref(false)
 const showEditModal = ref(false)
 const editingMusic = ref<Music | null>(null)
 const editDescription = ref('')
+
+const totalPages = computed(() => Math.max(1, Math.ceil(searchTotal.value / searchLimit.value)))
 
 const getCoverUrl = (src: string) => {
   if (!src) return ''
@@ -212,32 +248,27 @@ const searchMusic = async (pageNum = 1) => {
   if (!query) return
 
   searchLoading.value = true
-  if (pageNum === 1) {
-    searchResults.value = []
-  }
+  hasSearched.value = true
   searchPage.value = pageNum
   try {
     const response = await http.get<any>(`/music-search?keyword=${encodeURIComponent(query)}&page=${pageNum}&limit=${searchLimit.value}`)
     if (response?.data) {
-      const newResults = response.data.map((song: any) => ({
+      searchResults.value = response.data.map((song: any) => ({
         id: song.id.toString(),
         name: song.title,
         artist: song.artist || '未知歌手',
         album: song.album || '未知专辑',
         cover: song.cover_url || ''
       }))
-      if (pageNum === 1) {
-        searchResults.value = newResults
-      } else {
-        searchResults.value = [...searchResults.value, ...newResults]
-      }
       searchTotal.value = response.total || 0
-    }
-    if (!searchResults.value.length && response?.success) {
-      toast.warning('未找到相关歌曲')
+    } else {
+      searchResults.value = []
+      searchTotal.value = 0
     }
   } catch (error: any) {
     console.error('搜索失败:', error)
+    searchResults.value = []
+    searchTotal.value = 0
     const msg = error?.message || String(error)
     if (msg.includes('不可用') || msg.includes('失败')) {
       toast.error('搜索服务暂时不可用', '请稍后重试')
@@ -249,10 +280,14 @@ const searchMusic = async (pageNum = 1) => {
   }
 }
 
-const loadMore = () => {
-  if (searchLoading.value) return
-  const totalPages = Math.ceil(searchTotal.value / searchLimit.value)
-  if (searchPage.value < totalPages) {
+const goPrevPage = () => {
+  if (searchPage.value > 1 && !searchLoading.value) {
+    searchMusic(searchPage.value - 1)
+  }
+}
+
+const goNextPage = () => {
+  if (searchPage.value < totalPages.value && !searchLoading.value) {
     searchMusic(searchPage.value + 1)
   }
 }
@@ -321,3 +356,20 @@ onMounted(async () => {
   await load()
 })
 </script>
+
+<style scoped>
+.slide-page {
+  animation: slide-in 0.35s ease-out;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+</style>
