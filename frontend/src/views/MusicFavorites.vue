@@ -31,61 +31,13 @@ const currentItem = computed(() => musicItems.value[currentIndex.value] || null)
 const hasNext = computed(() => currentIndex.value < musicItems.value.length - 1);
 const hasPrev = computed(() => currentIndex.value > 0);
 
-const currentAudioUrl = ref('');
-
-const getAudioUrl = async (songId: string, name: string, artist: string): Promise<string | null> => {
-  const apis = [
-    `https://netease-cloud-music-api-eta-five.vercel.app/song/url?id=${songId}`,
-    `https://api.injahow.cn/meting/api?server=netease&type=song&id=${songId}`,
-    `https://music.163.com/song/media/outer/url?id=${songId}.mp3`,
-  ];
-
-  for (const url of apis) {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'Referer': 'https://music.163.com/',
-          'Origin': 'https://music.163.com',
-        },
-      });
-      
-      if (response.status === 200) {
-        if (url.includes('outer/url')) {
-          const location = response.headers.get('Location');
-          if (location && location.startsWith('http') && !location.includes('404')) {
-            return location;
-          }
-          continue;
-        }
-        
-        const data = await response.json();
-        let audioUrl: string | null = null;
-        
-        if (data.data && Array.isArray(data.data) && data.data.length > 0) {
-          audioUrl = data.data[0].url || data.data[0].mp3Url || null;
-        } else if (data.url) {
-          audioUrl = data.url;
-        } else if (data.data && data.data.url) {
-          audioUrl = data.data.url;
-        }
-        
-        if (audioUrl && audioUrl.startsWith('http') && !audioUrl.includes('404')) {
-          return audioUrl;
-        }
-      } else if (response.status === 302) {
-        const location = response.headers.get('Location');
-        if (location && location.startsWith('http') && !location.includes('404')) {
-          return location;
-        }
-      }
-    } catch (error) {
-      console.warn(`API ${url} failed:`, error);
-      continue;
-    }
-  }
-
-  return null;
-};
+const audioSrc = computed(() => {
+  if (!currentItem.value) return '';
+  const songId = currentItem.value.source_url?.split('=')?.[1] || currentItem.value.id;
+  const name = encodeURIComponent(currentItem.value.title || '');
+  const artist = encodeURIComponent(currentItem.value.artist || '');
+  return `/api/music?id=${songId}&name=${name}&artist=${artist}&stream=1`;
+});
 
 const loadMusic = async () => {
   try {
@@ -137,28 +89,10 @@ const playSong = async (index: number) => {
   playLoading.value = true;
   progress.value = 0;
   duration.value = 0;
-  currentAudioUrl.value = '';
   
   try {
-    const item = musicItems.value[index];
-    if (!item) {
-      toast.warning('未找到该歌曲');
-      return;
-    }
-    
-    const songId = item.source_url?.split('=')?.[1] || item.id;
-    const audioUrl = await getAudioUrl(songId, item.title, item.artist);
-    
-    if (!audioUrl) {
-      toast.warning('无法获取播放链接，请点击"在网易云播放"按钮');
-      playLoading.value = false;
-      return;
-    }
-    
-    currentAudioUrl.value = audioUrl;
-    
     if (audioElement) {
-      audioElement.src = audioUrl;
+      audioElement.src = audioSrc.value;
       await audioElement.load();
       await audioElement.play();
       isPlaying.value = true;

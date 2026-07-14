@@ -3,7 +3,14 @@
   "installCommand": "pip install --break-system-packages -r requirements.txt && cd frontend && npm install",
   "buildCommand": "cd frontend && npm run build:prod",
   "outputDirectory": "frontend/dist",
+  "functions": {
+    "api/music.js": {
+      "runtime": "@vercel/node@3.2.0",
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
+    { "source": "/api/music", "destination": "/api/music.js" },
     { "source": "/api/:path*", "destination": "/api/index.py" },
     { "source": "/music-favorites", "destination": "/api/index.py" },
     { "source": "/music-favorites/:path*", "destination": "/api/index.py" },
