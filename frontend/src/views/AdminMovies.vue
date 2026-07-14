@@ -32,11 +32,18 @@
           >
             {{ searchLoading ? '搜索中...' : '搜索' }}
           </button>
+          <button
+            v-if="hasSearched"
+            @click="resetSearch"
+            class="px-4 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors text-sm font-medium"
+          >
+            重置
+          </button>
         </div>
       </div>
 
       <!-- 推荐列表 -->
-      <div v-if="recommendResults.length" class="mb-8">
+      <div v-if="recommendResults.length && !hasSearched" class="mb-8">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">🎬 TMDb 热门电影推荐</h2>
           <button @click="fetchRecommend" :disabled="recommendLoading" class="text-sm text-ocean-600 hover:text-ocean-700 disabled:text-gray-400 font-medium">
@@ -47,12 +54,16 @@
           <div
             v-for="item in recommendResults"
             :key="item.id"
-            class="card overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-            @click="addFromSearch(item)"
+            class="card overflow-hidden transition-shadow group relative"
+            :class="{ 'cursor-pointer hover:shadow-lg': !isFavorited(item), 'opacity-60': isFavorited(item) }"
+            @click="!isFavorited(item) && addFromSearch(item)"
           >
             <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 2/3;">
               <img :src="item.cover" :alt="item.title" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+              <div v-if="isFavorited(item)" class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <span class="text-white font-semibold bg-green-600 px-4 py-2 rounded-lg">✓ 已添加</span>
+              </div>
+              <div v-else class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                 <span class="opacity-0 group-hover:opacity-100 text-white font-semibold bg-ocean-600 px-4 py-2 rounded-lg transition-opacity">
                   + 添加
                 </span>
@@ -73,12 +84,16 @@
           <div
             v-for="item in searchResults"
             :key="item.id"
-            class="card overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-            @click="addFromSearch(item)"
+            class="card overflow-hidden transition-shadow group relative"
+            :class="{ 'cursor-pointer hover:shadow-lg': !isFavorited(item), 'opacity-60': isFavorited(item) }"
+            @click="!isFavorited(item) && addFromSearch(item)"
           >
             <div class="relative w-full bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 2/3;">
               <img :src="item.cover" :alt="item.title" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+              <div v-if="isFavorited(item)" class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <span class="text-white font-semibold bg-green-600 px-4 py-2 rounded-lg">✓ 已添加</span>
+              </div>
+              <div v-else class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                 <span class="opacity-0 group-hover:opacity-100 text-white font-semibold bg-ocean-600 px-4 py-2 rounded-lg transition-opacity">
                   + 添加
                 </span>
@@ -150,6 +165,7 @@ const loading = ref(false)
 const searchQuery = ref('')
 const searchResults = ref<SearchResult[]>([])
 const searchLoading = ref(false)
+const hasSearched = ref(false)
 const recommendResults = ref<SearchResult[]>([])
 const recommendLoading = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
@@ -202,6 +218,7 @@ const searchMovie = async () => {
   if (!query) return
 
   searchLoading.value = true
+  hasSearched.value = true
   searchResults.value = []
   try {
     const response = await http.get<any>(`/proxy/tmdb/movie/search?q=${encodeURIComponent(query)}`)
@@ -220,6 +237,16 @@ const searchMovie = async () => {
   } finally {
     searchLoading.value = false
   }
+}
+
+const resetSearch = () => {
+  searchQuery.value = ''
+  searchResults.value = []
+  hasSearched.value = false
+}
+
+const isFavorited = (item: SearchResult) => {
+  return items.value.some(m => m.title === item.title && (m.year?.toString() || '') === item.year)
 }
 
 const addFromSearch = async (item: SearchResult) => {

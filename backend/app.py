@@ -409,6 +409,16 @@ class MovieFavorite(db.Model):
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
+class ImageData(db.Model):
+    """图片数据（Base64 存储在数据库中，解决 Vercel 无法持久化本地文件问题）"""
+    __tablename__ = 'image_data'
+
+    id = db.Column(db.Integer, primary_key=True)
+    data_base64 = db.Column(db.Text, nullable=False)
+    mime_type = db.Column(db.String(50), default='image/jpeg')
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class FriendLink(db.Model):
     """百宝箱 - 友链"""
     __tablename__ = 'friend_links'
@@ -901,6 +911,45 @@ def admin_delete_photo(photo_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@app.route('/api/admin/albums/<int:album_id>/photos/reorder', methods=['POST'])
+@jwt_required_admin
+def admin_reorder_photos(album_id):
+    """批量更新照片排序"""
+    data = request.get_json() or {}
+    orders = data.get('orders') or []
+    if not isinstance(orders, list):
+        return jsonify({'success': False, 'message': 'orders 必须是数组'}), 400
+    try:
+        for item in orders:
+            pid = item.get('id')
+            sort_order = int(item.get('sort_order', 0))
+            p = Photo.query.filter_by(id=pid, album_id=album_id).first()
+            if p:
+                p.sort_order = sort_order
+        db.session.commit()
+        return jsonify({'success': True, 'message': '排序已保存'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/admin/photos/batch-delete', methods=['POST'])
+@jwt_required_admin
+def admin_batch_delete_photos():
+    """批量删除照片"""
+    data = request.get_json() or {}
+    ids = data.get('ids') or []
+    if not isinstance(ids, list) or not ids:
+        return jsonify({'success': False, 'message': 'ids 必须是非空数组'}), 400
+    try:
+        deleted = Photo.query.filter(Photo.id.in_(ids)).delete(synchronize_session=False)
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'已删除 {deleted} 张照片'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 # ============== 百宝箱 - 音乐/电影/友链 ==============
 def _music_to_dict(m: MusicFavorite) -> dict:
     cover_url = m.cover_url
@@ -1275,6 +1324,11 @@ def admin_create_movie():
     title = (data.get('title') or '').strip()
     if not title:
         return jsonify({'success': False, 'message': '标题必填'}), 400
+    year = int(data['year']) if data.get('year') else None
+    # 重复检测：按 title + year
+    existing = MovieFavorite.query.filter_by(title=title[:200], year=year).first()
+    if existing:
+        return jsonify({'success': False, 'message': '该电影已在收藏列表中'}), 409
     m = MovieFavorite(
         title=title[:200],
         director=(data.get('director') or '').strip() or None,
@@ -1421,11 +1475,43 @@ def admin_upload():
     f = request.files['file']
     if f.filename == '':
         return jsonify({'success': False, 'message': '文件名为空'}), 400
-    safe_name = f"{int(datetime.now(timezone.utc).timestamp())}_{f.filename}"
-    save_path = os.path.join(UPLOAD_DIR, safe_name)
-    f.save(save_path)
-    url = f"/uploads/{safe_name}"
-    return jsonify({'success': True, 'data': {'url': url}})
+    try:
+        from PIL import Image
+        import io, base64
+
+        img = Image.open(f.stream)
+
+        # 转为 RGB（去除 alpha 通道，统一为 JPEG）
+        if img.mode in ('RGBA', 'P', 'LA'):
+            img = img.convert('RGB')
+
+        # 压缩：最大宽度 1200px
+        max_width = 1200
+        if img.width > max_width:
+            ratio = max_width / img.width
+            img = img.resize((max_width, int(img.height * ratio)), Image.LANCZOS)
+
+        # 压缩为 JPEG，质量 80%
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=80, optimize=True)
+        data_b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+
+        # 存入数据库
+        img_data = ImageData(data_base64=data_b64, mime_type='image/jpeg')
+        db.session.add(img_data)
+        db.session.commit()
+
+        url = f"/api/image/{img_data.id}"
+        return jsonify({'success': True, 'data': {'url': url}})
+    except ImportError:
+        # Pillow 不可用时回退到原始上传
+        safe_name = f"{int(datetime.now(timezone.utc).timestamp())}_{f.filename}"
+        save_path = os.path.join(UPLOAD_DIR, safe_name)
+        f.save(save_path)
+        url = f"/uploads/{safe_name}"
+        return jsonify({'success': True, 'data': {'url': url}})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'上传失败: {str(e)}'}), 500
 
 
 # 静态提供上传文件
@@ -1433,6 +1519,19 @@ def admin_upload():
 def serve_uploads(filename):
     from flask import send_from_directory
     return send_from_directory(UPLOAD_DIR, filename)
+
+
+@app.route('/api/image/<int:image_id>', methods=['GET'])
+def serve_image(image_id):
+    """从数据库读取 Base64 图片并返回"""
+    from flask import make_response as _make_response
+    img = ImageData.query.get_or_404(image_id)
+    import base64
+    raw = base64.b64decode(img.data_base64)
+    response = _make_response(raw)
+    response.headers['Content-Type'] = img.mime_type or 'image/jpeg'
+    response.headers['Cache-Control'] = 'public, max-age=86400'
+    return response
 
 
 # --- 外部 API 代理 ---

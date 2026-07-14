@@ -35,7 +35,21 @@
           <div class="space-y-3">
             <input v-model="editing.name" placeholder="名称 *" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800" />
             <textarea v-model="editing.description" placeholder="描述" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"></textarea>
-            <input v-model="editing.cover_url" placeholder="封面 URL（可留空，将自动取第一张）" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800" />
+
+            <!-- 封面上传 + URL -->
+            <div class="space-y-2">
+              <label class="text-sm text-gray-600 dark:text-gray-400">封面图片</label>
+              <div v-if="editing.cover_url" class="relative w-full bg-gray-200 dark:bg-gray-700 rounded mb-2" style="aspect-ratio: 4/3;">
+                <img :src="editing.cover_url" alt="封面预览" class="absolute inset-0 w-full h-full object-cover rounded" />
+                <button @click="editing.cover_url = ''" class="absolute top-1 right-1 w-6 h-6 bg-red-600 text-white rounded-full text-xs">×</button>
+              </div>
+              <label class="cursor-pointer block text-center py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded hover:border-ocean-500 transition-colors">
+                <input type="file" accept="image/*" @change="onCoverUpload" class="hidden" />
+                <span class="text-sm text-ocean-600 hover:text-ocean-700">{{ coverUploading ? '上传中...' : '📤 上传封面图片' }}</span>
+              </label>
+              <input v-model="editing.cover_url" placeholder="或输入封面 URL" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800" />
+            </div>
+
             <input v-model.number="editing.sort_order" type="number" placeholder="排序" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800" />
           </div>
           <div class="mt-4 flex justify-end gap-2">
@@ -48,22 +62,63 @@
       <!-- 照片管理 Modal -->
       <div v-if="photoMgr" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" @click.self="photoMgr = null">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">管理照片 - {{ photoMgr.name }}</h2>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">管理照片 - {{ photoMgr.name }}</h2>
+            <div class="flex gap-2">
+              <button
+                v-if="!selectMode && photoMgr.photos?.length"
+                @click="selectMode = true"
+                class="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+              >批量选择</button>
+              <template v-if="selectMode">
+                <button @click="selectAll" class="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded">全选</button>
+                <button
+                  @click="batchDelete"
+                  :disabled="!selectedPhotos.size"
+                  class="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded"
+                >删除({{ selectedPhotos.size }})</button>
+                <button @click="exitSelectMode" class="px-3 py-1 text-xs text-gray-600 dark:text-gray-400">取消</button>
+              </template>
+            </div>
+          </div>
 
           <!-- 上传 -->
           <div class="mb-4 p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded">
             <label class="cursor-pointer block text-center">
               <input type="file" accept="image/*" multiple @change="onFilePick" class="hidden" />
               <span class="text-sm text-ocean-600 hover:text-ocean-700">📤 点击选择图片上传（可多选）</span>
-              <p class="text-xs text-gray-500 mt-1">上传中… {{ uploading ? '是' : '否' }}</p>
+              <p class="text-xs text-gray-500 mt-1">{{ uploading ? '上传中...' : '支持 JPG、PNG，自动压缩' }}</p>
             </label>
           </div>
 
           <div v-if="!photoMgr.photos?.length" class="text-center text-gray-500 py-6">暂无照片</div>
           <div v-else class="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            <div v-for="p in photoMgr.photos" :key="p.id" class="relative aspect-square bg-gray-200 dark:bg-gray-700 rounded overflow-hidden group">
-              <img :src="p.url" class="absolute inset-0 w-full h-full object-cover" />
-              <button @click="delPhoto(p)" class="absolute top-1 right-1 w-6 h-6 bg-red-600 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+            <div
+              v-for="(p, idx) in photoMgr.photos"
+              :key="p.id"
+              class="relative aspect-square bg-gray-200 dark:bg-gray-700 rounded overflow-hidden group"
+              :class="{
+                'ring-2 ring-blue-500': selectMode && selectedPhotos.has(p.id),
+                'cursor-pointer': selectMode,
+              }"
+              draggable="true"
+              @dragstart="onDragStart(idx)"
+              @dragover.prevent="onDragOver(idx)"
+              @drop="onDrop(idx)"
+              @dragend="dragIdx = null"
+              @click="selectMode && toggleSelect(p.id)"
+            >
+              <img :src="p.url" class="absolute inset-0 w-full h-full object-cover" draggable="false" />
+              <!-- 选择模式下的勾选标记 -->
+              <div v-if="selectMode" class="absolute top-1 left-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
+                :class="selectedPhotos.has(p.id) ? 'bg-blue-500 border-blue-500' : 'bg-black/30 border-white'"
+              >
+                <svg v-if="selectedPhotos.has(p.id)" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+              </div>
+              <!-- 非选择模式下的删除按钮 -->
+              <button v-if="!selectMode" @click.stop="delPhoto(p)" class="absolute top-1 right-1 w-6 h-6 bg-red-600 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+              <!-- 拖拽手柄（非选择模式） -->
+              <div v-if="!selectMode" class="absolute bottom-1 right-1 text-white/60 text-xs opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">⠿</div>
             </div>
           </div>
 
@@ -100,6 +155,10 @@ const loading = ref(false)
 const editing = ref<any>(null)
 const photoMgr = ref<any>(null)
 const uploading = ref<boolean>(false)
+const coverUploading = ref<boolean>(false)
+const selectMode = ref(false)
+const selectedPhotos = ref<Set<number>>(new Set())
+const dragIdx = ref<number | null>(null)
 
 const load = async () => {
   loading.value = true
@@ -111,6 +170,28 @@ const load = async () => {
 
 const openCreate = () => { editing.value = { name: '', description: '', cover_url: '', sort_order: 0 } }
 const openEdit = (a: Album) => { editing.value = { id: a.id, name: a.name, description: a.description || '', cover_url: a.cover_url || '', sort_order: 0 } }
+
+const onCoverUpload = async (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file || !editing.value) return
+  coverUploading.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const r = await http.upload<any>('/admin/upload', fd)
+    if (r?.success && r.data?.url) {
+      editing.value.cover_url = r.data.url
+    } else {
+      toast.error('封面上传失败', r?.message)
+    }
+  } catch (err: any) {
+    toast.error('封面上传失败', err?.message)
+  } finally {
+    coverUploading.value = false
+    input.value = ''
+  }
+}
 
 const saveAlbum = async () => {
   if (!editing.value?.name?.trim()) { toast.warning('请输入名称'); return }
@@ -139,6 +220,8 @@ const del = async (a: Album) => {
 }
 
 const openManagePhotos = async (a: Album) => {
+  selectMode.value = false
+  selectedPhotos.value = new Set()
   try {
     const r = await http.get<any>(`/albums/${a.id}`)
     if (r?.success) photoMgr.value = r.data
@@ -162,7 +245,6 @@ const onFilePick = async (e: Event) => {
     if (uploaded.length) {
       const r2 = await http.post<any>(`/admin/albums/${photoMgr.value.id}/photos`, { photos: uploaded })
       if (r2?.success) {
-        // 刷新当前相册
         const r3 = await http.get<any>(`/albums/${photoMgr.value.id}`)
         if (r3?.success) photoMgr.value = r3.data
         await load()
@@ -184,6 +266,74 @@ const delPhoto = async (p: Photo) => {
       photoMgr.value.photos = photoMgr.value.photos.filter((x: Photo) => x.id !== p.id)
     }
   } catch (e: any) { toast.error('删除失败', e?.message) }
+}
+
+// === 批量选择/删除 ===
+const toggleSelect = (id: number) => {
+  const s = new Set(selectedPhotos.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  selectedPhotos.value = s
+}
+
+const selectAll = () => {
+  if (!photoMgr.value?.photos) return
+  if (selectedPhotos.value.size === photoMgr.value.photos.length) {
+    selectedPhotos.value = new Set()
+  } else {
+    selectedPhotos.value = new Set(photoMgr.value.photos.map((p: Photo) => p.id))
+  }
+}
+
+const exitSelectMode = () => {
+  selectMode.value = false
+  selectedPhotos.value = new Set()
+}
+
+const batchDelete = async () => {
+  if (!selectedPhotos.value.size) return
+  if (!confirm(`确认删除 ${selectedPhotos.value.size} 张照片？`)) return
+  try {
+    const ids = Array.from(selectedPhotos.value)
+    const r = await http.post<any>('/admin/photos/batch-delete', { ids })
+    if (r?.success) {
+      toast.success(r.message || '删除成功')
+      if (photoMgr.value) {
+        photoMgr.value.photos = photoMgr.value.photos.filter((p: Photo) => !selectedPhotos.value.has(p.id))
+      }
+      exitSelectMode()
+      await load()
+    } else {
+      toast.error('批量删除失败', r?.message)
+    }
+  } catch (e: any) { toast.error('批量删除失败', e?.message) }
+}
+
+// === 拖拽排序 ===
+const onDragStart = (idx: number) => {
+  dragIdx.value = idx
+}
+
+const onDragOver = (idx: number) => {
+  if (dragIdx.value === null || dragIdx.value === idx) return
+  // 交换位置
+  const photos = photoMgr.value.photos
+  const dragged = photos[dragIdx.value]
+  photos.splice(dragIdx.value, 1)
+  photos.splice(idx, 0, dragged)
+  dragIdx.value = idx
+}
+
+const onDrop = async (idx: number) => {
+  dragIdx.value = null
+  if (!photoMgr.value?.photos?.length) return
+  // 保存排序到后端
+  try {
+    const orders = photoMgr.value.photos.map((p: Photo, i: number) => ({ id: p.id, sort_order: i }))
+    await http.post<any>(`/admin/albums/${photoMgr.value.id}/photos/reorder`, { orders })
+  } catch (e: any) {
+    console.error('排序保存失败:', e)
+  }
 }
 
 onMounted(load)
