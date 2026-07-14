@@ -977,7 +977,7 @@ def daily_music_favorite_public():
     return daily_music_favorite()
 
 
-@app.route('/api/music-search', methods=['GET'])
+@app.route('/music-search', methods=['GET'])
 def search_music():
     keyword = request.args.get('keyword', '').strip()
     if not keyword:
