@@ -148,3 +148,186 @@
     backdrop-filter: blur(24px);
   }
 }
+
+/* Markdown 内容样式 */
+.markdown-content {
+  @apply text-gray-700 dark:text-gray-300 leading-relaxed;
+}
+
+.markdown-content h1 {
+  @apply text-3xl font-bold text-gray-900 dark:text-gray-100 mt-8 mb-4 border-b border-gray-200 dark:border-gray-700 pb-3;
+}
+
+.markdown-content h2 {
+  @apply text-2xl font-bold text-gray-900 dark:text-gray-100 mt-6 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2;
+}
+
+.markdown-content h3 {
+  @apply text-xl font-semibold text-gray-900 dark:text-gray-100 mt-5 mb-2;
+}
+
+.markdown-content h4 {
+  @apply text-lg font-semibold text-gray-900 dark:text-gray-100 mt-4 mb-2;
+}
+
+.markdown-content p {
+  @apply mb-4;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  @apply mb-4 pl-6;
+}
+
+.markdown-content ul {
+  @apply list-disc;
+}
+
+.markdown-content ol {
+  @apply list-decimal;
+}
+
+.markdown-content li {
+  @apply mb-2;
+}
+
+.markdown-content li > ul,
+.markdown-content li > ol {
+  @apply mt-2 mb-0;
+}
+
+.markdown-content blockquote {
+  @apply pl-4 my-4 border-l-4 border-ocean-500 bg-ocean-50/50 dark:bg-ocean-900/20 italic text-gray-600 dark:text-gray-400;
+}
+
+.markdown-content blockquote p {
+  @apply mb-0;
+}
+
+.markdown-content a {
+  @apply text-ocean-600 dark:text-ocean-400 underline underline-offset-2 hover:text-ocean-700 dark:hover:text-ocean-300 transition-colors;
+}
+
+.markdown-content code {
+  @apply px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-sm font-mono text-gray-800 dark:text-gray-200;
+}
+
+.markdown-content pre {
+  @apply my-4 rounded-lg overflow-hidden;
+}
+
+.markdown-content pre code {
+  @apply px-0 py-0 bg-transparent rounded-none text-base;
+}
+
+.markdown-content table {
+  @apply w-full my-4 border-collapse;
+}
+
+.markdown-content th,
+.markdown-content td {
+  @apply px-4 py-2 border border-gray-200 dark:border-gray-700 text-left;
+}
+
+.markdown-content th {
+  @apply bg-gray-50 dark:bg-gray-800 font-semibold text-gray-900 dark:text-gray-100;
+}
+
+.markdown-content tr:nth-child(even) {
+  @apply bg-gray-50/50 dark:bg-gray-800/50;
+}
+
+.markdown-content tr:hover {
+  @apply bg-ocean-50 dark:bg-ocean-900/30;
+}
+
+.markdown-content hr {
+  @apply my-8 border-gray-200 dark:border-gray-700;
+}
+
+.markdown-content img {
+  @apply max-w-full h-auto rounded-lg shadow-md my-4;
+}
+
+.markdown-content strong {
+  @apply font-semibold text-gray-900 dark:text-gray-100;
+}
+
+.markdown-content em {
+  @apply italic;
+}
+
+/* 代码块样式 - highlight.js */
+.hljs {
+  @apply bg-gray-900 text-gray-100 p-4 rounded-lg text-sm leading-relaxed;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-name,
+.hljs-tag {
+  color: #c678dd;
+}
+
+.hljs-string,
+.hljs-title,
+.hljs-section,
+.hljs-attribute,
+.hljs-literal,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-type,
+.hljs-addition {
+  color: #98c379;
+}
+
+.hljs-comment,
+.hljs-quote,
+.hljs-deletion,
+.hljs-meta {
+  color: #5c6370;
+}
+
+.hljs-number,
+.hljs-regexp,
+.hljs-symbol,
+.hljs-variable,
+.hljs-bullet,
+.hljs-link {
+  color: #d19a66;
+}
+
+.hljs-function,
+.hljs-class .hljs-title {
+  color: #61afef;
+}
+
+.hljs-params {
+  color: #e5c07b;
+}
+
+.hljs-property {
+  color: #e06c75;
+}
+
+.hljs-operator {
+  color: #56b6c2;
+}
+
+.hljs-punctuation {
+  color: #abb2bf;
+}
+
+/* 代码块复制按钮 */
+.code-copy-btn {
+  @apply absolute top-3 right-3 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded-lg transition-colors flex items-center gap-1;
+}
+
+.code-copy-btn:hover {
+  @apply bg-gray-600;
+}
+
+.code-copy-btn svg {
+  @apply w-3 h-3;
+}

@@ -70,7 +70,7 @@
         
         <!-- 文章内容 -->
         <div class="p-8">
-          <div class="prose prose-lg prose-slate dark:prose-invert max-w-none leading-relaxed" ref="articleRef">
+          <div class="markdown-content max-w-none" ref="articleRef">
             <div v-html="formattedContent"></div>
           </div>
         </div>
@@ -285,10 +285,13 @@ const fetchPost = async (slug: string) => {
         } catch {}
       }
 
-      // 并行执行元数据设置和图片优化
+      // 并行执行元数据设置、图片优化和代码块增强
       await Promise.all([
         Promise.resolve().then(() => setPageMeta()),
-        nextTick().then(() => enhanceContentImages())
+        nextTick().then(() => {
+          enhanceContentImages()
+          enhanceCodeBlocks()
+        })
       ])
 
       await fetchNavigationContext()
@@ -372,6 +375,49 @@ const enhanceContentImages = () => {
     }
     img.setAttribute('loading', 'lazy')
     img.setAttribute('decoding', 'async')
+  })
+}
+
+// 为代码块添加复制按钮
+const enhanceCodeBlocks = () => {
+  const root = articleRef.value
+  if (!root) return
+  const codeBlocks = root.querySelectorAll('pre')
+  codeBlocks.forEach((pre) => {
+    if ((pre as any)._copyButtonAdded) return
+    ;(pre as any)._copyButtonAdded = true
+    
+    pre.style.position = 'relative'
+    
+    const btn = document.createElement('button')
+    btn.className = 'code-copy-btn'
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> 复制'
+    
+    btn.addEventListener('click', async () => {
+      const code = pre.querySelector('code')?.textContent || ''
+      if (!code) return
+      
+      try {
+        await navigator.clipboard.writeText(code)
+        const originalHTML = btn.innerHTML
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> 已复制'
+        btn.classList.add('bg-green-600')
+        btn.classList.remove('bg-gray-700')
+        
+        setTimeout(() => {
+          btn.innerHTML = originalHTML
+          btn.classList.remove('bg-green-600')
+          btn.classList.add('bg-gray-700')
+        }, 2000)
+      } catch {
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg> 失败'
+        setTimeout(() => {
+          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> 复制'
+        }, 2000)
+      }
+    })
+    
+    pre.appendChild(btn)
   })
 }
 
