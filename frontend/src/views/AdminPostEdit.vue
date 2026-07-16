@@ -4,6 +4,7 @@
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ isEdit ? '编辑文章' : '新建文章' }}</h1>
         <div class="space-x-2">
+          <button @click="showDrafts = true" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">草稿管理</button>
           <LoadingButton type="button" variant="secondary" :loading="saving" loading-text="保存中" @click="save('draft')">保存草稿</LoadingButton>
           <LoadingButton type="button" variant="primary" :loading="saving" loading-text="发布中" @click="save('published')">发布</LoadingButton>
         </div>
@@ -44,6 +45,41 @@
           </div>
         </div>
       </div>
+
+      <div v-if="showDrafts" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showDrafts = false">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">草稿管理</h2>
+            <button @click="showDrafts = false" class="text-gray-500 hover:text-gray-700">&times;</button>
+          </div>
+          
+          <div v-if="drafts.length === 0" class="text-gray-500 dark:text-gray-400 text-center py-8">
+            暂无自动保存的草稿
+          </div>
+          
+          <div v-else class="space-y-3 max-h-80 overflow-y-auto">
+            <div v-for="draft in drafts" :key="draft.key" class="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="font-medium text-gray-900 dark:text-gray-100">{{ draft.title }}</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {{ draft.postId ? `文章ID: ${draft.postId}` : '新文章' }} · {{ formatDraftTime(draft.timestamp) }}
+                  </div>
+                  <div v-if="draft.isExpired" class="text-xs text-red-500 mt-1">已过期（30分钟以上）</div>
+                </div>
+                <div class="flex space-x-2">
+                  <button @click="restoreDraft(draft)" class="px-2 py-1 text-xs bg-ocean-600 text-white rounded">恢复</button>
+                  <button @click="deleteDraft(draft.key)" class="px-2 py-1 text-xs bg-red-600 text-white rounded">删除</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="drafts.length > 0" class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button @click="clearAllDrafts" class="w-full py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">清除所有草稿</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -66,6 +102,56 @@ const form = ref<any>({
 })
 const tagsInput = ref('')
 const saving = ref(false)
+const showDrafts = ref(false)
+const drafts = ref<any[]>([])
+
+const loadDrafts = () => {
+  drafts.value = blogCache.getAutoSaveDrafts()
+}
+
+const restoreDraft = (draft: any) => {
+  const saved = localStorage.getItem(draft.key)
+  if (!saved) return
+  
+  try {
+    const data = JSON.parse(saved)
+    form.value.title = data.title
+    form.value.content = data.content
+    form.value.excerpt = data.excerpt
+    form.value.category = data.category
+    tagsInput.value = data.tagsInput
+    showDrafts.value = false
+    toast.success('已恢复', '草稿已成功恢复')
+  } catch {
+    toast.error('恢复失败', '草稿数据损坏')
+  }
+}
+
+const deleteDraft = (key: string) => {
+  if (!confirm('确认删除此草稿？')) return
+  blogCache.clearAutoSaveDraft(key)
+  loadDrafts()
+  toast.success('已删除', '草稿已删除')
+}
+
+const clearAllDrafts = () => {
+  if (!confirm('确认清除所有草稿？此操作不可撤销。')) return
+  blogCache.clearAllAutoSaveDrafts()
+  drafts.value = []
+  toast.success('已清除', '所有草稿已清除')
+}
+
+const formatDraftTime = (timestamp: number) => {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diff = now.getTime() - timestamp
+  
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+  
+  return date.toLocaleString()
+}
 
 function djb2(s: string): number {
   // 32-bit djb2 哈希，与后端 _djb2 保持一致
@@ -113,6 +199,7 @@ const load = async () => {
   const d = res.data
   form.value = { ...form.value, ...d }
   tagsInput.value = (d.tags || []).join(', ')
+  checkAutoSave()
 }
 
 const onPickCover = async (e: Event) => {
@@ -131,7 +218,11 @@ const save = async (status: 'draft'|'published') => {
     form.value.status = status
     form.value.tags = tagsInput.value.split(',').map(s => s.trim()).filter(Boolean)
     if (isEdit) {
-      await http.put(`/admin/posts/${route.params.id}`, form.value)
+      const res = await http.put<{ success:boolean; data:any }>(`/admin/posts/${route.params.id}`, form.value)
+      if (res.data) {
+        form.value = { ...form.value, ...res.data }
+        tagsInput.value = (res.data.tags || []).join(', ')
+      }
     } else {
       const r = await http.post<{ success:boolean; data:{ id:number } }>(`/admin/posts`, form.value)
       router.replace(`/admin/posts/${r.data.id}/edit`)
@@ -151,10 +242,14 @@ const save = async (status: 'draft'|'published') => {
   }
 }
 
-const AUTO_SAVE_KEY = 'blog_post_autosave'
+const getAutoSaveKey = () => {
+  const id = route.params.id || 'new'
+  return `blog_post_autosave_${id}`
+}
 
 const saveToLocalStorage = () => {
   const data = {
+    postId: route.params.id || null,
     title: form.value.title,
     content: form.value.content,
     excerpt: form.value.excerpt,
@@ -162,11 +257,11 @@ const saveToLocalStorage = () => {
     tagsInput: tagsInput.value,
     timestamp: Date.now()
   }
-  localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(data))
+  localStorage.setItem(getAutoSaveKey(), JSON.stringify(data))
 }
 
 const checkAutoSave = () => {
-  const saved = localStorage.getItem(AUTO_SAVE_KEY)
+  const saved = localStorage.getItem(getAutoSaveKey())
   if (!saved) return
   
   try {
@@ -182,18 +277,24 @@ const checkAutoSave = () => {
       }
     }
   } catch {
-    localStorage.removeItem(AUTO_SAVE_KEY)
+    localStorage.removeItem(getAutoSaveKey())
   }
 }
 
 const clearAutoSave = () => {
-  localStorage.removeItem(AUTO_SAVE_KEY)
+  localStorage.removeItem(getAutoSaveKey())
 }
 
 const handleAutoSave = () => {
   if (autoSaveTimer) clearTimeout(autoSaveTimer)
   autoSaveTimer = window.setTimeout(saveToLocalStorage, 3000)
 }
+
+watch(showDrafts, (val) => {
+  if (val) {
+    loadDrafts()
+  }
+})
 
 onMounted(() => {
   load()

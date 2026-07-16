@@ -632,7 +632,21 @@ def admin_update_post(post_id):
         words = len((p.content or '').replace('\n', ''))
         p.read_time = max(1, words // 300)
         db.session.commit()
-        return jsonify({'success': True, 'message': '更新成功'})
+        return jsonify({'success': True, 'message': '更新成功', 'data': {
+            'id': p.id,
+            'title': p.title,
+            'slug': p.slug,
+            'content': p.content,
+            'excerpt': p.excerpt,
+            'status': p.status,
+            'cover_url': p.cover_url,
+            'category': p.category,
+            'tags': p.tags or [],
+            'read_time': p.read_time,
+            'published_at': p.published_at.isoformat() if p.published_at else None,
+            'created_at': p.created_at.isoformat(),
+            'updated_at': p.updated_at.isoformat()
+        }})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500

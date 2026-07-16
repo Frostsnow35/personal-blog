@@ -453,11 +453,21 @@ export const blogCache = {
   // 清除所有博客相关缓存（文章列表、分类、标签、搜索结果、文章详情）
   clearBlogRelatedCache: (): number => {
     const keysToRemove: string[] = []
-    const blogPrefix = getCacheKey('blog_')
     
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
-      if (key && key.startsWith(blogPrefix)) {
+      if (!key) continue
+      
+      const storageKey = key.replace(CACHE_PREFIX, '')
+      
+      if (
+        key.startsWith(getCacheKey('blog_')) ||
+        storageKey.startsWith('/api/admin/posts/') ||
+        storageKey.startsWith('/api/posts/') ||
+        storageKey.startsWith('/api/categories/') ||
+        storageKey.startsWith('/api/tags/') ||
+        storageKey.startsWith('/api/search')
+      ) {
         keysToRemove.push(key)
       }
     }
@@ -512,6 +522,80 @@ export const blogCache = {
     })
     
     return keysToRemove.length
+  },
+  
+  // 获取所有自动保存的草稿列表
+  getAutoSaveDrafts: (): any[] => {
+    const drafts: any[] = []
+    const autosavePrefix = 'blog_post_autosave_'
+    
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key || !key.includes(autosavePrefix)) continue
+      
+      try {
+        const cached = localStorage.getItem(key)
+        if (!cached) continue
+        
+        const data = JSON.parse(cached)
+        const age = Date.now() - data.timestamp
+        
+        drafts.push({
+          key: key,
+          postId: data.postId,
+          title: data.title || '无标题',
+          timestamp: data.timestamp,
+          age,
+          isExpired: age >= 30 * 60 * 1000
+        })
+      } catch {
+        continue
+      }
+    }
+    
+    return drafts.sort((a, b) => b.timestamp - a.timestamp)
+  },
+  
+  // 清除指定的自动保存草稿
+  clearAutoSaveDraft: (key: string): boolean => {
+    try {
+      const cached = localStorage.getItem(key)
+      if (cached) {
+        const dataSize = calculateDataSize(JSON.parse(cached))
+        localStorage.removeItem(key)
+        const meta = getCacheMeta()
+        updateCacheMeta({
+          totalSize: Math.max(0, meta.totalSize - dataSize),
+          itemCount: Math.max(0, meta.itemCount - 1)
+        })
+      }
+      return true
+    } catch {
+      return false
+    }
+  },
+  
+  // 清除所有过期的自动保存草稿
+  clearExpiredAutoSaveDrafts: (): number => {
+    const drafts = blogCache.getAutoSaveDrafts()
+    const expired = drafts.filter(d => d.isExpired)
+    
+    expired.forEach(d => {
+      blogCache.clearAutoSaveDraft(d.key)
+    })
+    
+    return expired.length
+  },
+  
+  // 清除所有自动保存草稿
+  clearAllAutoSaveDrafts: (): number => {
+    const drafts = blogCache.getAutoSaveDrafts()
+    
+    drafts.forEach(d => {
+      blogCache.clearAutoSaveDraft(d.key)
+    })
+    
+    return drafts.length
   }
 }
 
