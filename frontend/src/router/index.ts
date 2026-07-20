@@ -20,6 +20,7 @@ const AlbumDetail = () => import('../views/AlbumDetail.vue')
 const MusicFavorites = () => import('../views/MusicFavorites.vue')
 const MovieFavorites = () => import('../views/MovieFavorites.vue')
 const FriendLinks = () => import('../views/FriendLinks.vue')
+const Treasure = () => import('../views/Treasure.vue')
 // Admin 后台 - 新增
 const AdminGuestbook = () => import('../views/AdminGuestbook.vue')
 const AdminAlbums = () => import('../views/AdminAlbums.vue')
@@ -60,7 +61,7 @@ const routes = [
     component: Tag
   },
   {
-    path: '/post/:slug',
+    path: '/post/:id',
     name: 'BlogPost',
     component: BlogPost
   },
@@ -79,6 +80,11 @@ const routes = [
     path: '/albums/:id',
     name: 'AlbumDetail',
     component: AlbumDetail
+  },
+  {
+    path: '/treasure',
+    name: 'Treasure',
+    component: Treasure
   },
   {
     path: '/treasure/music',

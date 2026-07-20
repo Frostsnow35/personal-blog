@@ -97,7 +97,6 @@ const props = defineProps<{
   postId: number
   likes: number
   views: number
-  slug: string
   title: string
 }>()
 

@@ -83,7 +83,6 @@
             :likes="post.likes || 0" 
             :views="post.views || 0"
             :title="post.title"
-            :slug="post.slug"
           />
         </div>
       </article>
@@ -108,7 +107,7 @@
       <div v-if="prev_post || next_post" class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-4">
         <router-link
           v-if="prev_post"
-          :to="`/post/${prev_post.slug}`"
+          :to="`/post/${prev_post.id}`"
           class="card p-6 hover:shadow-lg transition-shadow text-left"
         >
           <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">上一篇</div>
@@ -117,7 +116,7 @@
         <div v-else class="hidden md:block"></div>
         <router-link
           v-if="next_post"
-          :to="`/post/${next_post.slug}`"
+          :to="`/post/${next_post.id}`"
           class="card p-6 hover:shadow-lg transition-shadow text-left"
         >
           <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">下一篇</div>
@@ -130,8 +129,8 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <router-link
             v-for="p in related_posts"
-            :key="p.slug"
-            :to="`/post/${p.slug}`"
+            :key="p.id"
+            :to="`/post/${p.id}`"
             class="card p-5 hover:shadow-lg transition-shadow"
           >
             <div class="text-base font-semibold text-gray-900 dark:text-gray-100">{{ p.title }}</div>
@@ -168,7 +167,7 @@ import PostInteraction from '../components/PostInteraction.vue'
 interface Post {
   id: number
   title: string
-  slug: string
+  slug?: string
   content: string
   excerpt: string
   status: string
@@ -257,14 +256,13 @@ const setPageMeta = () => {
   }
 }
 
-const fetchPost = async (slug: string) => {
+const fetchPost = async (id: string) => {
   try {
     loading.value = true
     error.value = null
 
-    // 预加载HTTP工具
     const { http } = await import('../utils/http')
-    const result = await http.get<any>(`/posts/slug/${slug}`)
+    const result = await http.get<any>(`/posts/${id}`)
 
     if (result.success) {
       post.value = result.data
@@ -320,7 +318,7 @@ const fetchNavigationContext = async () => {
       return bd - ad
     })
 
-    const idx = sorted.findIndex(p => p.slug === post.value?.slug)
+    const idx = sorted.findIndex(p => p.id === post.value?.id)
     prev_post.value = idx >= 0 && idx + 1 < sorted.length ? sorted[idx + 1] : null
     next_post.value = idx > 0 ? sorted[idx - 1] : null
 
@@ -328,7 +326,7 @@ const fetchNavigationContext = async () => {
     const current_category = (post.value?.category || '').toLowerCase()
 
     const scored = sorted
-      .filter(p => p.slug !== post.value?.slug)
+      .filter(p => p.id !== post.value?.id)
       .map(p => {
         const tags = (p.tags || []).map(t => String(t).toLowerCase())
         const tag_hits = tags.reduce((acc, t) => acc + (current_tags.has(t) ? 1 : 0), 0)
@@ -351,16 +349,15 @@ const fetchNavigationContext = async () => {
 
 onMounted(() => {
   profileStore.loadProfile()
-  const slug = route.params.slug as string
-  if (slug) {
-    fetchPost(slug)
+  const id = route.params.id as string
+  if (id) {
+    fetchPost(id)
   }
 })
 
-// 监听路由变化
-watch(() => route.params.slug, (newSlug) => {
-  if (newSlug) {
-    fetchPost(newSlug as string)
+watch(() => route.params.id, (newId) => {
+  if (newId) {
+    fetchPost(newId as string)
   }
 })
 

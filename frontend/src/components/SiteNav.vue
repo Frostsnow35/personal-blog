@@ -19,21 +19,20 @@
             active-class="text-ocean-600 dark:text-ocean-400 font-medium"
           >{{ item.label }}</router-link>
 
-          <!-- 百宝箱下拉 -->
+          <!-- 百宝箱 -->
           <div
             class="relative"
           >
-            <button
-              type="button"
+            <router-link
+              to="/treasure"
               class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors flex items-center gap-1"
               :class="{ 'text-ocean-600 dark:text-ocean-400 font-medium': isTreasureActive || treasureOpen }"
-              @click="toggleTreasure"
             >
               百宝箱
               <svg class="w-3 h-3 transition-transform" :class="{ 'rotate-180': treasureOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
               </svg>
-            </button>
+            </router-link>
             <Transition name="dropdown">
               <div
                 v-if="treasureOpen"
@@ -41,6 +40,11 @@
               >
                 <div class="pt-2">
                   <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
+                    <router-link
+                      to="/treasure"
+                      class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                      @click="closeAll"
+                    >📦 百宝箱首页</router-link>
                     <router-link
                       v-for="item in treasureItems"
                       :key="item.path"

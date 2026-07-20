@@ -56,7 +56,7 @@
 
               <div class="p-6">
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3 group-hover:text-ocean-600 dark:group-hover:text-ocean-400 transition-colors">
-                  <router-link :to="`/post/${post.slug}`">{{ post.title }}</router-link>
+                  <router-link :to="`/post/${post.id}`">{{ post.title }}</router-link>
                 </h2>
 
                 <p class="text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">{{ post.excerpt }}</p>

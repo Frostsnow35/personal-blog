@@ -16,10 +16,7 @@
             <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">标题</label>
             <input v-model="form.title" type="text" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"/>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Slug <span class="text-xs text-gray-500">(根据标题自动生成，可手动编辑)</span></label>
-            <input v-model="form.slug" type="text" maxlength="200" :disabled="!isEdit && form.title" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 disabled:bg-gray-100 dark:disabled:bg-gray-700 font-mono text-sm" :title="form.slug" />
-          </div>
+          
           <div>
             <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">分类</label>
             <input v-model="form.category" type="text" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"/>
@@ -98,7 +95,7 @@ const router = useRouter()
 const isEdit = !!route.params.id
 
 const form = ref<any>({
-  title: '', slug: '', content: '', excerpt: '', status: 'draft', cover_url: '', category: '', tags: [] as string[]
+  title: '', content: '', excerpt: '', status: 'draft', cover_url: '', category: '', tags: [] as string[]
 })
 const tagsInput = ref('')
 const saving = ref(false)
@@ -153,39 +150,7 @@ const formatDraftTime = (timestamp: number) => {
   return date.toLocaleString()
 }
 
-function djb2(s: string): number {
-  // 32-bit djb2 哈希，与后端 _djb2 保持一致
-  let h = 5381
-  const bytes = new TextEncoder().encode(s || '')
-  for (const b of bytes) {
-    h = ((h * 33) + b) & 0xffffffff
-  }
-  return h >>> 0
-}
 
-function slugify(title: string): string {
-  // 与后端 _slugify 保持一致：
-  // 仅保留 ASCII 字母/数字（剥离中文/全角），其他字符替为 '-'
-  let base = (title || '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  if (!base) {
-    // 全部为非 ASCII（如纯中文），用 djb2 哈希生成稳定的短后缀
-    const h = djb2((title || '').trim())
-    base = `post-${h.toString(16).padStart(6, '0')}`
-  }
-  if (base.length > 100) {
-    base = base.slice(0, 100).replace(/-+$/, '') || 'post'
-  }
-  return base
-}
-
-watch(() => form.value.title, (newTitle) => {
-  if (!isEdit && newTitle && !form.value.slug) {
-    form.value.slug = slugify(newTitle)
-  }
-})
 
 let autoSaveTimer: number | undefined
 

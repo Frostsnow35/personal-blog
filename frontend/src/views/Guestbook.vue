@@ -93,7 +93,7 @@
                 <span class="text-gray-400 text-xs">{{ formatTime(m.created_at) }}</span>
                 <router-link
                   v-if="m.referenced_post"
-                  :to="`/post/${m.referenced_post.slug}`"
+                  :to="`/post/${m.referenced_post.id}`"
                   class="ml-auto text-xs px-2 py-0.5 rounded-md bg-ocean-100 dark:bg-ocean-900/30 text-ocean-700 dark:text-ocean-300 hover:bg-ocean-200"
                 >@ {{ m.referenced_post.title }}</router-link>
               </div>

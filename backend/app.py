@@ -311,7 +311,7 @@ class Post(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
-    slug = db.Column(db.String(220), unique=True, index=True)
+    slug = db.Column(db.String(220), nullable=True)
     content = db.Column(db.Text, default='')
     excerpt = db.Column(db.String(500), default='')
     status = db.Column(db.String(20), default='draft', index=True)  # draft | published
@@ -569,21 +569,13 @@ def admin_create_post():
     title = (data.get('title') or '').strip()
     if not title:
         return jsonify({'success': False, 'message': '标题不能为空'}), 400
-    slug = (data.get('slug') or '').strip() or _slugify(title)
-    # 校验长度与slug格式
     if len(title) > 200:
         return jsonify({'success': False, 'message': '标题过长(<=200)'}), 400
     if len(data.get('excerpt') or '') > 500:
         return jsonify({'success': False, 'message': '摘要过长(<=500)'}), 400
-    import re
-    if not re.match(r'^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$', slug):
-        return jsonify({'success': False, 'message': 'slug 格式仅允许字母、数字及中划线（不可含中文）'}), 400
-    if Post.query.filter_by(slug=slug).first():
-        return jsonify({'success': False, 'message': 'slug 已存在'}), 400
 
     p = Post(
         title=title,
-        slug=slug,
         content=data.get('content') or '',
         excerpt=data.get('excerpt') or '',
         status=data.get('status') or 'draft',
@@ -614,14 +606,6 @@ def admin_update_post(post_id):
             if len(title) > 200:
                 return jsonify({'success': False, 'message': '标题过长(<=200)'}), 400
             p.title = title
-        if 'slug' in data:
-            new_slug = (data.get('slug') or '').strip() or _slugify(p.title)
-            import re
-            if not re.match(r'^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$', new_slug):
-                return jsonify({'success': False, 'message': 'slug 格式仅允许字母、数字及中划线（不可含中文）'}), 400
-            if new_slug != p.slug and Post.query.filter_by(slug=new_slug).first():
-                return jsonify({'success': False, 'message': 'slug 已存在'}), 400
-            p.slug = new_slug
         for f in ['content', 'excerpt', 'cover_url', 'category']:
             if f in data:
                 if f == 'excerpt' and data.get('excerpt') and len(data.get('excerpt')) > 500:
@@ -676,8 +660,21 @@ def admin_publish_post(post_id):
     try:
         p.status = 'published'
         p.published_at = p.published_at or datetime.now(timezone.utc)
+        
+        duplicate_drafts = Post.query.filter(
+            Post.title == p.title,
+            Post.status == 'draft',
+            Post.id != p.id
+        ).all()
+        for draft in duplicate_drafts:
+            db.session.delete(draft)
+        
         db.session.commit()
-        return jsonify({'success': True, 'message': '已发布'})
+        deleted_count = len(duplicate_drafts)
+        message = '已发布'
+        if deleted_count > 0:
+            message = f'已发布，同时删除了 {deleted_count} 篇重复草稿'
+        return jsonify({'success': True, 'message': message})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -1994,7 +1991,7 @@ def sitemap():
     for post in published_posts:
         url = ET.SubElement(urlset, 'url')
         loc = ET.SubElement(url, 'loc')
-        loc.text = f'{site_url}/post/{post.slug}'
+        loc.text = f'{site_url}/post/{post.id}'
         lastmod = ET.SubElement(url, 'lastmod')
         lastmod.text = post.updated_at.strftime('%Y-%m-%d')
         changefreq = ET.SubElement(url, 'changefreq')
@@ -2133,18 +2130,9 @@ def create_access_token(username: str, role: str = 'admin', expires_minutes: int
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
 
-# API路由
-@app.route('/api/posts/published', methods=['GET'])
-def get_published_posts():
-    """获取已发布的文章列表（用于前台展示）"""
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
-    category = request.args.get('category')
-    tag = request.args.get('tag')
-    search = request.args.get('search')
-    
+def _build_post_query(category=None, tag=None, search=None):
+    """构建文章查询条件（共用函数）"""
     query = Post.query.filter_by(status='published')
-
     if category:
         query = query.filter(Post.category == category)
     if tag:
@@ -2156,9 +2144,12 @@ def get_published_posts():
             Post.category.ilike(like),
             Post.tags.contains([search])
         ))
+    return query
 
+def _execute_post_list_query(page, per_page, category=None, tag=None, search=None):
+    """执行文章列表查询并返回分页结果（共用函数）"""
     if uses_sqlalchemy_queries():
-        # SQLAlchemy 路径：用 with_entities 限制只取列表所需 12 个字段，避免加载 content
+        query = _build_post_query(category, tag, search)
         query = query.with_entities(
             Post.id, Post.title, Post.slug, Post.excerpt, Post.category, Post.tags,
             Post.cover_url, Post.read_time, Post.views, Post.likes,
@@ -2168,17 +2159,13 @@ def get_published_posts():
             page=page, per_page=per_page, error_out=False
         )
         items = [_build_post_summary_item(r) for r in posts.items]
-        return json_response({
-            'success': True,
-            'data': {
-                'items': items,
-                'total': posts.total,
-                'pages': posts.pages,
-                'current_page': page
-            }
-        })
+        return {
+            'items': items,
+            'total': posts.total,
+            'pages': posts.pages,
+            'current_page': page
+        }
 
-    # 使用直接SQL查询避免SQLAlchemy编码问题
     import sqlite3
     import os
 
@@ -2187,7 +2174,6 @@ def get_published_posts():
     cursor = conn.cursor()
 
     try:
-        # 构建查询条件
         where_conditions = ["status = 'published'"]
         params = []
 
@@ -2204,13 +2190,11 @@ def get_published_posts():
             search_pattern = f'%{search}%'
             params.extend([search_pattern, search_pattern, search_pattern])
 
-        # 构建SQL查询
         where_clause = " AND ".join(where_conditions)
         count_sql = f"SELECT COUNT(*) FROM posts WHERE {where_clause}"
         cursor.execute(count_sql, params)
         total = cursor.fetchone()[0]
 
-        # 分页查询：仅 SELECT 列表所需 12 字段，不加载 content
         offset = (page - 1) * per_page
         query_sql = f"""
             SELECT id, title, slug, excerpt, category, tags, cover_url, read_time,
@@ -2223,137 +2207,52 @@ def get_published_posts():
         cursor.execute(query_sql, params + [per_page, offset])
         posts = cursor.fetchall()
 
-        # 构建响应数据
         items = [_build_post_summary_item(post) for post in posts]
-
-        # 计算总页数
         pages = (total + per_page - 1) // per_page
 
-        return json_response({
-            'success': True,
-            'data': {
-                'items': items,
-                'total': total,
-                'pages': pages,
-                'current_page': page
-            }
-        })
+        return {
+            'items': items,
+            'total': total,
+            'pages': pages,
+            'current_page': page
+        }
 
     finally:
         cursor.close()
         conn.close()
 
+# API路由
+@app.route('/api/posts/published', methods=['GET'])
+def get_published_posts():
+    """获取已发布的文章列表（用于前台展示）"""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    category = request.args.get('category')
+    tag = request.args.get('tag')
+    search = request.args.get('search')
+    
+    result = _execute_post_list_query(page, per_page, category, tag, search)
+    return json_response({
+        'success': True,
+        'data': result
+    })
+
 
 @app.route('/api/search', methods=['GET'])
 def search_published_posts():
+    """搜索已发布的文章"""
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
     category = (request.args.get('category') or '').strip()
     tag = (request.args.get('tag') or '').strip()
     search = (request.args.get('search') or '').strip()
 
-    query = Post.query.filter_by(status='published')
-    if category:
-        query = query.filter(Post.category == category)
-    if tag:
-        query = query.filter(Post.tags.contains([tag]))
-    if search:
-        like = f'%{search}%'
-        query = query.filter(db.or_(
-            Post.title.ilike(like),
-            Post.category.ilike(like),
-            Post.tags.contains([search])
-        ))
+    result = _execute_post_list_query(page, per_page, category, tag, search)
+    return json_response({
+        'success': True,
+        'data': result
+    })
 
-    posts = query.order_by(Post.published_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-
-    if uses_sqlalchemy_queries():
-        return json_response({
-            'success': True,
-            'data': {
-                'items': [_serialize_post_summary(p) for p in posts.items],
-                'total': posts.total,
-                'pages': posts.pages,
-                'current_page': page
-            }
-        })
-
-    import sqlite3
-    import os
-
-    db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    try:
-        where_conditions = ["status = 'published'"]
-        params = []
-
-        if category:
-            where_conditions.append("category = ?")
-            params.append(category)
-
-        if tag:
-            where_conditions.append("tags LIKE ?")
-            params.append(f'%"{tag}"%')
-
-        if search:
-            where_conditions.append("(title LIKE ? OR category LIKE ? OR tags LIKE ?)")
-            like = f'%{search}%'
-            params.extend([like, like, like])
-
-        where_clause = " AND ".join(where_conditions)
-        cursor.execute(f"SELECT COUNT(*) FROM posts WHERE {where_clause}", params)
-        total = cursor.fetchone()[0]
-
-        offset = (page - 1) * per_page
-        cursor.execute(
-            f"""
-            SELECT id, title, slug, excerpt, category, tags, cover_url, read_time,
-                   published_at, created_at
-            FROM posts
-            WHERE {where_clause}
-            ORDER BY published_at DESC, created_at DESC
-            LIMIT ? OFFSET ?
-            """,
-            params + [per_page, offset]
-        )
-        rows = cursor.fetchall()
-
-        items = []
-        for row in rows:
-            post_id, title, slug, excerpt, category_val, tags_raw, cover_url, read_time, published_at, created_at = row
-            try:
-                tags_list = json.loads(tags_raw) if tags_raw else []
-            except Exception:
-                tags_list = []
-
-            items.append({
-                'id': post_id,
-                'title': title,
-                'slug': slug,
-                'excerpt': excerpt,
-                'category': category_val,
-                'tags': tags_list,
-                'cover_url': cover_url,
-                'read_time': read_time,
-                'published_at': published_at,
-                'created_at': created_at
-            })
-
-        pages = (total + per_page - 1) // per_page
-        return json_response({
-            'success': True,
-            'data': {
-                'items': items,
-                'total': total,
-                'pages': pages,
-                'current_page': page
-            }
-        }, cache_control='public, max-age=60, stale-while-revalidate=300')
-    finally:
-        cursor.close()
-        conn.close()
 
 @app.route('/api/posts/<int:post_id>', methods=['GET'])
 def get_post(post_id):
@@ -2379,69 +2278,6 @@ def get_post(post_id):
             FROM posts 
             WHERE id = ? AND status = 'published'
         """, [post_id])
-        
-        post = cursor.fetchone()
-        if not post:
-            return jsonify({'success': False, 'message': '文章不存在或未发布'}), 404
-        
-        post_id, title, slug, content, excerpt, status, cover_url, category, tags, read_time, published_at, created_at, updated_at = post
-        
-        # 处理tags字段
-        try:
-            if tags and isinstance(tags, str):
-                tags_list = json.loads(tags)
-            else:
-                tags_list = []
-        except:
-            tags_list = []
-        
-        return json_response({
-            'success': True,
-            'data': {
-                'id': post_id,
-                'title': title,
-                'slug': slug,
-                'content': content,
-                'excerpt': excerpt,
-                'status': status,
-                'cover_url': cover_url,
-                'category': category,
-                'tags': tags_list,
-                'read_time': read_time,
-                'published_at': published_at,
-                'created_at': created_at,
-                'updated_at': updated_at
-            }
-        })
-        
-    finally:
-        cursor.close()
-        conn.close()
-
-@app.route('/api/posts/slug/<slug>', methods=['GET'])
-def get_post_by_slug(slug):
-    if uses_sqlalchemy_queries():
-        post = Post.query.filter_by(slug=slug, status='published').first()
-        if not post:
-            return jsonify({'success': False, 'message': 'Post not found or unpublished'}), 404
-        return json_response({'success': True, 'data': _serialize_post_detail(post)})
-
-    """根据 slug 获取已发布的博客文章"""
-    # 使用直接SQL查询避免SQLAlchemy编码问题
-    import sqlite3
-    import os
-    
-    db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute("""
-            SELECT id, title, slug, content, excerpt, status, cover_url, category, 
-                   tags, read_time, published_at, created_at, updated_at
-            FROM posts 
-            WHERE slug = ? AND status = 'published'
-        """, [slug])
         
         post = cursor.fetchone()
         if not post:
@@ -3046,6 +2882,34 @@ def handle_exception(error):
     except Exception:
         pass
     return jsonify({'error': 'Server error', 'message': '服务器错误'}), 500
+
+# 博客统计接口
+@app.route('/api/blog/stats', methods=['GET'])
+def get_blog_stats():
+    try:
+        total_posts = Post.query.filter_by(status='published').count()
+        total_drafts = Post.query.filter_by(status='draft').count()
+        total_comments = GuestMessage.query.filter_by(is_approved=True).count()
+        total_albums = Album.query.count()
+        
+        first_post = Post.query.filter_by(status='published').order_by(Post.created_at.asc()).first()
+        start_date = first_post.created_at.isoformat() if first_post else None
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'total_posts': total_posts,
+                'total_drafts': total_drafts,
+                'total_comments': total_comments,
+                'total_albums': total_albums,
+                'start_date': start_date,
+                'current_time': datetime.now(timezone.utc).isoformat()
+            }
+        })
+    except Exception as e:
+        app.logger.error(f'获取博客统计失败: {e}')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 # 安全管理接口
 @app.route('/api/admin/security/stats', methods=['GET'])

@@ -53,7 +53,7 @@
                   博客内容
                 </h2>
                 <div class="text-gray-600 dark:text-gray-300 leading-relaxed pl-12 border-l-2 border-gray-200/60 dark:border-gray-700/60 hover:border-cyan-400/60 dark:hover:border-cyan-500/60 transition-colors">
-                  <span class="drop-cap">{{ profileStore.profile.blogContentMarkdown || '这里主要记录我的技术学习笔记、项目实践经验和个人思考。涵盖前端开发、后端技术、系统设计等多个领域。' }}</span>
+                  <span v-html="blogContentHtml"></span>
                 </div>
               </section>
 
@@ -63,7 +63,7 @@
                   我的理念
                 </h2>
                 <div class="text-gray-600 dark:text-gray-300 leading-relaxed pl-12 border-l-2 border-gray-200/60 dark:border-gray-700/60 hover:border-purple-400/60 dark:hover:border-purple-500/60 transition-colors">
-                  <span class="drop-cap">{{ profileStore.profile.philosophyMarkdown || '坚持持续学习，相信技术的力量可以改变世界。追求简洁优雅的解决方案，注重代码质量和用户体验。' }}</span>
+                  <span v-html="philosophyHtml"></span>
                 </div>
               </section>
 

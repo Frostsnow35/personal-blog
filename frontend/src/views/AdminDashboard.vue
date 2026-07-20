@@ -4,7 +4,10 @@
     <nav class="sticky top-0 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
-          <router-link to="/home" class="flex items-center space-x-2 text-ocean-600 hover:text-ocean-700">
+          <router-link 
+            to="/home" 
+            class="flex items-center space-x-2 px-4 py-2 bg-ocean-50 hover:bg-ocean-100 text-ocean-600 hover:text-ocean-700 rounded-lg transition-colors"
+          >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
@@ -248,7 +251,24 @@
             </div>
             <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">数据统计</h3>
           </div>
-          <p class="text-gray-600 dark:text-gray-400 mb-4">查看博客访问统计和数据分析</p>
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="bg-ocean-50 dark:bg-ocean-900/30 rounded-lg p-3 text-center">
+              <div class="text-sm text-gray-500 dark:text-gray-400">已发布文章</div>
+              <div class="text-xl font-bold text-ocean-600 dark:text-ocean-400">{{ blogStats.totalPosts }}</div>
+            </div>
+            <div class="bg-amber-50 dark:bg-amber-900/30 rounded-lg p-3 text-center">
+              <div class="text-sm text-gray-500 dark:text-gray-400">草稿数量</div>
+              <div class="text-xl font-bold text-amber-600 dark:text-amber-400">{{ blogStats.totalDrafts }}</div>
+            </div>
+            <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-3 text-center">
+              <div class="text-sm text-gray-500 dark:text-gray-400">审核通过留言</div>
+              <div class="text-xl font-bold text-purple-600 dark:text-purple-400">{{ blogStats.totalComments }}</div>
+            </div>
+            <div class="bg-pink-50 dark:bg-pink-900/30 rounded-lg p-3 text-center">
+              <div class="text-sm text-gray-500 dark:text-gray-400">相册数量</div>
+              <div class="text-xl font-bold text-pink-600 dark:text-pink-400">{{ blogStats.totalAlbums }}</div>
+            </div>
+          </div>
           <div class="space-y-2">
             <button
               @click="viewAnalytics"
@@ -349,6 +369,7 @@ import { useRouter } from 'vue-router'
 import { toast } from '../composables/useToast'
 import { useAuthStore } from '../stores/auth'
 import { blogCache, profileCache, getCacheStats, clearAllCache, cleanupCache, getCacheEntries } from '../utils/cache'
+import { http } from '../utils/http'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -358,6 +379,14 @@ const cacheStats = ref({
   totalSize: 0,
   itemCount: 0,
   lastCleanup: Date.now()
+})
+
+// 博客统计信息
+const blogStats = ref({
+  totalPosts: 0,
+  totalDrafts: 0,
+  totalComments: 0,
+  totalAlbums: 0
 })
 
 // 格式化文件大小
@@ -418,8 +447,26 @@ const refreshCacheStats = () => {
   toast.info('缓存统计已更新')
 }
 
+// 加载博客统计数据
+const loadBlogStats = async () => {
+  try {
+    const result = await http.get<any>('/blog/stats')
+    if (result.success && result.data) {
+      blogStats.value = {
+        totalPosts: result.data.total_posts || 0,
+        totalDrafts: result.data.total_drafts || 0,
+        totalComments: result.data.total_comments || 0,
+        totalAlbums: result.data.total_albums || 0
+      }
+    }
+  } catch (error) {
+    console.error('加载博客统计数据失败:', error)
+  }
+}
+
 onMounted(() => {
   loadCacheStats()
+  loadBlogStats()
 })
 
 // 退出登录

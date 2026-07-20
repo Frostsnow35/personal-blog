@@ -77,7 +77,7 @@
               <div class="p-6">
                 <!-- 文章标题 -->
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3 group-hover:text-ocean-600 dark:group-hover:text-ocean-400 transition-colors">
-                  <router-link :to="`/post/${post.slug}`">
+                  <router-link :to="`/post/${post.id}`">
                     {{ post.title }}
                   </router-link>
                 </h2>
