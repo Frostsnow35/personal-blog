@@ -102,6 +102,12 @@
                       class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
                       @click="closeAll"
                     >🖼 相册管理</router-link>
+                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                    <router-link
+                      to="/admin/security"
+                      class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
+                      @click="closeAll"
+                    >🛡️ 安全管理</router-link>
                   </div>
                 </div>
               </div>

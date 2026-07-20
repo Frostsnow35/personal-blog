@@ -238,6 +238,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SiteNav from '../components/SiteNav.vue'
+import { http } from '../utils/http'
 
 interface SearchPost {
   id: number
@@ -396,7 +397,6 @@ const onCoverError = (e: Event) => {
 
 const fetchCategories = async () => {
   try {
-    const { http } = await import('../utils/http')
     const result = await http.get<any>('/categories/published')
     if (result.success) categories.value = result.data || []
   } catch {}
@@ -404,7 +404,6 @@ const fetchCategories = async () => {
 
 const fetchTags = async () => {
   try {
-    const { http } = await import('../utils/http')
     const result = await http.get<any>('/tags/published')
     if (result.success) tags.value = result.data || []
   } catch {}
@@ -432,7 +431,6 @@ const fetchResults = async () => {
     loading.value = true
     error.value = null
 
-    const { http } = await import('../utils/http')
     const result = await http.get<any>(`/search?${params.toString()}`, controller.signal)
     if (result.success) {
       results.value = result?.data?.items || []

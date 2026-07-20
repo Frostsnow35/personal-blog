@@ -58,13 +58,14 @@
           
           <!-- 标签 -->
           <div v-if="post.tags && post.tags.length > 0" class="flex flex-wrap gap-2">
-            <span 
+            <router-link 
               v-for="tag in post.tags" 
               :key="tag"
-              class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md text-sm hover:bg-ocean-100 dark:hover:bg-ocean-900/30 hover:text-ocean-700 dark:hover:text-ocean-300 transition-colors cursor-pointer"
+              :to="{ path: '/tag', query: { tag } }"
+              class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md text-sm hover:bg-ocean-100 dark:hover:bg-ocean-900/30 hover:text-ocean-700 dark:hover:text-ocean-300 transition-colors"
             >
               #{{ tag }}
-            </span>
+            </router-link>
           </div>
         </div>
         

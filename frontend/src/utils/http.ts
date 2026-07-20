@@ -18,6 +18,14 @@ const defaultCacheConfig: RequestCacheConfig = {
   maxAge: 30 * 60 * 1000
 }
 
+const XSS_PATTERNS = [
+  /<script[^>]*>.*?<\/script>/gi,
+  /<iframe[^>]*>/gi,
+  /javascript\s*:/gi,
+  /on\w+\s*=\s*["']?[^"']*["']?/gi,
+  /<img[^>]*src\s*=\s*["']?javascript:/gi,
+]
+
 function buildCacheKey(path: string): string {
   const url = new URL(path, BASE_URL)
   const params = Array.from(url.searchParams.entries())
@@ -26,6 +34,59 @@ function buildCacheKey(path: string): string {
     .join('&')
   const pathname = url.pathname
   return params ? `${pathname}?${params}` : pathname
+}
+
+function generateCsrfToken(): string {
+  const token = localStorage.getItem('csrf_token')
+  if (token) return token
+  
+  const newToken = Array.from({ length: 32 }, () => 
+    Math.floor(Math.random() * 16).toString(16)
+  ).join('')
+  localStorage.setItem('csrf_token', newToken)
+  return newToken
+}
+
+function sanitizeInput(value: any): any {
+  if (typeof value === 'string') {
+    for (const pattern of XSS_PATTERNS) {
+      if (pattern.test(value)) {
+        value = value.replace(pattern, '')
+      }
+    }
+    return value
+  }
+  if (typeof value === 'object' && value !== null) {
+    for (const key in value) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        value[key] = sanitizeInput(value[key])
+      }
+    }
+  }
+  return value
+}
+
+function validateRequestData(data: any): { valid: boolean; message?: string } {
+  if (!data) return { valid: true }
+  
+  const strData = JSON.stringify(data)
+  const suspiciousPatterns = [
+    { pattern: /('|")\s*(OR|AND)\s*1\s*=\s*1/i, message: '请求包含可疑内容' },
+    { pattern: /SELECT\s+.*FROM/i, message: '请求包含非法查询' },
+    { pattern: /UNION\s+SELECT/i, message: '请求包含非法查询' },
+    { pattern: /DROP\s+TABLE/i, message: '请求包含危险操作' },
+    { pattern: /INSERT\s+INTO/i, message: '请求包含非法插入' },
+    { pattern: /<script/i, message: '请求包含脚本内容' },
+    { pattern: /javascript:/i, message: '请求包含脚本协议' },
+  ]
+  
+  for (const { pattern, message } of suspiciousPatterns) {
+    if (pattern.test(strData)) {
+      return { valid: false, message }
+    }
+  }
+  
+  return { valid: true }
 }
 
 import { setCache, getCache } from './cache'
@@ -41,7 +102,6 @@ function _bumpLoading(delta: number) {
   if (_active > 0) {
     if (_hideTimer) { clearTimeout(_hideTimer); _hideTimer = null }
     if (_showTimer == null) {
-      // 100ms 后再显示，避免快速请求引起的闪烁
       _showTimer = window.setTimeout(() => {
         _showTimer = null
         if (_active > 0) {
@@ -51,7 +111,6 @@ function _bumpLoading(delta: number) {
     }
   } else {
     if (_showTimer) { clearTimeout(_showTimer); _showTimer = null }
-    // 250ms 延迟再隐藏，让 100% 状态可见
     if (_hideTimer) clearTimeout(_hideTimer)
     _hideTimer = window.setTimeout(() => {
       _hideTimer = null
@@ -62,7 +121,10 @@ function _bumpLoading(delta: number) {
 
 function withAuth(headers: HeadersInit = {}) {
   const token = localStorage.getItem('access_token')
-  return token ? { ...headers, Authorization: `Bearer ${token}` } : headers
+  const csrfToken = generateCsrfToken()
+  return token 
+    ? { ...headers, Authorization: `Bearer ${token}`, 'X-CSRF-Token': csrfToken }
+    : { ...headers, 'X-CSRF-Token': csrfToken }
 }
 
 async function request<T>(path: string, method: HttpMethod, body?: any, signal?: AbortSignal, cacheConfig?: RequestCacheConfig): Promise<T> {
@@ -76,13 +138,19 @@ async function request<T>(path: string, method: HttpMethod, body?: any, signal?:
     }
   }
 
+  const validation = validateRequestData(body)
+  if (!validation.valid) {
+    throw new Error(validation.message || '请求数据验证失败')
+  }
+
   _bumpLoading(1)
   try {
     const isForm = body instanceof FormData
+    const sanitizedBody = isForm ? body : sanitizeInput(body)
     const res = await fetch(`${BASE_URL}${path}`, {
       method,
       headers: withAuth(isForm ? {} : { 'Content-Type': 'application/json' }),
-      body: isForm ? body : body ? JSON.stringify(body) : undefined,
+      body: isForm ? sanitizedBody : sanitizedBody ? JSON.stringify(sanitizedBody) : undefined,
       signal,
       cache: method === 'GET' ? 'default' : 'no-cache'
     })

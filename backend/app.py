@@ -11,6 +11,7 @@ from datetime import datetime, timezone, timedelta
 import os
 import re
 import locale
+import time
 from dotenv import load_dotenv
 import jwt
 from sqlalchemy.pool import NullPool
@@ -84,6 +85,13 @@ JWT_ALG = 'HS256'
 # 初始化扩展
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+# 初始化安全中间件
+try:
+    from security import security
+except ImportError:
+    from backend.security import security
+security.init_app(app)
 
 cors_origins_env = os.getenv('CORS_ORIGINS', '')
 cors_origins_from_env = [o.strip() for o in str(cors_origins_env).split(',') if o.strip()]
@@ -2349,13 +2357,12 @@ def search_published_posts():
 
 @app.route('/api/posts/<int:post_id>', methods=['GET'])
 def get_post(post_id):
+    """获取单篇博客文章"""
     if uses_sqlalchemy_queries():
         post = Post.query.filter_by(id=post_id, status='published').first()
         if not post:
             return jsonify({'success': False, 'message': 'Post not found or unpublished'}), 404
         return json_response({'success': True, 'data': _serialize_post_detail(post)})
-
-    """获取单篇博客文章"""
     # 使用直接SQL查询避免SQLAlchemy编码问题
     import sqlite3
     import os
@@ -2721,10 +2728,12 @@ def login():
     password = data.get('password', '')
 
     if not username or not password:
+        time.sleep(1)
         return jsonify({'success': False, 'message': '用户名或密码不能为空'}), 400
 
     user = User.query.filter_by(username=username).first()
     if not user or not check_password_hash(user.password_hash, password):
+        time.sleep(2)
         return jsonify({'success': False, 'message': '用户名或密码错误'}), 401
 
     token = create_access_token(username=user.username, role=user.role)
@@ -3037,6 +3046,88 @@ def handle_exception(error):
     except Exception:
         pass
     return jsonify({'error': 'Server error', 'message': '服务器错误'}), 500
+
+# 安全管理接口
+@app.route('/api/admin/security/stats', methods=['GET'])
+@jwt_required_admin
+def get_security_stats():
+    stats = security.get_security_stats()
+    return jsonify({'success': True, 'data': stats})
+
+
+@app.route('/api/admin/security/blacklist', methods=['GET'])
+@jwt_required_admin
+def get_blacklist():
+    blacklist = [{'ip': ip, **info} for ip, info in security.ip_blacklist.items()]
+    return jsonify({'success': True, 'data': blacklist})
+
+
+@app.route('/api/admin/security/blacklist/clear', methods=['POST'])
+@jwt_required_admin
+def clear_blacklist():
+    result = security.clear_blacklist()
+    return jsonify(result)
+
+
+@app.route('/api/admin/security/blacklist/<ip>/whitelist', methods=['POST'])
+@jwt_required_admin
+def whitelist_ip(ip):
+    result = security.whitelist_ip(ip)
+    return jsonify(result)
+
+
+@app.route('/api/admin/security/attacks', methods=['GET'])
+@jwt_required_admin
+def get_attack_logs():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    attacks = security.attack_log[::-1]
+    start = (page - 1) * per_page
+    end = start + per_page
+    return jsonify({
+        'success': True,
+        'data': attacks[start:end],
+        'total': len(attacks),
+        'page': page,
+    })
+
+
+@app.route('/api/admin/security/honeypot', methods=['GET'])
+@jwt_required_admin
+def get_honeypot_captures():
+    captures = security.honeypot_captures[::-1]
+    return jsonify({'success': True, 'data': captures})
+
+
+# 虚假管理接口（蜜罐）
+@app.route('/api/v1/auth', methods=['POST'])
+@app.route('/api/login', methods=['POST'])
+@app.route('/oauth/token', methods=['POST'])
+@app.route('/auth/token', methods=['POST'])
+def fake_auth_endpoint():
+    ip = _get_client_ip()
+    data = request.get_json(silent=True) or {}
+    security._log_attack('HONEYPOT_AUTH', {
+        'ip': ip,
+        'username': data.get('username', ''),
+        'password': '[REDACTED]' if data.get('password') else '',
+        'grant_type': data.get('grant_type', ''),
+    })
+    security._blacklist_ip(ip, duration_seconds=7200)
+    return jsonify({
+        'success': False,
+        'error': 'invalid_grant',
+        'message': 'The provided authorization grant is invalid',
+    }), 400
+
+
+@app.route('/api/secret', methods=['GET', 'POST'])
+def fake_secret_endpoint():
+    ip = _get_client_ip()
+    security._log_attack('HONEYPOT_SECRET', {'ip': ip})
+    security._blacklist_ip(ip, duration_seconds=7200)
+    return jsonify({'error': '404 Not Found'}), 404
+
 
 # 自定义JSON响应函数，确保编码正确
 def json_response(data, status_code=200, cache_control=None):

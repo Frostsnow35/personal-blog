@@ -1,0 +1,40 @@
+﻿Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request method 'HEAD' is unsupported
+    at sw.js:43:21
+music:1
+ The resource https://frostsnow.vercel.app/avatar.jpg was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+music:1
+ The resource https://frostsnow.vercel.app/profile.jpg was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+http-94b5438a.js:1 
+ GET https://frostsnow.vercel.app/api/music?keywords=Aqours 400 (Bad Request)
+p	@	http-94b5438a.js:1
+get	@	http-94b5438a.js:1
+ee	@	AdminMusic-d4084038.js:1
+Ei.n.<computed>.n.<computed>	@	vendor-6b08d4c4.js:24
+Vt	@	vendor-6b08d4c4.js:18
+Nt	@	vendor-6b08d4c4.js:18
+n	@	vendor-6b08d4c4.js:24
+music:1
+ The resource https://frostsnow.vercel.app/avatar.jpg was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+music:1
+ The resource https://frostsnow.vercel.app/profile.jpg was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+﻿
+
+安全性
+Response should include 'x-content-type-options' header.
+相容性
+'-moz-column-count' is not supported by Chrome, Chrome Android, Firefox 74+. Add 'column-count' to support Chrome 50+, Chrome Android 50+, Firefox 52+.
+'-moz-column-width' is not supported by Chrome, Chrome Android, Firefox 74+. Add 'column-width' to support Chrome 50+, Chrome Android 50+, Firefox 50+.
+'-webkit-text-size-adjust' is not supported by Chrome, Chrome Android, Edge 79+, Firefox, Safari. Add 'text-size-adjust' to support Chrome 54+, Chrome Android 54+, Edge 79+.
+'backdrop-filter' is not supported by Safari. Add '-webkit-backdrop-filter' to support Safari 9+.
+'content-type' header charset value should be 'utf-8'.
+'content-type' header media type value should be 'image/jpeg', not 'image/jpg'.
+'meta[name=theme-color]' is not supported by Firefox.
+效能
+'pointer-events' changes to this property will trigger: 'Layout', which can impact performance when used inside @keyframes.
+A 'cache-control' header contains directives which are not recommended: 'must-revalidate'
+Resource should use cache busting but URL does not match configured patterns.
+協助工具
+Select element must have an accessible name: Element has no title attribute
+ARIA progressbar nodes must have an accessible name: Element has no title attribute
+其他
+A form field element should have an id or name attribute

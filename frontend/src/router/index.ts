@@ -26,6 +26,7 @@ const AdminAlbums = () => import('../views/AdminAlbums.vue')
 const AdminMusic = () => import('../views/AdminMusic.vue')
 const AdminMovies = () => import('../views/AdminMovies.vue')
 const AdminFriendLinks = () => import('../views/AdminFriendLinks.vue')
+const AdminSecurity = () => import('../views/AdminSecurity.vue')
 
 const routes = [
   {
@@ -103,22 +104,26 @@ const routes = [
   {
     path: '/admin/posts',
     name: 'AdminPosts',
-    component: AdminPosts
+    component: AdminPosts,
+    meta: { requiresAuth: true }
   },
   {
     path: '/admin/posts/new',
     name: 'AdminPostNew',
-    component: AdminPostEdit
+    component: AdminPostEdit,
+    meta: { requiresAuth: true }
   },
   {
     path: '/admin/posts/:id/edit',
     name: 'AdminPostEdit',
-    component: AdminPostEdit
+    component: AdminPostEdit,
+    meta: { requiresAuth: true }
   },
   {
     path: '/admin/dashboard',
     name: 'AdminDashboard',
-    component: AdminDashboard
+    component: AdminDashboard,
+    meta: { requiresAuth: true }
   },
   // Admin - 新模块
   {
@@ -149,6 +154,12 @@ const routes = [
     path: '/admin/friend-links',
     name: 'AdminFriendLinks',
     component: AdminFriendLinks,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/security',
+    name: 'AdminSecurity',
+    component: AdminSecurity,
     meta: { requiresAuth: true }
   },
   {
