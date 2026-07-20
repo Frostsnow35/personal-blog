@@ -15,30 +15,39 @@ class SecurityMiddleware:
         self.attack_log = []
         
         self.SQL_INJECTION_PATTERNS = [
-            r"(?i)(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|EXEC|EXECUTE|XP_|0x[0-9a-f]+)",
-            r"(?i)(--|\*/|;|%27|%22|%3B)",
-            r"(?i)(OR\s+1=1|AND\s+1=1|OR\s+TRUE|AND\s+TRUE)",
-            r"(?i)(BENCHMARK|SLEEP|WAITFOR|DELAY)",
-            r"(?i)(information_schema|sys\.tables|sys\.columns)",
-            r"(?i)(CONCAT|SUBSTRING|CHAR|UNHEX|CAST|CONVERT)",
-            r"(?i)(\'\s*OR\s*\')|(\'\s*AND\s*\')|(\'\s*--)",
-            r"(?i)(\(\s*SELECT|\(\s*INSERT|\(\s*UPDATE|\(\s*DELETE)",
+            r"(?i)(UNION\s+(?:ALL\s+)?SELECT\s+)",
+            r"(?i)(SELECT\s+.*\s+FROM\s+.*\s+WHERE\s+)",
+            r"(?i)(INSERT\s+INTO\s+.*\s+VALUES\s*)",
+            r"(?i)(UPDATE\s+.*\s+SET\s+.*\s+WHERE\s+)",
+            r"(?i)(DELETE\s+FROM\s+.*\s+WHERE\s+)",
+            r"(?i)(DROP\s+(?:TABLE|DATABASE|INDEX)\s+)",
+            r"(?i)(EXEC(?:UTE)?\s*\(|XP_\w+)",
+            r"(?i)(0x[0-9a-f]{8,})",
+            r"(?i)(/\*!?\d*\*/|\*/)",
+            r"(?i)(OR\s+1\s*=\s*1|AND\s+1\s*=\s*1|OR\s+'?1'?\s*=\s*'?1|AND\s+'?1'?\s*=\s*'?1)",
+            r"(?i)(BENCHMARK\s*\(|SLEEP\s*\(|WAITFOR\s+DELAY\s+|PG_SLEEP\s*\()",
+            r"(?i)(information_schema\.)",
+            r"(?i)(CONCAT\s*\(|SUBSTRING\s*\(|UNHEX\s*\(|CHAR\s*\(\s*\d+\s*\))",
+            r"(?i)('\s*OR\s*'?\d|'\s*AND\s*'?\d|'\s*--|'\s*;)",
+            r"(?i)(\(\s*SELECT\s+.*\s+FROM\s+)",
+            r"(?i)(LOAD_FILE\s*\(|INTO\s+OUTFILE\s+|INTO\s+DUMPFILE\s+)",
         ]
-        
+
         self.XSS_PATTERNS = [
             r"(?i)<script[^>]*>.*?</script>",
+            r"(?i)<script[^>]*>",
+            r"(?i)</script>",
             r"(?i)<iframe[^>]*>",
-            r"(?i)<img[^>]*src\s*=\s*[\"']?javascript:",
-            r"(?i)on\w+\s*=\s*[\"']?[^\"']*[\"']?",
+            r"(?i)<img[^>]*src\s*=\s*[\"']?\s*javascript:",
             r"(?i)javascript\s*:",
             r"(?i)vbscript\s*:",
-            r"(?i)data\s*:\s*image\/svg\+xml",
-            r"(?i)<svg[^>]*on\w+",
-            r"(?i)<form[^>]*>",
-            r"(?i)<input[^>]*>",
-            r"(?i)<body[^>]*onload",
-            r"(?i)<link[^>]*href\s*=\s*[\"']?javascript:",
+            r"(?i)data\s*:\s*text/html",
+            r"(?i)<svg[^>]*on\w+\s*=",
+            r"(?i)<body[^>]*onload\s*=",
+            r"(?i)<link[^>]*href\s*=\s*[\"']?\s*javascript:",
             r"(?i)expression\s*\(",
+            r"(?i)<object[^>]*>",
+            r"(?i)<embed[^>]*>",
         ]
         
         self.HONEYPOT_ROUTES = [
@@ -226,15 +235,13 @@ class SecurityMiddleware:
         
         if self._detect_sql_injection(data):
             self._log_attack('SQL_INJECTION_DETECTED', {'data': data[:200]})
-            self._blacklist_ip(ip, duration_seconds=1800)
             return jsonify({
                 'success': False,
                 'message': '请求参数包含非法内容',
             }), 400
-        
+
         if self._detect_xss(data):
             self._log_attack('XSS_ATTACK_DETECTED', {'data': data[:200]})
-            self._blacklist_ip(ip, duration_seconds=1800)
             return jsonify({
                 'success': False,
                 'message': '请求参数包含非法内容',

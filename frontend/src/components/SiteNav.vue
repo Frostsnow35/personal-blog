@@ -217,7 +217,6 @@ const topLevelItems = [
   { path: '/search', label: '搜索' },
   { path: '/guestbook', label: '留言栏' },
   { path: '/albums', label: '相册' },
-  { path: '/uptime', label: '⏱️ 运行时间' },
   { path: '/category', label: '分类' },
   { path: '/tag', label: '标签' },
   { path: '/about', label: '作者' },
@@ -227,6 +226,7 @@ const treasureItems = [
   { path: '/treasure/music', label: '🎵 个人喜爱音乐' },
   { path: '/treasure/movies', label: '🎬 喜爱电影' },
   { path: '/treasure/friends', label: '🔗 友链' },
+  { path: '/uptime', label: '⏱️ 运行时间' },
 ]
 
 const isTreasureActive = computed(() => route.path.startsWith('/treasure'))
