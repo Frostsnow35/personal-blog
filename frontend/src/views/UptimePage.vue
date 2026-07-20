@@ -503,24 +503,22 @@ onBeforeUnmount(() => {
   }
 }
 
-/* 导航栏透明融合 */
+/* 导航栏半透明融合（保证油画背景上可读） */
 .starry-nav {
   position: relative;
   z-index: 10;
-  background: transparent !important;
-  border-bottom: none !important;
 }
 
 .starry-nav :deep(nav) {
-  background: transparent !important;
-  border-bottom: none !important;
-  backdrop-filter: none !important;
+  background: rgba(10, 13, 31, 0.45) !important;
+  backdrop-filter: blur(8px) !important;
+  border-bottom: 1px solid rgba(244, 196, 48, 0.15) !important;
 }
 
 .starry-nav :deep(a),
 .starry-nav :deep(button) {
   color: #f5e6b8 !important;
-  text-shadow: 0 0 8px rgba(10, 13, 31, 0.8);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(10, 13, 31, 0.8) !important;
 }
 
 .starry-nav :deep(a:hover),
@@ -533,6 +531,11 @@ onBeforeUnmount(() => {
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;
+}
+
+.starry-nav :deep(.bg-white),
+.starry-nav :deep(.dark\:bg-gray-800) {
+  background: rgba(10, 13, 31, 0.92) !important;
 }
 
 /* 主内容层 */
