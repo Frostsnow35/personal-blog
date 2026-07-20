@@ -23,16 +23,17 @@
           <div
             class="relative"
           >
-            <router-link
-              to="/treasure"
+            <button
+              type="button"
               class="text-gray-700 dark:text-gray-300 hover:text-ocean-600 dark:hover:text-ocean-400 transition-colors flex items-center gap-1"
               :class="{ 'text-ocean-600 dark:text-ocean-400 font-medium': isTreasureActive || treasureOpen }"
+              @click="toggleTreasure"
             >
               百宝箱
               <svg class="w-3 h-3 transition-transform" :class="{ 'rotate-180': treasureOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
               </svg>
-            </router-link>
+            </button>
             <Transition name="dropdown">
               <div
                 v-if="treasureOpen"
@@ -216,6 +217,7 @@ const topLevelItems = [
   { path: '/search', label: '搜索' },
   { path: '/guestbook', label: '留言栏' },
   { path: '/albums', label: '相册' },
+  { path: '/uptime', label: '⏱️ 运行时间' },
   { path: '/category', label: '分类' },
   { path: '/tag', label: '标签' },
   { path: '/about', label: '作者' },

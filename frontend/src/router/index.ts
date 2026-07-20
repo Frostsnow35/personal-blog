@@ -21,6 +21,7 @@ const MusicFavorites = () => import('../views/MusicFavorites.vue')
 const MovieFavorites = () => import('../views/MovieFavorites.vue')
 const FriendLinks = () => import('../views/FriendLinks.vue')
 const Treasure = () => import('../views/Treasure.vue')
+const UptimePage = () => import('../views/UptimePage.vue')
 // Admin 后台 - 新增
 const AdminGuestbook = () => import('../views/AdminGuestbook.vue')
 const AdminAlbums = () => import('../views/AdminAlbums.vue')
@@ -85,6 +86,11 @@ const routes = [
     path: '/treasure',
     name: 'Treasure',
     component: Treasure
+  },
+  {
+    path: '/uptime',
+    name: 'Uptime',
+    component: UptimePage
   },
   {
     path: '/treasure/music',
