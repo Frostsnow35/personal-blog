@@ -1,339 +1,670 @@
 <template>
-  <div class="min-h-screen relative overflow-hidden">
-    <div class="romantic-bg">
-      <div class="bg-blob bg-blob-1"></div>
-      <div class="bg-blob bg-blob-2"></div>
-      <div class="bg-blob bg-blob-3"></div>
-      <div class="bg-blob bg-blob-4"></div>
-      <div class="bg-blob bg-blob-5"></div>
-      <div class="stars-container">
-        <div v-for="i in 50" :key="i" class="star" :style="getStarStyle(i)"></div>
-      </div>
-    </div>
-    
-    <div class="relative z-10">
-      <SiteNav />
-      
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="text-center mb-12">
-          <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-600 via-pink-500 to-cyan-500 bg-clip-text text-transparent mb-4 animate-title">
-            ⏱️ 博客运行时间
-          </h1>
-          <p class="text-gray-600 dark:text-gray-300 text-lg md:text-xl">
-            记录博客从第一篇文章发布至今的运行时长
-          </p>
-        </div>
+  <div class="starry-night-page">
+    <!-- 梵高星月夜油画 Canvas 背景 -->
+    <canvas ref="canvasRef" class="oil-canvas"></canvas>
 
-        <div class="glass-card">
-          <BlogUptime />
-        </div>
+    <!-- 低端设备降级背景 -->
+    <div v-if="isLowEnd" class="fallback-bg"></div>
 
-        <div class="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="stat-card stat-card-1" @click="createCardParticles($event)">
-            <div class="stat-value">{{ stats.totalPosts }}</div>
-            <div class="stat-label">已发布文章</div>
-          </div>
-          <div class="stat-card stat-card-2" @click="createCardParticles($event)">
-            <div class="stat-value">{{ stats.totalDrafts }}</div>
-            <div class="stat-label">草稿数量</div>
-          </div>
-          <div class="stat-card stat-card-3" @click="createCardParticles($event)">
-            <div class="stat-value">{{ stats.totalComments }}</div>
-            <div class="stat-label">审核通过留言</div>
-          </div>
-          <div class="stat-card stat-card-4" @click="createCardParticles($event)">
-            <div class="stat-value">{{ stats.totalAlbums }}</div>
-            <div class="stat-label">相册数量</div>
-          </div>
-        </div>
-
-        <div class="mt-8 text-center">
-          <p class="text-gray-500 dark:text-gray-400 text-sm animate-pulse-slow">
-            🚀 感谢您的访问，期待与您一起见证博客的成长
-          </p>
-        </div>
-      </div>
+    <!-- 星光层（Canvas 之上，增强呼吸感） -->
+    <div class="stars-layer">
+      <div
+        v-for="star in stars"
+        :key="star.id"
+        class="star-dot"
+        :style="{
+          left: star.left + '%',
+          top: star.top + '%',
+          width: star.size + 'px',
+          height: star.size + 'px',
+          animationDelay: star.delay + 's',
+          animationDuration: star.duration + 's'
+        }"
+      ></div>
     </div>
 
-    <div class="particles-container" ref="particlesRef"></div>
+    <!-- 导航栏（保留，透明融合） -->
+    <SiteNav class="starry-nav" />
+
+    <!-- 主内容 -->
+    <div class="content-layer">
+      <!-- 主标题 -->
+      <header class="title-block">
+        <h1 class="main-title">博客运行时间</h1>
+        <p class="subtitle">记录博客运行的每一刻</p>
+      </header>
+
+      <!-- 计时器 -->
+      <div class="timer-block">
+        <div class="timer-row">
+          <div class="time-unit">
+            <span class="time-value">{{ displayYears }}</span>
+            <span class="time-label">年</span>
+          </div>
+          <span class="separator">:</span>
+          <div class="time-unit">
+            <span class="time-value">{{ displayMonths }}</span>
+            <span class="time-label">月</span>
+          </div>
+          <span class="separator">:</span>
+          <div class="time-unit">
+            <span class="time-value">{{ displayDays }}</span>
+            <span class="time-label">天</span>
+          </div>
+          <span class="separator">:</span>
+          <div class="time-unit">
+            <span class="time-value">{{ displayHours }}</span>
+            <span class="time-label">时</span>
+          </div>
+          <span class="separator">:</span>
+          <div class="time-unit">
+            <span class="time-value">{{ displayMinutes }}</span>
+            <span class="time-label">分</span>
+          </div>
+          <span class="separator">:</span>
+          <div class="time-unit">
+            <span class="time-value">{{ displaySeconds }}</span>
+            <span class="time-label">秒</span>
+          </div>
+        </div>
+
+        <p class="start-time">自 2026 年 7 月 12 日起</p>
+      </div>
+
+      <!-- 底部收尾 -->
+      <footer class="footer-text">
+        即使身处阴沟，也别忘了仰望星空
+      </footer>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import SiteNav from '../components/SiteNav.vue'
-import BlogUptime from '../components/BlogUptime.vue'
-import { http } from '../utils/http'
 
-const stats = ref({
-  totalPosts: 0,
-  totalDrafts: 0,
-  totalComments: 0,
-  totalAlbums: 0
+// 起始时间硬编码（2026年7月12日0点）
+const START_DATE = new Date('2026-07-12T00:00:00')
+
+const canvasRef = ref<HTMLCanvasElement | null>(null)
+const currentTime = ref(new Date())
+
+// 低端设备检测
+const isLowEnd = ref(false)
+
+// 星光数据
+const stars = ref<Array<{
+  id: number
+  left: number
+  top: number
+  size: number
+  delay: number
+  duration: number
+}>>([])
+
+// Canvas 相关
+let ctx: CanvasRenderingContext2D | null = null
+let animationId: number | null = null
+let strokes: Stroke[] = []
+let mouseX = -1000
+let mouseY = -1000
+let lastFrameTime = 0
+const FRAME_INTERVAL = 1000 / 30 // 30fps
+
+// 笔触接口
+interface Stroke {
+  x: number
+  y: number
+  baseX: number
+  baseY: number
+  length: number
+  angle: number
+  baseAngle: number
+  curvature: number
+  color: string
+  width: number
+  alpha: number
+  layer: number
+  phase: number
+  speed: number
+}
+
+// 时间差计算
+const timeDiff = computed(() => {
+  const start = START_DATE
+  const now = currentTime.value
+
+  let years = now.getFullYear() - start.getFullYear()
+  let months = now.getMonth() - start.getMonth()
+  let days = now.getDate() - start.getDate()
+  let hours = now.getHours() - start.getHours()
+  let minutes = now.getMinutes() - start.getMinutes()
+  let seconds = now.getSeconds() - start.getSeconds()
+
+  if (seconds < 0) { seconds += 60; minutes-- }
+  if (minutes < 0) { minutes += 60; hours-- }
+  if (hours < 0) { hours += 24; days-- }
+  if (days < 0) {
+    const prevMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+    days += prevMonth.getDate()
+    months--
+  }
+  if (months < 0) { months += 12; years-- }
+
+  return {
+    years: Math.max(0, years),
+    months: Math.max(0, months),
+    days: Math.max(0, days),
+    hours: Math.max(0, hours),
+    minutes: Math.max(0, minutes),
+    seconds: Math.max(0, seconds)
+  }
 })
 
-const particlesRef = ref<HTMLElement | null>(null)
+const pad = (n: number) => n.toString().padStart(2, '0')
+const displayYears = computed(() => pad(timeDiff.value.years))
+const displayMonths = computed(() => pad(timeDiff.value.months))
+const displayDays = computed(() => pad(timeDiff.value.days))
+const displayHours = computed(() => pad(timeDiff.value.hours))
+const displayMinutes = computed(() => pad(timeDiff.value.minutes))
+const displaySeconds = computed(() => pad(timeDiff.value.seconds))
 
-const getStarStyle = (index: number) => {
-  const left = Math.random() * 100
-  const top = Math.random() * 100
-  const size = Math.random() * 3 + 1
-  const delay = Math.random() * 3
-  const duration = Math.random() * 2 + 2
-  return {
-    left: `${left}%`,
-    top: `${top}%`,
-    width: `${size}px`,
-    height: `${size}px`,
-    animationDelay: `${delay}s`,
-    animationDuration: `${duration}s`
+// 生成星光
+const generateStars = () => {
+  const arr = []
+  for (let i = 0; i < 80; i++) {
+    arr.push({
+      id: i,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      size: Math.random() * 2.5 + 0.5,
+      delay: Math.random() * 4,
+      duration: Math.random() * 3 + 2
+    })
   }
+  stars.value = arr
 }
 
-const createCardParticles = (event: MouseEvent) => {
-  if (!particlesRef.value) return
-  
-  const rect = (event.target as HTMLElement).getBoundingClientRect()
-  const centerX = rect.left + rect.width / 2
-  const centerY = rect.top + rect.height / 2
-  
-  const colors = ['#ff6b9d', '#c44dff', '#4da6ff', '#4dffc4', '#ffd94d']
-  const particleCount = 12
-  
-  for (let i = 0; i < particleCount; i++) {
-    const particle = document.createElement('div')
-    particle.className = 'card-particle'
-    
-    const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.5
-    const velocity = 3 + Math.random() * 5
-    const size = 4 + Math.random() * 8
-    const color = colors[Math.floor(Math.random() * colors.length)]
-    
-    particle.style.left = `${centerX}px`
-    particle.style.top = `${centerY}px`
-    particle.style.width = `${size}px`
-    particle.style.height = `${size}px`
-    particle.style.background = color
-    particle.style.setProperty('--vx', `${Math.cos(angle) * velocity}px`)
-    particle.style.setProperty('--vy', `${Math.sin(angle) * velocity}px`)
-    
-    particlesRef.value.appendChild(particle)
-    
-    setTimeout(() => {
-      particle.remove()
-    }, 800)
+// 生成笔触
+const generateStrokes = (width: number, height: number) => {
+  strokes = []
+  const colors = {
+    deepBlue: '#1a3a6c',
+    cobalt: '#2d5aa0',
+    violet: '#5d3f9e',
+    deepViolet: '#3d2b6e',
+    gold: '#f4c430',
+    warmWhite: '#f5e6b8',
+    indigo: '#1b1f3a'
   }
+
+  // 底层：大块漩涡（20条）
+  for (let i = 0; i < 20; i++) {
+    strokes.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      baseX: 0,
+      baseY: 0,
+      length: 80 + Math.random() * 120,
+      angle: Math.random() * Math.PI * 2,
+      baseAngle: Math.random() * Math.PI * 2,
+      curvature: 0.3 + Math.random() * 0.4,
+      color: Math.random() > 0.5 ? colors.deepBlue : colors.indigo,
+      width: 12 + Math.random() * 10,
+      alpha: 0.15 + Math.random() * 0.1,
+      layer: 0,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.0005 + Math.random() * 0.0008
+    })
+  }
+
+  // 中层：漩涡曲线（25条）
+  for (let i = 0; i < 25; i++) {
+    const c = [colors.cobalt, colors.violet, colors.deepViolet][Math.floor(Math.random() * 3)]
+    strokes.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      baseX: 0,
+      baseY: 0,
+      length: 60 + Math.random() * 100,
+      angle: Math.random() * Math.PI * 2,
+      baseAngle: Math.random() * Math.PI * 2,
+      curvature: 0.4 + Math.random() * 0.5,
+      color: c,
+      width: 6 + Math.random() * 8,
+      alpha: 0.2 + Math.random() * 0.15,
+      layer: 1,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.0008 + Math.random() * 0.0012
+    })
+  }
+
+  // 顶层：暖金星光笔触（15条）
+  for (let i = 0; i < 15; i++) {
+    strokes.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      baseX: 0,
+      baseY: 0,
+      length: 30 + Math.random() * 50,
+      angle: Math.random() * Math.PI * 2,
+      baseAngle: Math.random() * Math.PI * 2,
+      curvature: 0.2 + Math.random() * 0.3,
+      color: Math.random() > 0.4 ? colors.gold : colors.warmWhite,
+      width: 4 + Math.random() * 6,
+      alpha: 0.3 + Math.random() * 0.2,
+      layer: 2,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.001 + Math.random() * 0.0015
+    })
+  }
+
+  // 记录基准位置
+  strokes.forEach(s => {
+    s.baseX = s.x
+    s.baseY = s.y
+  })
 }
 
-const loadStats = async () => {
-  try {
-    const result = await http.get<any>('/blog/stats')
-    if (result.success && result.data) {
-      stats.value = {
-        totalPosts: result.data.total_posts || 0,
-        totalDrafts: result.data.total_drafts || 0,
-        totalComments: result.data.total_comments || 0,
-        totalAlbums: result.data.total_albums || 0
-      }
+// 绘制单条笔触（厚涂油画感）
+const drawStroke = (stroke: Stroke, time: number) => {
+  if (!ctx) return
+
+  // 缓慢漂移
+  const driftX = Math.sin(time * stroke.speed + stroke.phase) * 15
+  const driftY = Math.cos(time * stroke.speed * 0.8 + stroke.phase) * 15
+
+  // 鼠标影响（150px 范围内笔触偏转加速）
+  let mouseInfluenceX = 0
+  let mouseInfluenceY = 0
+  const dx = mouseX - stroke.x
+  const dy = mouseY - stroke.y
+  const dist = Math.sqrt(dx * dx + dy * dy)
+  if (dist < 150) {
+    const force = (1 - dist / 150) * 20
+    mouseInfluenceX = (dx / dist) * force * -0.3
+    mouseInfluenceY = (dy / dist) * force * -0.3
+  }
+
+  const x = stroke.baseX + driftX + mouseInfluenceX
+  const y = stroke.baseY + driftY + mouseInfluenceY
+
+  // 角度缓慢旋转
+  const angle = stroke.baseAngle + Math.sin(time * stroke.speed * 0.5 + stroke.phase) * 0.3
+
+  ctx.save()
+  ctx.globalAlpha = stroke.alpha
+  ctx.strokeStyle = stroke.color
+  ctx.lineWidth = stroke.width
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+
+  // 厚涂模糊质感
+  ctx.filter = 'blur(1.5px)'
+
+  // 绘制弯曲笔触（二次贝塞尔模拟漩涡）
+  const endX = x + Math.cos(angle) * stroke.length
+  const endY = y + Math.sin(angle) * stroke.length
+  const ctrlAngle = angle + stroke.curvature
+  const ctrlX = x + Math.cos(ctrlAngle) * stroke.length * 0.5
+  const ctrlY = y + Math.sin(ctrlAngle) * stroke.length * 0.5
+
+  ctx.beginPath()
+  ctx.moveTo(x, y)
+  ctx.quadraticCurveTo(ctrlX, ctrlY, endX, endY)
+  ctx.stroke()
+
+  // 顶层星光额外加发光
+  if (stroke.layer === 2) {
+    ctx.globalAlpha = stroke.alpha * 0.5
+    ctx.shadowColor = stroke.color
+    ctx.shadowBlur = 15
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.quadraticCurveTo(ctrlX, ctrlY, endX, endY)
+    ctx.stroke()
+  }
+
+  ctx.restore()
+}
+
+// 动画主循环
+const animate = (timestamp: number) => {
+  if (!ctx || !canvasRef.value) return
+
+  // 帧率限制
+  if (timestamp - lastFrameTime < FRAME_INTERVAL) {
+    animationId = requestAnimationFrame(animate)
+    return
+  }
+  lastFrameTime = timestamp
+
+  const canvas = canvasRef.value
+  const time = timestamp
+
+  // 清空 + 绘制底色渐变（每帧重绘背景）
+  const gradient = ctx.createRadialGradient(
+    canvas.width / 2, canvas.height / 2, 0,
+    canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) / 1.2
+  )
+  gradient.addColorStop(0, '#1b1f3a')
+  gradient.addColorStop(0.5, '#0f1530')
+  gradient.addColorStop(1, '#0a0d1f')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  // 按层绘制笔触
+  strokes
+    .slice()
+    .sort((a, b) => a.layer - b.layer)
+    .forEach(stroke => drawStroke(stroke, time))
+
+  animationId = requestAnimationFrame(animate)
+}
+
+// 调整 Canvas 尺寸
+const resizeCanvas = () => {
+  if (!canvasRef.value) return
+  const canvas = canvasRef.value
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
+  generateStrokes(canvas.width, canvas.height)
+}
+
+// 鼠标交互
+const onMouseMove = (e: MouseEvent) => {
+  mouseX = e.clientX
+  mouseY = e.clientY
+}
+
+const onMouseLeave = () => {
+  mouseX = -1000
+  mouseY = -1000
+}
+
+// 可见性检测（页面隐藏时暂停）
+const onVisibilityChange = () => {
+  if (document.hidden) {
+    if (animationId) {
+      cancelAnimationFrame(animationId)
+      animationId = null
     }
-  } catch {
-    console.error('加载博客统计失败')
+  } else {
+    if (!animationId && ctx) {
+      lastFrameTime = 0
+      animationId = requestAnimationFrame(animate)
+    }
   }
 }
 
-onMounted(() => {
-  loadStats()
+// 时间更新
+let timeTimer: number | null = null
+
+onMounted(async () => {
+  // 低端设备检测
+  const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const lowEnd = (navigator.hardwareConcurrency && navigator.hardwareConcurrency < 4) ||
+    ((navigator as any).deviceMemory && (navigator as any).deviceMemory <= 4) ||
+    prefersReducedMotion
+  isLowEnd.value = !!lowEnd
+
+  // 生成星光
+  generateStars()
+
+  // 时间更新
+  timeTimer = window.setInterval(() => {
+    currentTime.value = new Date()
+  }, 1000)
+
+  await nextTick()
+
+  // 低端设备不启动 Canvas
+  if (isLowEnd.value) return
+
+  if (canvasRef.value) {
+    ctx = canvasRef.value.getContext('2d')
+    if (ctx) {
+      resizeCanvas()
+      window.addEventListener('resize', resizeCanvas)
+      window.addEventListener('mousemove', onMouseMove)
+      window.addEventListener('mouseleave', onMouseLeave)
+      document.addEventListener('visibilitychange', onVisibilityChange)
+      animationId = requestAnimationFrame(animate)
+    }
+  }
+})
+
+onBeforeUnmount(() => {
+  if (animationId) cancelAnimationFrame(animationId)
+  if (timeTimer) clearInterval(timeTimer)
+  window.removeEventListener('resize', resizeCanvas)
+  window.removeEventListener('mousemove', onMouseMove)
+  window.removeEventListener('mouseleave', onMouseLeave)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 </script>
 
 <style scoped>
-.min-h-screen {
-  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+.starry-night-page {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #0a0d1f;
 }
 
-.romantic-bg {
+.oil-canvas {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
   z-index: 0;
+  pointer-events: none;
 }
 
-.bg-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.4;
-  animation: blob-move 20s ease-in-out infinite;
-}
-
-.bg-blob-1 {
-  width: 400px;
-  height: 400px;
-  background: linear-gradient(135deg, #ff6b9d, #c44dff);
-  top: -100px;
-  left: -100px;
-  animation-delay: 0s;
-}
-
-.bg-blob-2 {
-  width: 350px;
-  height: 350px;
-  background: linear-gradient(135deg, #4da6ff, #4dffc4);
-  top: 50%;
-  right: -100px;
-  animation-delay: -5s;
-}
-
-.bg-blob-3 {
-  width: 300px;
-  height: 300px;
-  background: linear-gradient(135deg, #ffd94d, #ff6b9d);
-  bottom: -100px;
-  left: 20%;
-  animation-delay: -10s;
-}
-
-.bg-blob-4 {
-  width: 250px;
-  height: 250px;
-  background: linear-gradient(135deg, #c44dff, #4da6ff);
-  top: 30%;
-  left: 60%;
-  animation-delay: -15s;
-}
-
-.bg-blob-5 {
-  width: 280px;
-  height: 280px;
-  background: linear-gradient(135deg, #4dffc4, #ffd94d);
-  bottom: 10%;
-  right: 30%;
-  animation-delay: -7s;
-}
-
-@keyframes blob-move {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-  }
-  25% {
-    transform: translate(50px, -50px) scale(1.1);
-  }
-  50% {
-    transform: translate(-30px, 60px) scale(0.9);
-  }
-  75% {
-    transform: translate(40px, 30px) scale(1.05);
-  }
-}
-
-.stars-container {
-  position: absolute;
+/* 低端设备降级背景 */
+.fallback-bg {
+  position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  background: radial-gradient(ellipse at center, #1b1f3a 0%, #0f1530 50%, #0a0d1f 100%);
 }
 
-.star {
+/* 星光层 */
+.stars-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.star-dot {
   position: absolute;
-  background: white;
+  background: #f5e6b8;
   border-radius: 50%;
-  animation: twinkle ease-in-out infinite;
+  box-shadow: 0 0 4px #f4c430, 0 0 8px rgba(244, 196, 48, 0.4);
+  animation: star-twinkle ease-in-out infinite;
 }
 
-@keyframes twinkle {
+@keyframes star-twinkle {
   0%, 100% {
-    opacity: 0.3;
-    transform: scale(1);
+    opacity: 0.2;
+    transform: scale(0.8);
   }
   50% {
     opacity: 1;
-    transform: scale(1.2);
+    transform: scale(1.3);
   }
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
-  padding: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+/* 导航栏透明融合 */
+.starry-nav {
+  position: relative;
+  z-index: 10;
+  background: transparent !important;
+  border-bottom: none !important;
 }
 
-.stat-card {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 24px 16px;
+.starry-nav :deep(nav) {
+  background: transparent !important;
+  border-bottom: none !important;
+  backdrop-filter: none !important;
+}
+
+.starry-nav :deep(a),
+.starry-nav :deep(button) {
+  color: #f5e6b8 !important;
+  text-shadow: 0 0 8px rgba(10, 13, 31, 0.8);
+}
+
+.starry-nav :deep(a:hover),
+.starry-nav :deep(button:hover) {
+  color: #f4c430 !important;
+}
+
+.starry-nav :deep(.text-gradient) {
+  background: linear-gradient(135deg, #f4c430, #f5e6b8) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+/* 主内容层 */
+.content-layer {
+  position: relative;
+  z-index: 5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6rem 1.5rem 3rem;
   text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
 }
 
-.stat-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+/* 标题区 */
+.title-block {
+  margin-bottom: 4rem;
 }
 
-.stat-card-1 {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.1));
-  border-color: rgba(139, 92, 246, 0.3);
+.main-title {
+  font-family: 'Georgia', 'Songti SC', 'STSong', serif;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 300;
+  color: #f4c430;
+  letter-spacing: 0.15em;
+  margin: 0 0 1rem;
+  text-shadow: 0 0 20px rgba(244, 196, 48, 0.4), 0 0 40px rgba(244, 196, 48, 0.2);
+  animation: title-glow 4s ease-in-out infinite;
 }
 
-.stat-card-2 {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(234, 88, 12, 0.1));
-  border-color: rgba(245, 158, 11, 0.3);
-}
-
-.stat-card-3 {
-  background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(139, 92, 246, 0.1));
-  border-color: rgba(236, 72, 153, 0.3);
-}
-
-.stat-card-4 {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(6, 182, 212, 0.1));
-  border-color: rgba(16, 185, 129, 0.3);
-}
-
-.stat-value {
-  font-size: 2.5rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #fff, #a78bfa);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.stat-label {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
-  margin-top: 8px;
-  letter-spacing: 1px;
-}
-
-.animate-title {
-  animation: title-float 3s ease-in-out infinite;
-}
-
-@keyframes title-float {
+@keyframes title-glow {
   0%, 100% {
-    transform: translateY(0);
+    text-shadow: 0 0 20px rgba(244, 196, 48, 0.4), 0 0 40px rgba(244, 196, 48, 0.2);
   }
   50% {
-    transform: translateY(-8px);
+    text-shadow: 0 0 30px rgba(244, 196, 48, 0.6), 0 0 60px rgba(244, 196, 48, 0.3);
   }
 }
 
-.animate-pulse-slow {
-  animation: pulse-slow 4s ease-in-out infinite;
+.subtitle {
+  font-family: 'Georgia', 'Songti SC', serif;
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  color: rgba(245, 230, 184, 0.6);
+  letter-spacing: 0.3em;
+  margin: 0;
+  font-weight: 300;
 }
 
-@keyframes pulse-slow {
+/* 计时器 */
+.timer-block {
+  margin-bottom: 4rem;
+}
+
+.timer-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.time-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 3.5rem;
+}
+
+.time-value {
+  font-family: 'Georgia', serif;
+  font-size: clamp(2rem, 6vw, 4.5rem);
+  font-weight: 400;
+  color: #f4c430;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 15px rgba(244, 196, 48, 0.6), 0 0 30px rgba(244, 196, 48, 0.3);
+  line-height: 1;
+  transition: text-shadow 0.3s ease;
+}
+
+.time-label {
+  font-family: 'Georgia', 'Songti SC', serif;
+  font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+  color: rgba(245, 230, 184, 0.5);
+  margin-top: 0.5rem;
+  letter-spacing: 0.2em;
+  font-weight: 300;
+}
+
+.separator {
+  font-family: 'Georgia', serif;
+  font-size: clamp(2rem, 6vw, 4.5rem);
+  color: #5d3f9e;
+  font-weight: 200;
+  line-height: 1;
+  animation: separator-pulse 2s ease-in-out infinite;
+  text-shadow: 0 0 10px rgba(93, 63, 158, 0.6);
+  align-self: flex-start;
+}
+
+@keyframes separator-pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.start-time {
+  font-family: 'Georgia', 'Songti SC', serif;
+  font-size: clamp(0.75rem, 1.5vw, 0.9rem);
+  color: rgba(245, 230, 184, 0.4);
+  margin-top: 2.5rem;
+  letter-spacing: 0.25em;
+  font-weight: 300;
+}
+
+/* 底部收尾 */
+.footer-text {
+  font-family: 'Georgia', 'Songti SC', 'STSong', serif;
+  font-size: clamp(0.85rem, 2vw, 1.05rem);
+  color: rgba(93, 63, 158, 0.85);
+  letter-spacing: 0.2em;
+  font-weight: 300;
+  font-style: italic;
+  text-shadow: 0 0 12px rgba(93, 63, 158, 0.4);
+  animation: footer-breathe 5s ease-in-out infinite;
+  max-width: 90%;
+}
+
+@keyframes footer-breathe {
   0%, 100% {
     opacity: 0.6;
   }
@@ -342,32 +673,30 @@ onMounted(() => {
   }
 }
 
-.particles-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  z-index: 9999;
-}
-
-.card-particle {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-  animation: card-particle-burst 0.8s ease-out forwards;
-  box-shadow: 0 0 8px currentColor;
-}
-
-@keyframes card-particle-burst {
-  0% {
-    opacity: 1;
-    transform: translate(0, 0) scale(1);
+/* 移动端适配 */
+@media (max-width: 640px) {
+  .content-layer {
+    padding: 5rem 1rem 2rem;
   }
-  100% {
-    opacity: 0;
-    transform: translate(var(--vx), var(--vy)) scale(0);
+
+  .timer-row {
+    gap: 0.25rem;
+  }
+
+  .time-unit {
+    min-width: 2.5rem;
+  }
+
+  .separator {
+    margin: 0 0.1rem;
+  }
+
+  .title-block {
+    margin-bottom: 2.5rem;
+  }
+
+  .timer-block {
+    margin-bottom: 2.5rem;
   }
 }
 </style>
