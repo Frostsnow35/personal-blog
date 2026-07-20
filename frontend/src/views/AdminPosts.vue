@@ -79,7 +79,11 @@ const status = ref('')
 const router = useRouter()
 
 const load = async () => {
-  const res = await http.get<{ data: { items:any[]; total:number; page:number; pages:number } }>(`/admin/posts?page=${page.value}&per_page=10&q=${encodeURIComponent(q.value)}&status=${status.value}`)
+  const res = await http.get<{ data: { items:any[]; total:number; page:number; pages:number } }>(
+    `/admin/posts?page=${page.value}&per_page=10&q=${encodeURIComponent(q.value)}&status=${status.value}`,
+    undefined,
+    { enabled: false }
+  )
   items.value = res.data.items
   pages.value = res.data.pages
 }
