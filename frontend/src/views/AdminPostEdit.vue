@@ -218,23 +218,24 @@ const save = async (status: 'draft'|'published') => {
     form.value.status = status
     form.value.tags = tagsInput.value.split(',').map(s => s.trim()).filter(Boolean)
     if (isEdit) {
-      const res = await http.put<{ success:boolean; data:any }>(`/admin/posts/${route.params.id}`, form.value)
-      if (res.data) {
-        form.value = { ...form.value, ...res.data }
-        tagsInput.value = (res.data.tags || []).join(', ')
-      }
+      await http.put<{ success:boolean; data:any }>(`/admin/posts/${route.params.id}`, form.value)
     } else {
-      const r = await http.post<{ success:boolean; data:{ id:number } }>(`/admin/posts`, form.value)
-      router.replace(`/admin/posts/${r.data.id}/edit`)
+      await http.post<{ success:boolean; data:{ id:number } }>(`/admin/posts`, form.value)
     }
     clearAutoSave()
-    toast.success('已保存', '文章已成功保存')
     
     try {
       blogCache.clearBlogRelatedCache()
     } catch {
       // 缓存清理失败不影响主流程
     }
+    
+    const msg = status === 'published' ? '文章已成功发布' : '文章已成功保存'
+    toast.success(status === 'published' ? '已发布' : '已保存', msg)
+    
+    setTimeout(() => {
+      router.push('/admin/posts')
+    }, 800)
   } catch (err: any) {
     toast.error('保存失败', err.message || '未知错误')
   } finally {
