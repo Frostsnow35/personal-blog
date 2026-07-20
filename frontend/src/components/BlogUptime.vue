@@ -1,5 +1,8 @@
 <template>
   <div class="blog-uptime">
+    <div class="fluid-bg"></div>
+    <div class="particles-container" ref="particlesRef"></div>
+    
     <div class="uptime-header">
       <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
         <svg class="w-6 h-6 text-ocean-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -10,44 +13,62 @@
     </div>
     
     <div class="uptime-display">
-      <div class="time-item">
-        <div class="time-value" :class="{ 'animate-pulse': isAnimating }">
-          <span ref="yearsRef" class="digit">{{ displayYears }}</span>
+      <div 
+        class="time-item" 
+        @click="createParticles($event, 'years')"
+      >
+        <div class="time-value heart-beat" :style="{ '--beat-delay': '0s' }">
+          <span class="digit-glow">{{ displayYears }}</span>
         </div>
         <div class="time-label">年</div>
       </div>
       <div class="time-separator">:</div>
-      <div class="time-item">
-        <div class="time-value" :class="{ 'animate-pulse': isAnimating }">
-          <span ref="monthsRef" class="digit">{{ displayMonths }}</span>
+      <div 
+        class="time-item" 
+        @click="createParticles($event, 'months')"
+      >
+        <div class="time-value heart-beat" :style="{ '--beat-delay': '0.1s' }">
+          <span class="digit-glow">{{ displayMonths }}</span>
         </div>
         <div class="time-label">月</div>
       </div>
       <div class="time-separator">:</div>
-      <div class="time-item">
-        <div class="time-value" :class="{ 'animate-pulse': isAnimating }">
-          <span ref="daysRef" class="digit">{{ displayDays }}</span>
+      <div 
+        class="time-item" 
+        @click="createParticles($event, 'days')"
+      >
+        <div class="time-value heart-beat" :style="{ '--beat-delay': '0.2s' }">
+          <span class="digit-glow">{{ displayDays }}</span>
         </div>
         <div class="time-label">天</div>
       </div>
       <div class="time-separator">:</div>
-      <div class="time-item">
-        <div class="time-value" :class="{ 'animate-pulse': isAnimating }">
-          <span ref="hoursRef" class="digit">{{ displayHours }}</span>
+      <div 
+        class="time-item" 
+        @click="createParticles($event, 'hours')"
+      >
+        <div class="time-value heart-beat" :style="{ '--beat-delay': '0.3s' }">
+          <span class="digit-glow">{{ displayHours }}</span>
         </div>
         <div class="time-label">时</div>
       </div>
       <div class="time-separator">:</div>
-      <div class="time-item">
-        <div class="time-value" :class="{ 'animate-pulse': isAnimating }">
-          <span ref="minutesRef" class="digit">{{ displayMinutes }}</span>
+      <div 
+        class="time-item" 
+        @click="createParticles($event, 'minutes')"
+      >
+        <div class="time-value heart-beat" :style="{ '--beat-delay': '0.4s' }">
+          <span class="digit-glow">{{ displayMinutes }}</span>
         </div>
         <div class="time-label">分</div>
       </div>
       <div class="time-separator">:</div>
-      <div class="time-item">
-        <div class="time-value seconds" :class="{ 'animate-pulse': isAnimating }">
-          <span ref="secondsRef" class="digit">{{ displaySeconds }}</span>
+      <div 
+        class="time-item" 
+        @click="createParticles($event, 'seconds')"
+      >
+        <div class="time-value heart-beat seconds" :style="{ '--beat-delay': '0.5s' }">
+          <span class="digit-glow">{{ displaySeconds }}</span>
         </div>
         <div class="time-label">秒</div>
       </div>
@@ -67,10 +88,9 @@ import { http } from '../utils/http'
 
 const startDate = ref<Date | null>(null)
 const currentTime = ref(new Date())
-const isAnimating = ref(false)
+const particlesRef = ref<HTMLElement | null>(null)
 
 let updateTimer: ReturnType<typeof setInterval> | null = null
-let animationTimer: ReturnType<typeof setTimeout> | null = null
 
 const loadStats = async () => {
   try {
@@ -155,13 +175,43 @@ const formatStartDate = computed(() => {
   })
 })
 
+const createParticles = (event: MouseEvent, type: string) => {
+  if (!particlesRef.value) return
+  
+  const rect = (event.target as HTMLElement).getBoundingClientRect()
+  const centerX = rect.left + rect.width / 2
+  const centerY = rect.top + rect.height / 2
+  
+  const colors = ['#ff6b9d', '#c44dff', '#4da6ff', '#4dffc4', '#ffd94d']
+  const particleCount = 15
+  
+  for (let i = 0; i < particleCount; i++) {
+    const particle = document.createElement('div')
+    particle.className = 'particle'
+    
+    const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.5
+    const velocity = 2 + Math.random() * 4
+    const size = 6 + Math.random() * 10
+    const color = colors[Math.floor(Math.random() * colors.length)]
+    
+    particle.style.left = `${centerX}px`
+    particle.style.top = `${centerY}px`
+    particle.style.width = `${size}px`
+    particle.style.height = `${size}px`
+    particle.style.background = color
+    particle.style.setProperty('--vx', `${Math.cos(angle) * velocity}px`)
+    particle.style.setProperty('--vy', `${Math.sin(angle) * velocity}px`)
+    
+    particlesRef.value.appendChild(particle)
+    
+    setTimeout(() => {
+      particle.remove()
+    }, 1000)
+  }
+}
+
 const updateTime = () => {
   currentTime.value = new Date()
-  isAnimating.value = true
-  if (animationTimer) clearTimeout(animationTimer)
-  animationTimer = setTimeout(() => {
-    isAnimating.value = false
-  }, 200)
 }
 
 onMounted(async () => {
@@ -172,66 +222,162 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (updateTimer) clearInterval(updateTimer)
-  if (animationTimer) clearTimeout(animationTimer)
 })
 </script>
 
 <style scoped>
 .blog-uptime {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(6, 182, 212, 0.1));
-  border-radius: 16px;
-  padding: 24px;
+  position: relative;
+  border-radius: 20px;
+  padding: 32px;
   text-align: center;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  backdrop-filter: blur(10px);
+  overflow: hidden;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  backdrop-filter: blur(20px);
+  min-height: 200px;
+}
+
+.fluid-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    rgba(139, 92, 246, 0.15) 0%, 
+    rgba(59, 130, 246, 0.15) 25%,
+    rgba(6, 182, 212, 0.15) 50%,
+    rgba(16, 185, 129, 0.15) 75%,
+    rgba(245, 158, 11, 0.15) 100%
+  );
+  background-size: 400% 400%;
+  animation: fluid-flow 15s ease infinite;
+  z-index: 0;
+}
+
+@keyframes fluid-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.particles-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: particle-burst 1s ease-out forwards;
+  box-shadow: 0 0 10px currentColor;
+}
+
+@keyframes particle-burst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--vx), var(--vy)) scale(0);
+  }
 }
 
 .uptime-header {
-  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 24px;
 }
 
 .uptime-display {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
 }
 
 .time-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.time-value {
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-size: 2rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  min-width: 48px;
+  cursor: pointer;
   transition: transform 0.2s ease;
 }
 
-.time-value.seconds {
-  background: linear-gradient(135deg, #ef4444, #f97316);
+.time-item:hover {
+  transform: translateY(-4px);
+}
+
+.time-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  min-width: 56px;
+  position: relative;
+}
+
+.time-value .digit-glow {
+  background: linear-gradient(135deg, #8b5cf6, #3b82f6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: pulse-glow 1s ease-in-out infinite;
+  text-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  display: inline-block;
 }
 
-.time-value:hover {
-  transform: scale(1.1);
+.time-value.seconds .digit-glow {
+  background: linear-gradient(135deg, #ec4899, #f97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 20px rgba(236, 72, 153, 0.4);
+}
+
+.time-value.heart-beat {
+  animation: heart-beat 2s ease-in-out infinite;
+  animation-delay: var(--beat-delay, 0s);
+}
+
+@keyframes heart-beat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.05);
+  }
+  28% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.08);
+  }
+  70% {
+    transform: scale(1);
+  }
 }
 
 .time-label {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: #6b7280;
-  margin-top: 4px;
+  margin-top: 8px;
+  font-weight: 500;
+  letter-spacing: 1px;
 }
 
 .dark .time-label {
@@ -239,69 +385,53 @@ onUnmounted(() => {
 }
 
 .time-separator {
-  font-size: 1.5rem;
-  font-weight: 300;
-  color: #9ca3af;
-  margin-top: -8px;
-  animation: blink 1s ease-in-out infinite;
+  font-size: 2rem;
+  font-weight: 200;
+  color: #8b5cf6;
+  margin-top: -12px;
+  animation: blink 1.5s ease-in-out infinite;
+  opacity: 0.6;
 }
 
 .dark .time-separator {
-  color: #6b7280;
-}
-
-.uptime-footer {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(59, 130, 246, 0.1);
-}
-
-@keyframes pulse-glow {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
+  color: #a78bfa;
 }
 
 @keyframes blink {
   0%, 100% {
-    opacity: 1;
-  }
-  50% {
     opacity: 0.3;
-  }
-}
-
-.animate-pulse {
-  animation: number-pulse 0.2s ease;
-}
-
-@keyframes number-pulse {
-  0% {
-    transform: scale(1);
+    transform: scale(0.95);
   }
   50% {
-    transform: scale(1.2);
+    opacity: 1;
+    transform: scale(1.1);
   }
-  100% {
-    transform: scale(1);
-  }
+}
+
+.uptime-footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(139, 92, 246, 0.15);
 }
 
 @media (max-width: 640px) {
   .time-value {
-    font-size: 1.25rem;
-    min-width: 32px;
+    font-size: 1.5rem;
+    min-width: 36px;
   }
   
   .time-separator {
-    font-size: 1rem;
+    font-size: 1.25rem;
   }
   
   .blog-uptime {
-    padding: 16px;
+    padding: 20px;
+  }
+  
+  .uptime-display {
+    gap: 8px;
   }
 }
 </style>
