@@ -225,4 +225,19 @@ router.beforeEach((to, _from, next) => {
   next()
 })
 
+// 路由错误处理：捕获懒加载组件加载失败等错误
+router.onError((error) => {
+  const patterns = [
+    [/Failed to fetch dynamically imported module/i, '页面资源加载失败，请检查网络连接后刷新页面'],
+    [/Loading chunk/i, '页面模块加载失败，请刷新页面重试'],
+    [/Failed to resolve import/i, '页面资源未找到，请刷新页面'],
+  ]
+  for (const [pattern, message] of patterns) {
+    if (pattern.test(String(error))) {
+      alert(message)
+      return
+    }
+  }
+})
+
 export default router

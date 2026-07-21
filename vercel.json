@@ -9,6 +9,22 @@
       "dest": "/api/index.py"
     },
     {
+      "src": "^/(js/.*)$",
+      "dest": "/frontend/dist/$1"
+    },
+    {
+      "src": "^/(assets/.*)$",
+      "dest": "/frontend/dist/$1"
+    },
+    {
+      "src": "^/(audio/.*)$",
+      "dest": "/frontend/dist/$1"
+    },
+    {
+      "src": "^/(favicon\\.svg|manifest\\.webmanifest|sw\\.js|robots\\.txt|avatar\\.jpg|profile\\.jpg)$",
+      "dest": "/frontend/dist/$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "/frontend/dist/index.html"
     }
