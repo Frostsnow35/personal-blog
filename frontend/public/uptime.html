@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>博客运行时间</title>
+<style>
+/* ============================================================
+   全局重置与基础设定
+   ============================================================ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { background: #0a0a2e; }
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
+  overflow: hidden;
+  position: relative;
+  /* 底层：梵高《星月夜》油画 + 深蓝紫色径向渐变蒙层 */
+  background:
+    radial-gradient(ellipse at 50% 35%, rgba(20, 15, 60, 0.25) 0%, rgba(10, 5, 35, 0.7) 65%, rgba(3, 2, 15, 0.92) 100%),
+    url('https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1920px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg') center/cover no-repeat fixed;
+}
+
+/* 亚麻油画布噪点纹理 —— 叠加于背景之上，模拟画布肌理 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.07'/%3E%3C/svg%3E");
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ============================================================
+   内容层 —— 所有文字纯悬浮于背景之上，无任何容器包装
+   ============================================================ */
+.content {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 主标题 */
+.timer-title {
+  font-size: clamp(1.6rem, 4.5vw, 3rem);
+  font-weight: bold;
+  color: #E8C97A;
+  letter-spacing: 0.18em;
+  text-shadow:
+    0 0 30px rgba(232, 201, 122, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.6);
+  margin-bottom: 0.5rem;
+}
+
+/* 副标题 */
+.timer-subtitle {
+  font-size: clamp(0.8rem, 1.8vw, 1.15rem);
+  color: #B8A88A;
+  font-weight: 300;
+  letter-spacing: 0.14em;
+  margin-bottom: 2.8rem;
+}
+
+/* 计时器横排容器 */
+.timer-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(1px, 0.8vw, 6px);
+  margin-bottom: 0.2rem;
+}
+
+/* 每个数字 + 标签的竖向单元格 */
+.timer-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: clamp(2.8rem, 8vw, 5.5rem);
+}
+
+/* 计时器数字 —— 明黄色等宽字体 */
+.timer-num {
+  font-family: 'Courier New', 'Consolas', 'Menlo', 'Source Code Pro', monospace;
+  font-size: clamp(2.2rem, 7vw, 5.5rem);
+  font-weight: bold;
+  color: #FFD54F;
+  line-height: 1.1;
+  text-shadow: 0 0 15px rgba(255, 213, 79, 0.25);
+  letter-spacing: 0.04em;
+}
+
+/* 冒号分隔符 */
+.timer-colon {
+  font-family: 'Courier New', 'Consolas', 'Menlo', monospace;
+  font-size: clamp(1.8rem, 6vw, 4.5rem);
+  color: #E8C97A;
+  padding-bottom: clamp(1rem, 2.5vw, 1.8rem);
+  text-shadow: 0 0 8px rgba(232, 201, 122, 0.15);
+  user-select: none;
+}
+
+/* 单位标签（年 月 天 时 分 秒） */
+.timer-label {
+  font-size: clamp(0.65rem, 1.5vw, 0.95rem);
+  color: #9B8E7A;
+  margin-top: 0.15rem;
+  letter-spacing: 0.1em;
+}
+
+/* 起始日期说明 */
+.start-note {
+  font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+  color: #8B7D6B;
+  margin-top: 2.8rem;
+  letter-spacing: 0.08em;
+}
+
+/* 底部名言 */
+.footer-quote {
+  font-size: clamp(0.7rem, 1.5vw, 0.85rem);
+  color: #7A6E5A;
+  position: fixed;
+  bottom: clamp(1.5rem, 3vh, 2.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  letter-spacing: 0.1em;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   星光呼吸闪烁动效 —— 极微弱，匹配梵高画作星光分布
+   ============================================================ */
+.star-dot {
+  position: fixed;
+  border-radius: 50%;
+  background: #FFD54F;
+  pointer-events: none;
+  z-index: 2;
+  animation: star-breathe var(--dur) ease-in-out infinite;
+  animation-delay: var(--delay);
+  opacity: 0;
+  box-shadow: 0 0 calc(var(--size) * 2px) rgba(255, 213, 79, 0.4);
+}
+
+@keyframes star-breathe {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.35); }
+}
+
+/* ============================================================
+   移动端微调
+   ============================================================ */
+@media (max-width: 480px) {
+  .timer-unit { min-width: 2.4rem; }
+  .timer-row { gap: 0; }
+  .timer-colon { font-size: clamp(1.4rem, 5vw, 2.5rem); }
+}
+</style>
+</head>
+<body>
+
+<!-- 内容层 -->
+<div class="content">
+  <div class="timer-title">博客运行时间</div>
+  <div class="timer-subtitle">记录博客运行的每一刻</div>
+  <div class="timer-row" id="timerDisplay">
+    <!-- JS 动态渲染计时器数字 -->
+  </div>
+  <div class="start-note" id="startNote"></div>
+</div>
+
+<div class="footer-quote">即使身处阴沟，也别忘了仰望星空</div>
+
+<script>
+// ============================================================
+// ★ 起始日期配置 —— 修改此处即可自定义计时起点
+// ============================================================
+var START_DATE = '2024-01-01';
+
+// ============================================================
+// 日期差值计算 —— 正确处理大小月、闰年
+// 算法：从起始日开始，逐次累加年份、月份，剩余部分直接计算天/时/分/秒
+// ============================================================
+function calcUptime(startDateStr) {
+  var now = new Date();
+  var start = new Date(startDateStr + 'T00:00:00');
+  var cursor = new Date(start);
+  var years = 0;
+  var months = 0;
+
+  // 累加年份
+  while (true) {
+    var nextYear = new Date(cursor);
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    if (nextYear > now) break;
+    years++;
+    cursor = nextYear;
+  }
+
+  // 累加月份（处理大小月溢出：如 1-31 → 2 月调整）
+  while (true) {
+    var nextMonth = new Date(cursor);
+    var prevDay = nextMonth.getDate();
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    // 日期溢出时回退到目标月最后一天
+    if (nextMonth.getDate() !== prevDay) {
+      nextMonth.setDate(0);
+    }
+    if (nextMonth > now) break;
+    months++;
+    cursor = nextMonth;
+  }
+
+  // 剩余差值：天、时、分、秒
+  var diffMs = now - cursor;
+  var days    = Math.floor(diffMs / 86400000);
+  var hours   = Math.floor((diffMs % 86400000) / 3600000);
+  var minutes = Math.floor((diffMs % 3600000) / 60000);
+  var seconds = Math.floor((diffMs % 60000) / 1000);
+
+  return { years: years, months: months, days: days, hours: hours, minutes: minutes, seconds: seconds };
+}
+
+// ============================================================
+// 补零显示
+// ============================================================
+function pad(n) {
+  return String(n).padStart(2, '0');
+}
+
+// ============================================================
+// 单位定义
+// ============================================================
+var units = [
+  { key: 'years',   label: '年' },
+  { key: 'months',  label: '月' },
+  { key: 'days',    label: '天' },
+  { key: 'hours',   label: '时' },
+  { key: 'minutes', label: '分' },
+  { key: 'seconds', label: '秒' }
+];
+
+// ============================================================
+// 渲染计时器
+// ============================================================
+var timerDisplay = document.getElementById('timerDisplay');
+var startNote = document.getElementById('startNote');
+
+// 起始说明
+var startDateObj = new Date(START_DATE + 'T00:00:00');
+startNote.textContent =
+  '自 ' + startDateObj.getFullYear() +
+  ' 年 ' + pad(startDateObj.getMonth() + 1) +
+  ' 月 ' + pad(startDateObj.getDate()) +
+  ' 日起';
+
+function renderTimer() {
+  var t = calcUptime(START_DATE);
+  var values = [t.years, t.months, t.days, t.hours, t.minutes, t.seconds];
+  var html = '';
+  for (var i = 0; i < values.length; i++) {
+    html += '<div class="timer-unit">' +
+      '<span class="timer-num">' + pad(values[i]) + '</span>' +
+      '<span class="timer-label">' + units[i].label + '</span>' +
+    '</div>';
+    if (i < values.length - 1) {
+      html += '<span class="timer-colon">:</span>';
+    }
+  }
+  timerDisplay.innerHTML = html;
+}
+
+// 首帧渲染，之后每秒刷新
+renderTimer();
+setInterval(renderTimer, 1000);
+
+// ============================================================
+// 星光点缀 —— 位置匹配《星月夜》画作中星光与村庄灯火分布
+// ============================================================
+(function createStars() {
+  var positions = [
+    { left: 15, top: 18, size: 3, dur: 3.5, delay: 0   },
+    { left: 22, top: 28, size: 2, dur: 4.2, delay: 1.2 },
+    { left: 68, top: 12, size: 4, dur: 3.0, delay: 0.5 },
+    { left: 75, top: 22, size: 2.5, dur: 3.8, delay: 2.0 },
+    { left: 82, top: 35, size: 3, dur: 4.5, delay: 0.8 },
+    { left: 58, top: 15, size: 2, dur: 3.2, delay: 1.5 },
+    { left: 35, top: 10, size: 2.5, dur: 3.6, delay: 2.5 },
+    { left: 48, top: 32, size: 1.5, dur: 4.0, delay: 0.3 },
+  ];
+
+  for (var i = 0; i < positions.length; i++) {
+    var s = positions[i];
+    var el = document.createElement('div');
+    el.className = 'star-dot';
+    el.style.cssText =
+      'left:' + s.left + '%;' +
+      'top:' + s.top + '%;' +
+      'width:' + s.size + 'px;' +
+      'height:' + s.size + 'px;' +
+      '--dur:' + s.dur + 's;' +
+      '--delay:' + s.delay + 's;' +
+      '--size:' + s.size + ';';
+    document.body.appendChild(el);
+  }
+})();
+</script>
+</body>
+</html>

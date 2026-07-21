@@ -45,6 +45,10 @@
       "dest": "/frontend/dist/profile.jpg"
     },
     {
+      "src": "/uptime",
+      "dest": "/frontend/dist/uptime.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/frontend/dist/index.html"
     }
