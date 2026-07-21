@@ -1,4 +1,4 @@
-const CACHE_NAME = 'blog-cache-v1'
+const CACHE_NAME = 'blog-cache-v2'
 const ASSETS = [
   '/',
   '/index.html',
@@ -6,6 +6,9 @@ const ASSETS = [
   '/profile.jpg',
   '/audio/music/eikyuu%20hours.mp3'
 ]
+
+// 不走 SW 缓存的路径 —— 独立页面或 Vercel 直接托管的资源
+const BYPASS_PATHS = ['/uptime']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -26,9 +29,10 @@ self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
   
-  // 跳过 API 和外部域名
+  // 跳过 API、外部域名、以及独立页面路径
   if (url.pathname.startsWith('/api/') || 
-      url.hostname !== self.location.hostname) {
+      url.hostname !== self.location.hostname ||
+      BYPASS_PATHS.some(function(p) { return url.pathname === p || url.pathname.startsWith(p) })) {
     return
   }
   
