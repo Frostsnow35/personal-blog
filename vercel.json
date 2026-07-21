@@ -9,20 +9,40 @@
       "dest": "/api/index.py"
     },
     {
-      "src": "^/(js/.*)$",
-      "dest": "/frontend/dist/$1"
+      "src": "/js/(.*)",
+      "dest": "/frontend/dist/js/$1"
     },
     {
-      "src": "^/(assets/.*)$",
-      "dest": "/frontend/dist/$1"
+      "src": "/assets/(.*)",
+      "dest": "/frontend/dist/assets/$1"
     },
     {
-      "src": "^/(audio/.*)$",
-      "dest": "/frontend/dist/$1"
+      "src": "/audio/(.*)",
+      "dest": "/frontend/dist/audio/$1"
     },
     {
-      "src": "^/(favicon\\.svg|manifest\\.webmanifest|sw\\.js|robots\\.txt|avatar\\.jpg|profile\\.jpg)$",
-      "dest": "/frontend/dist/$1"
+      "src": "/sw\\.js",
+      "dest": "/frontend/dist/sw.js"
+    },
+    {
+      "src": "/favicon\\.svg",
+      "dest": "/frontend/dist/favicon.svg"
+    },
+    {
+      "src": "/manifest\\.webmanifest",
+      "dest": "/frontend/dist/manifest.webmanifest"
+    },
+    {
+      "src": "/robots\\.txt",
+      "dest": "/frontend/dist/robots.txt"
+    },
+    {
+      "src": "/avatar\\.jpg",
+      "dest": "/frontend/dist/avatar.jpg"
+    },
+    {
+      "src": "/profile\\.jpg",
+      "dest": "/frontend/dist/profile.jpg"
     },
     {
       "src": "/(.*)",

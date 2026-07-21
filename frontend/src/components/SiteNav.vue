@@ -41,18 +41,18 @@
               >
                 <div class="pt-2">
                   <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
-                    <router-link
-                      to="/treasure"
+                    <a
+                      href="/treasure"
                       class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                      @click="closeAll"
-                    >📦 百宝箱首页</router-link>
-                    <router-link
+                      @click.prevent="navigateTo('/treasure')"
+                    >📦 百宝箱首页</a>
+                    <a
                       v-for="item in treasureItems"
                       :key="item.path"
-                      :to="item.path"
+                      :href="item.path"
                       class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                      @click="closeAll"
-                    >{{ item.label }}</router-link>
+                      @click.prevent="navigateTo(item.path)"
+                    >{{ item.label }}</a>
                   </div>
                 </div>
               </div>
@@ -82,37 +82,37 @@
               >
                 <div class="pt-2">
                   <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
-                    <router-link
-                      to="/admin/dashboard"
+                    <a
+                      href="/admin/dashboard"
                       class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                      @click="closeAll"
-                    >📊 数据统计</router-link>
-                    <router-link
-                      to="/admin/posts"
+                      @click.prevent="navigateTo('/admin/dashboard')"
+                    >📊 数据统计</a>
+                    <a
+                      href="/admin/posts"
                       class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                      @click="closeAll"
-                    >📝 文章管理</router-link>
-                    <router-link
-                      to="/admin/posts/new"
+                      @click.prevent="navigateTo('/admin/posts')"
+                    >📝 文章管理</a>
+                    <a
+                      href="/admin/posts/new"
                       class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                      @click="closeAll"
-                    >➕ 新建文章</router-link>
-                    <router-link
-                      to="/admin/guestbook"
+                      @click.prevent="navigateTo('/admin/posts/new')"
+                    >➕ 新建文章</a>
+                    <a
+                      href="/admin/guestbook"
                       class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                      @click="closeAll"
-                    >💌 留言管理</router-link>
-                    <router-link
-                      to="/admin/albums"
+                      @click.prevent="navigateTo('/admin/guestbook')"
+                    >💌 留言管理</a>
+                    <a
+                      href="/admin/albums"
                       class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                      @click="closeAll"
-                    >🖼 相册管理</router-link>
+                      @click.prevent="navigateTo('/admin/albums')"
+                    >🖼 相册管理</a>
                     <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-                    <router-link
-                      to="/admin/security"
+                    <a
+                      href="/admin/security"
                       class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-ocean-50 dark:hover:bg-gray-700 hover:text-ocean-600"
-                      @click="closeAll"
-                    >🛡️ 安全管理</router-link>
+                      @click.prevent="navigateTo('/admin/security')"
+                    >🛡️ 安全管理</a>
                   </div>
                 </div>
               </div>
@@ -165,10 +165,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const navRef = ref<HTMLElement | null>(null)
 const mobileOpen = ref(false)
@@ -179,6 +180,11 @@ const closeAll = () => {
   treasureOpen.value = false
   adminOpen.value = false
   mobileOpen.value = false
+}
+
+const navigateTo = (path: string) => {
+  closeAll()
+  router.push(path)
 }
 
 const toggleTreasure = () => {
