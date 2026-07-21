@@ -1,3 +1,4 @@
+backend/
 functions/
 sql/
 wrangler.toml
