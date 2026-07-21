@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>博客运行时间</title>
+<style>
+/* ============================================================
+   全局重置
+   ============================================================ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
+  background: #060618;
+}
+
+/* 全屏 Canvas 背景层 */
+#starryCanvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: block;
+}
+
+/* 内容层 —— 悬浮于 Canvas 之上 */
+.content {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* 主标题 */
+.timer-title {
+  font-size: clamp(1.6rem, 4.5vw, 3rem);
+  font-weight: bold;
+  color: #E8C97A;
+  letter-spacing: 0.18em;
+  text-shadow:
+    0 0 40px rgba(232, 201, 122, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.7);
+  margin-bottom: 0.5rem;
+}
+
+/* 副标题 */
+.timer-subtitle {
+  font-size: clamp(0.8rem, 1.8vw, 1.15rem);
+  color: #B8A88A;
+  font-weight: 300;
+  letter-spacing: 0.14em;
+  margin-bottom: 2.8rem;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
+
+/* 计时器横排容器 */
+.timer-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(1px, 0.8vw, 6px);
+  margin-bottom: 0.2rem;
+}
+
+.timer-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: clamp(2.8rem, 8vw, 5.5rem);
+}
+
+.timer-num {
+  font-family: 'Courier New', 'Consolas', 'Menlo', 'Source Code Pro', monospace;
+  font-size: clamp(2.2rem, 7vw, 5.5rem);
+  font-weight: bold;
+  color: #FFD54F;
+  line-height: 1.1;
+  text-shadow: 0 0 20px rgba(255, 213, 79, 0.35), 0 2px 6px rgba(0,0,0,0.7);
+  letter-spacing: 0.04em;
+}
+
+.timer-colon {
+  font-family: 'Courier New', 'Consolas', 'Menlo', monospace;
+  font-size: clamp(1.8rem, 6vw, 4.5rem);
+  color: #E8C97A;
+  padding-bottom: clamp(1rem, 2.5vw, 1.8rem);
+  text-shadow: 0 0 10px rgba(232, 201, 122, 0.2);
+  user-select: none;
+}
+
+.timer-label {
+  font-size: clamp(0.65rem, 1.5vw, 0.95rem);
+  color: #9B8E7A;
+  margin-top: 0.15rem;
+  letter-spacing: 0.1em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.start-note {
+  font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+  color: #8B7D6B;
+  margin-top: 2.8rem;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.footer-quote {
+  font-size: clamp(0.7rem, 1.5vw, 0.85rem);
+  color: #7A6E5A;
+  position: fixed;
+  bottom: clamp(1.5rem, 3vh, 2.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  letter-spacing: 0.1em;
+  font-style: italic;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  pointer-events: none;
+}
+
+@media (max-width: 480px) {
+  .timer-unit { min-width: 2.4rem; }
+  .timer-row { gap: 0; }
+  .timer-colon { font-size: clamp(1.4rem, 5vw, 2.5rem); }
+}
+</style>
+</head>
+<body>
+
+<canvas id="starryCanvas"></canvas>
+
+<div class="content">
+  <div class="timer-title">博客运行时间</div>
+  <div class="timer-subtitle">记录博客运行的每一刻</div>
+  <div class="timer-row" id="timerDisplay"></div>
+  <div class="start-note" id="startNote"></div>
+</div>
+
+<div class="footer-quote">即使身处阴沟，也别忘了仰望星空</div>
+
+<script>
+// ============================================================
+// ★ 起始日期配置
+// ============================================================
+var START_DATE = '2024-01-01';
+
+// ============================================================
+// Canvas 梵高《星月夜》动态星空
+// ============================================================
+(function () {
+  var canvas = document.getElementById('starryCanvas');
+  var ctx = canvas.getContext('2d');
+  var W, H;
+  var time = 0;
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---- 工具函数 ----
+  function hsl(h, s, l, a) {
+    return 'hsla(' + h + ',' + s + '%,' + l + '%,' + (a || 1) + ')';
+  }
+
+  // ---- 星空渐变背景 ----
+  function drawSky() {
+    var grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#050520');
+    grad.addColorStop(0.25, '#0a1240');
+    grad.addColorStop(0.5, '#0e1a50');
+    grad.addColorStop(0.7, '#162060');
+    grad.addColorStop(0.85, '#1a2855');
+    grad.addColorStop(1, '#0d1530');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // ---- 漩涡星云（多条螺旋路径叠加，模拟梵高旋转笔触） ----
+  function drawSwirls(t) {
+    var centers = [
+      { x: W * 0.55, y: H * 0.38, scale: 1, speed: 0.0004 },
+      { x: W * 0.7, y: H * 0.25, scale: 0.6, speed: 0.0006 },
+      { x: W * 0.4, y: H * 0.2, scale: 0.5, speed: 0.0005 },
+      { x: W * 0.65, y: H * 0.45, scale: 0.7, speed: 0.00035 },
+    ];
+
+    for (var c = 0; c < centers.length; c++) {
+      var cx = centers[c].x;
+      var cy = centers[c].y;
+      var sc = centers[c].scale;
+      var sp = centers[c].speed;
+
+      // 多层描边，从粗到细，从深蓝到亮黄白
+      var layers = [
+        { r0: 40 * sc, r1: 130 * sc, pts: 300, w: 30, color: 'rgba(80,140,210,0.06)', freq: 4, amp: 25 },
+        { r0: 30 * sc, r1: 120 * sc, pts: 280, w: 20, color: 'rgba(120,180,230,0.05)', freq: 5, amp: 20 },
+        { r0: 20 * sc, r1: 100 * sc, pts: 250, w: 12, color: 'rgba(200,210,230,0.06)', freq: 6, amp: 18 },
+        { r0: 15 * sc, r1: 80 * sc, pts: 200, w: 6, color: 'rgba(240,230,200,0.05)', freq: 7, amp: 12 },
+      ];
+
+      for (var l = 0; l < layers.length; l++) {
+        var ly = layers[l];
+        ctx.beginPath();
+        var totalAngle = Math.PI * 2 * 3;
+        for (var i = 0; i < ly.pts; i++) {
+          var frac = i / ly.pts;
+          var angle = frac * totalAngle;
+          var r = ly.r0 + (ly.r1 - ly.r0) * frac;
+          var perturb = Math.sin(angle * ly.freq + t * sp) * ly.amp;
+          var rr = r + perturb;
+          var x = cx + Math.cos(angle) * rr;
+          var y = cy + Math.sin(angle) * rr * 0.7;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = ly.color;
+        ctx.lineWidth = ly.w * (W / 1200);
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+    }
+
+    // 额外短笔触 —— 模拟梵高画中的短线条
+    var shortStrokes = [
+      { x: W * 0.5, y: H * 0.2, count: 40, w: 1.5, len: 30, color: 'rgba(255,220,150,0.08)', angle: -0.3 },
+      { x: W * 0.65, y: H * 0.32, count: 50, w: 1, len: 20, color: 'rgba(200,200,255,0.06)', angle: 0.5 },
+      { x: W * 0.45, y: H * 0.28, count: 35, w: 1.2, len: 22, color: 'rgba(180,200,240,0.07)', angle: -0.6 },
+    ];
+
+    for (var s = 0; s < shortStrokes.length; s++) {
+      var ss = shortStrokes[s];
+      ctx.strokeStyle = ss.color;
+      ctx.lineWidth = ss.w * (W / 1200);
+      ctx.lineCap = 'round';
+      for (var i = 0; i < ss.count; i++) {
+        var bx = ss.x + (Math.random() - 0.5) * 100 * (W / 1200);
+        var by = ss.y + (Math.random() - 0.5) * 60 * (W / 1200);
+        var ang = ss.angle + Math.sin(i * 0.5 + t * 0.002) * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx + Math.cos(ang) * ss.len * (W / 1200), by + Math.sin(ang) * ss.len * (W / 1200));
+        ctx.stroke();
+      }
+    }
+  }
+
+  // ---- 星光（带光晕的闪烁星点） ----
+  var stars = [];
+  function initStars() {
+    stars = [
+      { x: 0.15, y: 0.15, r: 4,  phase: 0,   speed: 0.02 },
+      { x: 0.22, y: 0.25, r: 3,  phase: 1.2, speed: 0.018 },
+      { x: 0.3,  y: 0.1,  r: 2.5,phase: 2.5, speed: 0.022 },
+      { x: 0.42, y: 0.18, r: 3.5,phase: 0.8, speed: 0.015 },
+      { x: 0.55, y: 0.12, r: 5,  phase: 3.0, speed: 0.02 },
+      { x: 0.68, y: 0.08, r: 4.5,phase: 1.5, speed: 0.017 },
+      { x: 0.75, y: 0.2,  r: 3,  phase: 0.3, speed: 0.025 },
+      { x: 0.82, y: 0.3,  r: 2.5,phase: 2.1, speed: 0.019 },
+      { x: 0.6,  y: 0.25, r: 2,  phase: 1.8, speed: 0.023 },
+      { x: 0.35, y: 0.3,  r: 3.2,phase: 0.6, speed: 0.016 },
+      { x: 0.48, y: 0.35, r: 2,  phase: 2.8, speed: 0.021 },
+    ];
+  }
+  initStars();
+
+  function drawStars(t) {
+    for (var i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      var sx = s.x * W;
+      var sy = s.y * H;
+      var twinkle = 0.6 + 0.4 * Math.sin(t * s.speed + s.phase);
+      var alpha = 0.5 + twinkle * 0.5;
+      var r = s.r * (W / 1200);
+
+      // 最外层光晕（大，浅）
+      var g1 = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 8);
+      g1.addColorStop(0, 'rgba(255,240,200,' + (alpha * 0.12) + ')');
+      g1.addColorStop(0.4, 'rgba(255,220,150,' + (alpha * 0.06) + ')');
+      g1.addColorStop(1, 'rgba(255,200,100,0)');
+      ctx.fillStyle = g1;
+      ctx.fillRect(sx - r * 8, sy - r * 8, r * 16, r * 16);
+
+      // 中层光晕
+      var g2 = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 4);
+      g2.addColorStop(0, 'rgba(255,250,230,' + (alpha * 0.3) + ')');
+      g2.addColorStop(0.5, 'rgba(255,230,180,' + (alpha * 0.15) + ')');
+      g2.addColorStop(1, 'rgba(255,200,100,0)');
+      ctx.fillStyle = g2;
+      ctx.fillRect(sx - r * 4, sy - r * 4, r * 8, r * 8);
+
+      // 内层光晕
+      var g3 = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 2);
+      g3.addColorStop(0, 'rgba(255,255,255,' + alpha + ')');
+      g3.addColorStop(0.3, 'rgba(255,250,200,' + (alpha * 0.8) + ')');
+      g3.addColorStop(1, 'rgba(255,200,100,0)');
+      ctx.fillStyle = g3;
+      ctx.fillRect(sx - r * 2, sy - r * 2, r * 4, r * 4);
+
+      // 核心亮点
+      ctx.fillStyle = 'rgba(255,255,240,' + (alpha * 0.9) + ')';
+      ctx.beginPath();
+      ctx.arc(sx, sy, r * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ---- 弯月（右上区域） ----
+  function drawMoon(t) {
+    var mx = W * 0.78;
+    var my = H * 0.13;
+    var mr = 38 * (W / 1200);
+    var glowAlpha = 0.5 + 0.1 * Math.sin(t * 0.01);
+
+    // 外层大光晕
+    var g1 = ctx.createRadialGradient(mx, my, mr * 0.3, mx, my, mr * 2.5);
+    g1.addColorStop(0, 'rgba(255,240,200,' + (glowAlpha * 0.25) + ')');
+    g1.addColorStop(0.5, 'rgba(255,220,150,' + (glowAlpha * 0.1) + ')');
+    g1.addColorStop(1, 'rgba(255,180,80,0)');
+    ctx.fillStyle = g1;
+    ctx.beginPath();
+    ctx.arc(mx, my, mr * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 月亮本体（通过两个圆叠加形成弯月效果）
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(mx, my, mr, 0, Math.PI * 2);
+    ctx.clip();
+    // 偏移的暗色圆制造月牙
+    ctx.fillStyle = 'rgba(255,235,180,0.95)';
+    ctx.fillRect(mx - mr, my - mr, mr * 2, mr * 2);
+    ctx.fillStyle = 'rgba(10,15,40,0.85)';
+    ctx.beginPath();
+    ctx.arc(mx + mr * 0.25, my - mr * 0.1, mr * 0.85, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 月亮边缘光晕
+    var g2 = ctx.createRadialGradient(mx, my, mr * 0.7, mx, my, mr * 1.5);
+    g2.addColorStop(0, 'rgba(255,240,200,0)');
+    g2.addColorStop(0.5, 'rgba(255,230,160,' + (glowAlpha * 0.2) + ')');
+    g2.addColorStop(1, 'rgba(255,200,100,0)');
+    ctx.fillStyle = g2;
+    ctx.beginPath();
+    ctx.arc(mx, my, mr * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ---- 柏树（左侧深色剪影） ----
+  function drawCypress() {
+    var cx = W * 0.08;
+    var baseY = H * 0.88;
+    var topY = H * 0.05;
+    var maxW = 55 * (W / 1200);
+
+    // 深绿色火焰形柏树
+    ctx.save();
+    // 主体
+    var grad = ctx.createLinearGradient(cx, topY, cx, baseY);
+    grad.addColorStop(0, '#0a1a08');
+    grad.addColorStop(0.5, '#0d2008');
+    grad.addColorStop(1, '#061005');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(cx, topY);
+    // 右侧轮廓 —— 火焰形波浪
+    var segments = 15;
+    for (var i = 0; i <= segments; i++) {
+      var t = i / segments;
+      var y = topY + (baseY - topY) * t;
+      var waveW = maxW * (1 - t * 0.6) * (0.6 + 0.4 * Math.sin(t * 8));
+      ctx.lineTo(cx + waveW, y);
+    }
+    // 底部
+    ctx.lineTo(cx + maxW * 0.4, baseY);
+    ctx.lineTo(cx - maxW * 0.15, baseY);
+    // 左侧轮廓
+    for (var i = segments; i >= 0; i--) {
+      var t2 = i / segments;
+      var y2 = topY + (baseY - topY) * t2;
+      var waveW2 = maxW * 0.3 * (1 - t2 * 0.5) * (0.6 + 0.4 * Math.sin(t2 * 7 + 1));
+      ctx.lineTo(cx - waveW2, y2);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // 笔触纹理 —— 细小竖线
+    ctx.strokeStyle = 'rgba(20,40,15,0.3)';
+    ctx.lineWidth = 1;
+    for (var i = 0; i < 25; i++) {
+      var bx = cx - maxW * 0.1 + Math.random() * maxW * 0.5;
+      var by = topY + Math.random() * (baseY - topY);
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx + (Math.random() - 0.5) * 8, by + 8 + Math.random() * 12);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ---- 村庄剪影（底部） ----
+  function drawVillage(t) {
+    var vY = H * 0.78;
+
+    // 起伏的山丘
+    ctx.fillStyle = '#0d1d30';
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    for (var x = 0; x <= W; x += 20) {
+      var hillY = vY + Math.sin(x * 0.003) * 25 + Math.sin(x * 0.007) * 15;
+      ctx.lineTo(x, hillY);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+
+    // 第二层山丘（稍亮）
+    ctx.fillStyle = '#13253d';
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    for (var x2 = 0; x2 <= W; x2 += 20) {
+      var hillY2 = vY + 10 + Math.sin(x2 * 0.005 + 1) * 20 + Math.sin(x2 * 0.009 + 2) * 10;
+      ctx.lineTo(x2, hillY2);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+
+    // 教堂尖塔
+    var churchX = W * 0.52;
+    ctx.fillStyle = '#0a1628';
+    ctx.beginPath();
+    ctx.moveTo(churchX - 6, vY + 15);
+    ctx.lineTo(churchX, vY - 45);
+    ctx.lineTo(churchX + 6, vY + 15);
+    ctx.closePath();
+    ctx.fill();
+    // 教堂主体
+    ctx.fillRect(churchX - 8, vY + 15, 16, 25);
+
+    // 村庄房屋剪影
+    var houses = [
+      { x: W * 0.3, w: 30, h: 18 },
+      { x: W * 0.35, w: 25, h: 22 },
+      { x: W * 0.4, w: 35, h: 15 },
+      { x: W * 0.45, w: 28, h: 20 },
+      { x: W * 0.58, w: 32, h: 18 },
+      { x: W * 0.62, w: 22, h: 24 },
+      { x: W * 0.67, w: 35, h: 16 },
+      { x: W * 0.72, w: 28, h: 20 },
+    ];
+
+    ctx.fillStyle = '#0a1628';
+    for (var i = 0; i < houses.length; i++) {
+      var h = houses[i];
+      var hx = h.x * (W / 1200 * 1200 / W); // adjust for actual W
+      // Actually, use percentages
+      var px = h.x; // percentage-based x
+      if (typeof h.x === 'number' && h.x < 1) {
+        // already percentage
+      }
+      ctx.fillRect(px, vY + 10, h.w * (W / 1200), h.h * (W / 1200));
+    }
+
+    // 村庄灯火（暖黄色小点）
+    var lights = [
+      { x: W * 0.31, y: vY + 12 },
+      { x: W * 0.36, y: vY + 10 },
+      { x: W * 0.41, y: vY + 13 },
+      { x: W * 0.46, y: vY + 11 },
+      { x: W * 0.59, y: vY + 12 },
+      { x: W * 0.63, y: vY + 10 },
+      { x: W * 0.68, y: vY + 13 },
+      { x: W * 0.73, y: vY + 11 },
+      { x: W * 0.33, y: vY + 18 },
+      { x: W * 0.43, y: vY + 17 },
+      { x: W * 0.6, y: vY + 16 },
+    ];
+
+    for (var i = 0; i < lights.length; i++) {
+      var lt = lights[i];
+      var twinkle = 0.7 + 0.3 * Math.sin(t * 0.03 + i * 1.7);
+      ctx.fillStyle = 'rgba(255,210,120,' + twinkle + ')';
+      ctx.beginPath();
+      ctx.arc(lt.x, lt.y, 2.5 * (W / 1200), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ---- 动画循环 ----
+  function animate() {
+    time++;
+    ctx.clearRect(0, 0, W, H);
+    drawSky();
+    drawSwirls(time);
+    drawStars(time);
+    drawMoon(time);
+    drawCypress();
+    drawVillage(time);
+    requestAnimationFrame(animate);
+  }
+
+  resize();
+  animate();
+  window.addEventListener('resize', function () {
+    resize();
+    initStars(); // 重新计算星星位置百分比
+  });
+})();
+
+// ============================================================
+// 计时器逻辑
+// ============================================================
+function calcUptime(startDateStr) {
+  var now = new Date();
+  var start = new Date(startDateStr + 'T00:00:00');
+  var cursor = new Date(start);
+  var years = 0, months = 0;
+
+  while (true) {
+    var nextYear = new Date(cursor);
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    if (nextYear > now) break;
+    years++;
+    cursor = nextYear;
+  }
+
+  while (true) {
+    var nextMonth = new Date(cursor);
+    var prevDay = nextMonth.getDate();
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    if (nextMonth.getDate() !== prevDay) nextMonth.setDate(0);
+    if (nextMonth > now) break;
+    months++;
+    cursor = nextMonth;
+  }
+
+  var diffMs = now - cursor;
+  var days = Math.floor(diffMs / 86400000);
+  var hours = Math.floor((diffMs % 86400000) / 3600000);
+  var minutes = Math.floor((diffMs % 3600000) / 60000);
+  var seconds = Math.floor((diffMs % 60000) / 1000);
+
+  return { years: years, months: months, days: days, hours: hours, minutes: minutes, seconds: seconds };
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+var units = [
+  { key: 'years', label: '年' },
+  { key: 'months', label: '月' },
+  { key: 'days', label: '天' },
+  { key: 'hours', label: '时' },
+  { key: 'minutes', label: '分' },
+  { key: 'seconds', label: '秒' }
+];
+
+var timerDisplay = document.getElementById('timerDisplay');
+var startNote = document.getElementById('startNote');
+
+var startDateObj = new Date(START_DATE + 'T00:00:00');
+startNote.textContent =
+  '自 ' + startDateObj.getFullYear() +
+  ' 年 ' + pad(startDateObj.getMonth() + 1) +
+  ' 月 ' + pad(startDateObj.getDate()) +
+  ' 日起';
+
+function renderTimer() {
+  var t = calcUptime(START_DATE);
+  var values = [t.years, t.months, t.days, t.hours, t.minutes, t.seconds];
+  var html = '';
+  for (var i = 0; i < values.length; i++) {
+    html += '<div class="timer-unit">' +
+      '<span class="timer-num">' + pad(values[i]) + '</span>' +
+      '<span class="timer-label">' + units[i].label + '</span>' +
+    '</div>';
+    if (i < values.length - 1) {
+      html += '<span class="timer-colon">:</span>';
+    }
+  }
+  timerDisplay.innerHTML = html;
+}
+
+renderTimer();
+setInterval(renderTimer, 1000);
+</script>
+</body>
+</html>

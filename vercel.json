@@ -46,7 +46,7 @@
     },
     {
       "src": "/uptime",
-      "dest": "/frontend/dist/uptime.html"
+      "dest": "/uptime.html"
     },
     {
       "src": "/(.*)",
