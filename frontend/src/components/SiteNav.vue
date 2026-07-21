@@ -184,11 +184,6 @@ const closeAll = () => {
 
 const navigateTo = (path: string) => {
   closeAll()
-  // /uptime 是独立 HTML 页面，不是 Vue 路由，需要完整页面跳转
-  if (path === '/uptime') {
-    window.location.href = path
-    return
-  }
   router.push(path)
 }
 

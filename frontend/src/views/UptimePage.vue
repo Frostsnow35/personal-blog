@@ -1,705 +1,434 @@
 <template>
-  <div class="starry-night-page">
-    <!-- 梵高星月夜油画 Canvas 背景 -->
-    <canvas ref="canvasRef" class="oil-canvas"></canvas>
-
-    <!-- 低端设备降级背景 -->
-    <div v-if="isLowEnd" class="fallback-bg"></div>
-
-    <!-- 星光层（Canvas 之上，增强呼吸感） -->
-    <div class="stars-layer">
-      <div
-        v-for="star in stars"
-        :key="star.id"
-        class="star-dot"
-        :style="{
-          left: star.left + '%',
-          top: star.top + '%',
-          width: star.size + 'px',
-          height: star.size + 'px',
-          animationDelay: star.delay + 's',
-          animationDuration: star.duration + 's'
-        }"
-      ></div>
+  <div class="uptime-page">
+    <canvas ref="canvasRef" class="starry-canvas"></canvas>
+    <div class="content">
+      <div class="timer-title">博客运行时间</div>
+      <div class="timer-subtitle">记录博客运行的每一刻</div>
+      <div class="timer-row" v-html="timerHtml"></div>
+      <div class="start-note">{{ startNote }}</div>
     </div>
-
-    <!-- 导航栏（保留，透明融合） -->
-    <SiteNav class="starry-nav" />
-
-    <!-- 主内容 -->
-    <div class="content-layer">
-      <!-- 主标题 -->
-      <header class="title-block">
-        <h1 class="main-title">博客运行时间</h1>
-        <p class="subtitle">记录博客运行的每一刻</p>
-      </header>
-
-      <!-- 计时器 -->
-      <div class="timer-block">
-        <div class="timer-row">
-          <div class="time-unit">
-            <span class="time-value">{{ displayYears }}</span>
-            <span class="time-label">年</span>
-          </div>
-          <span class="separator">:</span>
-          <div class="time-unit">
-            <span class="time-value">{{ displayMonths }}</span>
-            <span class="time-label">月</span>
-          </div>
-          <span class="separator">:</span>
-          <div class="time-unit">
-            <span class="time-value">{{ displayDays }}</span>
-            <span class="time-label">天</span>
-          </div>
-          <span class="separator">:</span>
-          <div class="time-unit">
-            <span class="time-value">{{ displayHours }}</span>
-            <span class="time-label">时</span>
-          </div>
-          <span class="separator">:</span>
-          <div class="time-unit">
-            <span class="time-value">{{ displayMinutes }}</span>
-            <span class="time-label">分</span>
-          </div>
-          <span class="separator">:</span>
-          <div class="time-unit">
-            <span class="time-value">{{ displaySeconds }}</span>
-            <span class="time-label">秒</span>
-          </div>
-        </div>
-
-        <p class="start-time">自 2026 年 7 月 12 日起</p>
-      </div>
-
-      <!-- 底部收尾 -->
-      <footer class="footer-text">
-        即使身处阴沟，也别忘了仰望星空
-      </footer>
-    </div>
+    <div class="footer-quote">即使身处阴沟，也别忘了仰望星空</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import SiteNav from '../components/SiteNav.vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
-// 起始时间硬编码（2026年7月12日0点）
-const START_DATE = new Date('2026-07-12T00:00:00')
-
+const START_DATE = '2024-01-01'
 const canvasRef = ref<HTMLCanvasElement | null>(null)
-const currentTime = ref(new Date())
+const timerHtml = ref('')
+const startNote = ref('')
 
-// 低端设备检测
-const isLowEnd = ref(false)
-
-// 星光数据
-const stars = ref<Array<{
-  id: number
-  left: number
-  top: number
-  size: number
-  delay: number
-  duration: number
-}>>([])
-
-// Canvas 相关
+let animId = 0
+let timerId: ReturnType<typeof setInterval> | null = null
+let W = 0
+let H = 0
+let time = 0
 let ctx: CanvasRenderingContext2D | null = null
-let animationId: number | null = null
-let strokes: Stroke[] = []
-let mouseX = -1000
-let mouseY = -1000
-let lastFrameTime = 0
-const FRAME_INTERVAL = 1000 / 30 // 30fps
+let stars: Array<{ x: number; y: number; r: number; p: number; v: number }> = []
 
-// 笔触接口
-interface Stroke {
-  x: number
-  y: number
-  baseX: number
-  baseY: number
-  length: number
-  angle: number
-  baseAngle: number
-  curvature: number
-  color: string
-  width: number
-  alpha: number
-  layer: number
-  phase: number
-  speed: number
+function resize() {
+  const canvas = canvasRef.value
+  if (!canvas) return
+  W = canvas.width = window.innerWidth
+  H = canvas.height = window.innerHeight
 }
 
-// 时间差计算
-const timeDiff = computed(() => {
-  const start = START_DATE
-  const now = currentTime.value
-
-  let years = now.getFullYear() - start.getFullYear()
-  let months = now.getMonth() - start.getMonth()
-  let days = now.getDate() - start.getDate()
-  let hours = now.getHours() - start.getHours()
-  let minutes = now.getMinutes() - start.getMinutes()
-  let seconds = now.getSeconds() - start.getSeconds()
-
-  if (seconds < 0) { seconds += 60; minutes-- }
-  if (minutes < 0) { minutes += 60; hours-- }
-  if (hours < 0) { hours += 24; days-- }
-  if (days < 0) {
-    const prevMonth = new Date(now.getFullYear(), now.getMonth(), 0)
-    days += prevMonth.getDate()
-    months--
-  }
-  if (months < 0) { months += 12; years-- }
-
-  return {
-    years: Math.max(0, years),
-    months: Math.max(0, months),
-    days: Math.max(0, days),
-    hours: Math.max(0, hours),
-    minutes: Math.max(0, minutes),
-    seconds: Math.max(0, seconds)
-  }
-})
-
-const pad = (n: number) => n.toString().padStart(2, '0')
-const displayYears = computed(() => pad(timeDiff.value.years))
-const displayMonths = computed(() => pad(timeDiff.value.months))
-const displayDays = computed(() => pad(timeDiff.value.days))
-const displayHours = computed(() => pad(timeDiff.value.hours))
-const displayMinutes = computed(() => pad(timeDiff.value.minutes))
-const displaySeconds = computed(() => pad(timeDiff.value.seconds))
-
-// 生成星光
-const generateStars = () => {
-  const arr = []
-  for (let i = 0; i < 80; i++) {
-    arr.push({
-      id: i,
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      size: Math.random() * 2.5 + 0.5,
-      delay: Math.random() * 4,
-      duration: Math.random() * 3 + 2
-    })
-  }
-  stars.value = arr
+function initStars() {
+  stars = [
+    { x: 0.15, y: 0.15, r: 4, p: 0, v: 0.02 }, { x: 0.22, y: 0.25, r: 3, p: 1.2, v: 0.018 },
+    { x: 0.3, y: 0.1, r: 2.5, p: 2.5, v: 0.022 }, { x: 0.42, y: 0.18, r: 3.5, p: 0.8, v: 0.015 },
+    { x: 0.55, y: 0.12, r: 5, p: 3, v: 0.02 }, { x: 0.68, y: 0.08, r: 4.5, p: 1.5, v: 0.017 },
+    { x: 0.75, y: 0.2, r: 3, p: 0.3, v: 0.025 }, { x: 0.82, y: 0.3, r: 2.5, p: 2.1, v: 0.019 },
+    { x: 0.6, y: 0.25, r: 2, p: 1.8, v: 0.023 }, { x: 0.35, y: 0.3, r: 3.2, p: 0.6, v: 0.016 },
+    { x: 0.48, y: 0.35, r: 2, p: 2.8, v: 0.021 }
+  ]
 }
 
-// 生成笔触
-const generateStrokes = (width: number, height: number) => {
-  strokes = []
-  const colors = {
-    deepBlue: '#1a3a6c',
-    cobalt: '#2d5aa0',
-    violet: '#5d3f9e',
-    deepViolet: '#3d2b6e',
-    gold: '#f4c430',
-    warmWhite: '#f5e6b8',
-    indigo: '#1b1f3a'
-  }
-
-  // 底层：大块漩涡（20条）
-  for (let i = 0; i < 20; i++) {
-    strokes.push({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      baseX: 0,
-      baseY: 0,
-      length: 80 + Math.random() * 120,
-      angle: Math.random() * Math.PI * 2,
-      baseAngle: Math.random() * Math.PI * 2,
-      curvature: 0.3 + Math.random() * 0.4,
-      color: Math.random() > 0.5 ? colors.deepBlue : colors.indigo,
-      width: 12 + Math.random() * 10,
-      alpha: 0.15 + Math.random() * 0.1,
-      layer: 0,
-      phase: Math.random() * Math.PI * 2,
-      speed: 0.0005 + Math.random() * 0.0008
-    })
-  }
-
-  // 中层：漩涡曲线（25条）
-  for (let i = 0; i < 25; i++) {
-    const c = [colors.cobalt, colors.violet, colors.deepViolet][Math.floor(Math.random() * 3)]
-    strokes.push({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      baseX: 0,
-      baseY: 0,
-      length: 60 + Math.random() * 100,
-      angle: Math.random() * Math.PI * 2,
-      baseAngle: Math.random() * Math.PI * 2,
-      curvature: 0.4 + Math.random() * 0.5,
-      color: c,
-      width: 6 + Math.random() * 8,
-      alpha: 0.2 + Math.random() * 0.15,
-      layer: 1,
-      phase: Math.random() * Math.PI * 2,
-      speed: 0.0008 + Math.random() * 0.0012
-    })
-  }
-
-  // 顶层：暖金星光笔触（15条）
-  for (let i = 0; i < 15; i++) {
-    strokes.push({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      baseX: 0,
-      baseY: 0,
-      length: 30 + Math.random() * 50,
-      angle: Math.random() * Math.PI * 2,
-      baseAngle: Math.random() * Math.PI * 2,
-      curvature: 0.2 + Math.random() * 0.3,
-      color: Math.random() > 0.4 ? colors.gold : colors.warmWhite,
-      width: 4 + Math.random() * 6,
-      alpha: 0.3 + Math.random() * 0.2,
-      layer: 2,
-      phase: Math.random() * Math.PI * 2,
-      speed: 0.001 + Math.random() * 0.0015
-    })
-  }
-
-  // 记录基准位置
-  strokes.forEach(s => {
-    s.baseX = s.x
-    s.baseY = s.y
-  })
-}
-
-// 绘制单条笔触（厚涂油画感）
-const drawStroke = (stroke: Stroke, time: number) => {
+function drawSky() {
   if (!ctx) return
+  const g = ctx.createLinearGradient(0, 0, 0, H)
+  g.addColorStop(0, '#050520'); g.addColorStop(0.25, '#0a1240'); g.addColorStop(0.5, '#0e1a50')
+  g.addColorStop(0.7, '#162060'); g.addColorStop(0.85, '#1a2855'); g.addColorStop(1, '#0d1530')
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
+}
 
-  // 缓慢漂移
-  const driftX = Math.sin(time * stroke.speed + stroke.phase) * 15
-  const driftY = Math.cos(time * stroke.speed * 0.8 + stroke.phase) * 15
-
-  // 鼠标影响（150px 范围内笔触偏转加速）
-  let mouseInfluenceX = 0
-  let mouseInfluenceY = 0
-  const dx = mouseX - stroke.x
-  const dy = mouseY - stroke.y
-  const dist = Math.sqrt(dx * dx + dy * dy)
-  if (dist < 150) {
-    const force = (1 - dist / 150) * 20
-    mouseInfluenceX = (dx / dist) * force * -0.3
-    mouseInfluenceY = (dy / dist) * force * -0.3
+function drawSwirls(t: number) {
+  if (!ctx) return
+  const centers = [
+    { cx: W * 0.55, cy: H * 0.38, sc: 1, sp: 0.0004 },
+    { cx: W * 0.7, cy: H * 0.25, sc: 0.6, sp: 0.0006 },
+    { cx: W * 0.4, cy: H * 0.2, sc: 0.5, sp: 0.0005 },
+    { cx: W * 0.65, cy: H * 0.45, sc: 0.7, sp: 0.00035 }
+  ]
+  for (const c of centers) {
+    const { cx, cy, sc, sp } = c
+    const layers = [
+      { r0: 40 * sc, r1: 130 * sc, n: 300, w: 30, col: 'rgba(80,140,210,0.06)', f: 4, a: 25 },
+      { r0: 30 * sc, r1: 120 * sc, n: 280, w: 20, col: 'rgba(120,180,230,0.05)', f: 5, a: 20 },
+      { r0: 20 * sc, r1: 100 * sc, n: 250, w: 12, col: 'rgba(200,210,230,0.06)', f: 6, a: 18 },
+      { r0: 15 * sc, r1: 80 * sc, n: 200, w: 6, col: 'rgba(240,230,200,0.05)', f: 7, a: 12 }
+    ]
+    for (const ly of layers) {
+      ctx.beginPath()
+      for (let i = 0; i < ly.n; i++) {
+        const frac = i / ly.n
+        const angle = frac * Math.PI * 6
+        const r = ly.r0 + (ly.r1 - ly.r0) * frac
+        const rr = r + Math.sin(angle * ly.f + t * sp) * ly.a
+        const x = cx + Math.cos(angle) * rr
+        const y = cy + Math.sin(angle) * rr * 0.7
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+      }
+      ctx.strokeStyle = ly.col; ctx.lineWidth = ly.w * (W / 1200); ctx.lineCap = 'round'; ctx.stroke()
+    }
   }
 
-  const x = stroke.baseX + driftX + mouseInfluenceX
-  const y = stroke.baseY + driftY + mouseInfluenceY
+  const shortStrokes = [
+    { x: W * 0.5, y: H * 0.2, n: 40, w: 1.5, len: 30, col: 'rgba(255,220,150,0.08)', ang: -0.3 },
+    { x: W * 0.65, y: H * 0.32, n: 50, w: 1, len: 20, col: 'rgba(200,200,255,0.06)', ang: 0.5 },
+    { x: W * 0.45, y: H * 0.28, n: 35, w: 1.2, len: 22, col: 'rgba(180,200,240,0.07)', ang: -0.6 }
+  ]
+  for (let s = 0; s < shortStrokes.length; s++) {
+    const ss = shortStrokes[s]
+    ctx.strokeStyle = ss.col; ctx.lineWidth = ss.w * (W / 1200); ctx.lineCap = 'round'
+    for (let i = 0; i < ss.n; i++) {
+      const r1 = (Math.sin(i * 127.1 + s * 311.7) + 1) * 0.5
+      const r2 = (Math.sin(i * 269.5 + s * 183.3) + 1) * 0.5
+      const bx = ss.x + (r1 - 0.5) * 100 * (W / 1200)
+      const by = ss.y + (r2 - 0.5) * 60 * (W / 1200)
+      const ang = ss.ang + Math.sin(i * 0.5 + t * 0.002) * 0.5
+      ctx.beginPath(); ctx.moveTo(bx, by)
+      ctx.lineTo(bx + Math.cos(ang) * ss.len * (W / 1200), by + Math.sin(ang) * ss.len * (W / 1200))
+      ctx.stroke()
+    }
+  }
+}
 
-  // 角度缓慢旋转
-  const angle = stroke.baseAngle + Math.sin(time * stroke.speed * 0.5 + stroke.phase) * 0.3
+function drawStars(t: number) {
+  if (!ctx) return
+  for (const s of stars) {
+    const sx = s.x * W, sy = s.y * H
+    const tw = 0.6 + 0.4 * Math.sin(t * s.v + s.p)
+    const al = 0.5 + tw * 0.5
+    const r = s.r * (W / 1200)
 
+    const halos = [
+      { rr: r * 8, a: al * 0.12, a2: al * 0.06 },
+      { rr: r * 4, a: al * 0.3, a2: al * 0.15 },
+      { rr: r * 2, a: al, a2: al * 0.8 }
+    ]
+    for (const l of halos) {
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, l.rr)
+      g.addColorStop(0, 'rgba(255,255,240,' + l.a + ')')
+      g.addColorStop(0.4, 'rgba(255,220,150,' + l.a2 + ')')
+      g.addColorStop(1, 'rgba(255,200,100,0)')
+      ctx.fillStyle = g; ctx.fillRect(sx - l.rr, sy - l.rr, l.rr * 2, l.rr * 2)
+    }
+    ctx.fillStyle = 'rgba(255,255,240,' + (al * 0.9) + ')'
+    ctx.beginPath(); ctx.arc(sx, sy, r * 0.5, 0, Math.PI * 2); ctx.fill()
+  }
+}
+
+function drawMoon(t: number) {
+  if (!ctx) return
+  const mx = W * 0.78, my = H * 0.13, mr = 38 * (W / 1200)
+  const ga = 0.5 + 0.1 * Math.sin(t * 0.01)
+
+  const g1 = ctx.createRadialGradient(mx, my, mr * 0.3, mx, my, mr * 2.5)
+  g1.addColorStop(0, 'rgba(255,240,200,' + (ga * 0.25) + ')')
+  g1.addColorStop(0.5, 'rgba(255,220,150,' + (ga * 0.1) + ')')
+  g1.addColorStop(1, 'rgba(255,180,80,0)')
+  ctx.fillStyle = g1; ctx.beginPath(); ctx.arc(mx, my, mr * 2.5, 0, Math.PI * 2); ctx.fill()
+
+  ctx.save(); ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.clip()
+  ctx.fillStyle = 'rgba(255,235,180,0.95)'; ctx.fillRect(mx - mr, my - mr, mr * 2, mr * 2)
+  ctx.fillStyle = 'rgba(10,15,40,0.85)'
+  ctx.beginPath(); ctx.arc(mx + mr * 0.25, my - mr * 0.1, mr * 0.85, 0, Math.PI * 2); ctx.fill()
+  ctx.restore()
+
+  const g2 = ctx.createRadialGradient(mx, my, mr * 0.7, mx, my, mr * 1.5)
+  g2.addColorStop(0, 'rgba(255,240,200,0)')
+  g2.addColorStop(0.5, 'rgba(255,230,160,' + (ga * 0.2) + ')')
+  g2.addColorStop(1, 'rgba(255,200,100,0)')
+  ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(mx, my, mr * 1.5, 0, Math.PI * 2); ctx.fill()
+}
+
+function drawCypress() {
+  if (!ctx) return
+  const cx = W * 0.08, baseY = H * 0.88, topY = H * 0.05, maxW = 55 * (W / 1200)
   ctx.save()
-  ctx.globalAlpha = stroke.alpha
-  ctx.strokeStyle = stroke.color
-  ctx.lineWidth = stroke.width
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-
-  // 厚涂模糊质感
-  ctx.filter = 'blur(1.5px)'
-
-  // 绘制弯曲笔触（二次贝塞尔模拟漩涡）
-  const endX = x + Math.cos(angle) * stroke.length
-  const endY = y + Math.sin(angle) * stroke.length
-  const ctrlAngle = angle + stroke.curvature
-  const ctrlX = x + Math.cos(ctrlAngle) * stroke.length * 0.5
-  const ctrlY = y + Math.sin(ctrlAngle) * stroke.length * 0.5
-
-  ctx.beginPath()
-  ctx.moveTo(x, y)
-  ctx.quadraticCurveTo(ctrlX, ctrlY, endX, endY)
-  ctx.stroke()
-
-  // 顶层星光额外加发光
-  if (stroke.layer === 2) {
-    ctx.globalAlpha = stroke.alpha * 0.5
-    ctx.shadowColor = stroke.color
-    ctx.shadowBlur = 15
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-    ctx.quadraticCurveTo(ctrlX, ctrlY, endX, endY)
+  const g = ctx.createLinearGradient(cx, topY, cx, baseY)
+  g.addColorStop(0, '#0a1a08'); g.addColorStop(0.5, '#0d2008'); g.addColorStop(1, '#061005')
+  ctx.fillStyle = g; ctx.beginPath()
+  ctx.moveTo(cx, topY)
+  for (let i = 0; i <= 15; i++) {
+    const t = i / 15, y = topY + (baseY - topY) * t
+    ctx.lineTo(cx + maxW * (1 - t * 0.6) * (0.6 + 0.4 * Math.sin(t * 8)), y)
+  }
+  ctx.lineTo(cx + maxW * 0.4, baseY); ctx.lineTo(cx - maxW * 0.15, baseY)
+  for (let i = 15; i >= 0; i--) {
+    const t = i / 15, y = topY + (baseY - topY) * t
+    ctx.lineTo(cx - maxW * 0.3 * (1 - t * 0.5) * (0.6 + 0.4 * Math.sin(t * 7 + 1)), y)
+  }
+  ctx.closePath(); ctx.fill()
+  ctx.strokeStyle = 'rgba(20,40,15,0.3)'; ctx.lineWidth = 1
+  for (let i = 0; i < 25; i++) {
+    const bx = cx - maxW * 0.1 + ((Math.sin(i * 77.3) + 1) * 0.5) * maxW * 0.5
+    const by = topY + ((Math.sin(i * 53.7) + 1) * 0.5) * (baseY - topY)
+    ctx.beginPath(); ctx.moveTo(bx, by)
+    ctx.lineTo(bx + (Math.sin(i * 99.1) * 4), by + 8 + Math.sin(i * 61.3) * 6)
     ctx.stroke()
   }
-
   ctx.restore()
 }
 
-// 动画主循环
-const animate = (timestamp: number) => {
-  if (!ctx || !canvasRef.value) return
+function drawVillage(t: number) {
+  if (!ctx) return
+  const vY = H * 0.78
+  ctx.fillStyle = '#0d1d30'; ctx.beginPath(); ctx.moveTo(0, H)
+  for (let x = 0; x <= W; x += 20)
+    ctx.lineTo(x, vY + Math.sin(x * 0.003) * 25 + Math.sin(x * 0.007) * 15)
+  ctx.lineTo(W, H); ctx.closePath(); ctx.fill()
 
-  // 帧率限制
-  if (timestamp - lastFrameTime < FRAME_INTERVAL) {
-    animationId = requestAnimationFrame(animate)
-    return
+  ctx.fillStyle = '#13253d'; ctx.beginPath(); ctx.moveTo(0, H)
+  for (let x = 0; x <= W; x += 20)
+    ctx.lineTo(x, vY + 10 + Math.sin(x * 0.005 + 1) * 20 + Math.sin(x * 0.009 + 2) * 10)
+  ctx.lineTo(W, H); ctx.closePath(); ctx.fill()
+
+  ctx.fillStyle = '#0a1628'
+  ctx.beginPath(); ctx.moveTo(W * 0.52 - 6, vY + 15); ctx.lineTo(W * 0.52, vY - 45)
+  ctx.lineTo(W * 0.52 + 6, vY + 15); ctx.closePath(); ctx.fill()
+  ctx.fillRect(W * 0.52 - 8, vY + 15, 16, 25)
+
+  const houses = [W * 0.3, W * 0.35, W * 0.4, W * 0.45, W * 0.58, W * 0.62, W * 0.67, W * 0.72]
+  ctx.fillStyle = '#0a1628'
+  for (let i = 0; i < houses.length; i++) {
+    const hw = [30, 25, 35, 28, 32, 22, 35, 28][i]
+    const hh = [18, 22, 15, 20, 18, 24, 16, 20][i]
+    ctx.fillRect(houses[i], vY + 10, hw * (W / 1200), hh * (W / 1200))
   }
-  lastFrameTime = timestamp
 
+  const lights = [W * 0.31, W * 0.36, W * 0.41, W * 0.46, W * 0.59, W * 0.63, W * 0.68, W * 0.73, W * 0.33, W * 0.43, W * 0.6]
+  const lightYs = [vY + 12, vY + 10, vY + 13, vY + 11, vY + 12, vY + 10, vY + 13, vY + 11, vY + 18, vY + 17, vY + 16]
+  for (let i = 0; i < lights.length; i++) {
+    const tw = 0.7 + 0.3 * Math.sin(t * 0.03 + i * 1.7)
+    ctx.fillStyle = 'rgba(255,210,120,' + tw + ')'
+    ctx.beginPath(); ctx.arc(lights[i], lightYs[i], 2.5 * (W / 1200), 0, Math.PI * 2); ctx.fill()
+  }
+}
+
+function animate() {
+  if (!ctx) return
+  time++
+  ctx.clearRect(0, 0, W, H)
+  drawSky()
+  drawSwirls(time)
+  drawStars(time)
+  drawMoon(time)
+  drawCypress()
+  drawVillage(time)
+  animId = requestAnimationFrame(animate)
+}
+
+// ---- 计时器逻辑 ----
+function pad(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+function calcUptime(startDateStr: string) {
+  const now = new Date()
+  const start = new Date(startDateStr + 'T00:00:00')
+  let cursor = new Date(start)
+  let years = 0
+  let months = 0
+
+  while (true) {
+    const ny = new Date(cursor)
+    ny.setFullYear(ny.getFullYear() + 1)
+    if (ny > now) break
+    years++
+    cursor = ny
+  }
+  while (true) {
+    const nm = new Date(cursor)
+    const pd = nm.getDate()
+    nm.setMonth(nm.getMonth() + 1)
+    if (nm.getDate() !== pd) nm.setDate(0)
+    if (nm > now) break
+    months++
+    cursor = nm
+  }
+
+  const dms = now.getTime() - cursor.getTime()
+  return {
+    years, months,
+    days: Math.floor(dms / 86400000),
+    hours: Math.floor((dms % 86400000) / 3600000),
+    minutes: Math.floor((dms % 3600000) / 60000),
+    seconds: Math.floor((dms % 60000) / 1000)
+  }
+}
+
+const units = ['年', '月', '天', '时', '分', '秒']
+
+function renderTimer() {
+  const t = calcUptime(START_DATE)
+  const v = [t.years, t.months, t.days, t.hours, t.minutes, t.seconds]
+  let h = ''
+  for (let i = 0; i < v.length; i++) {
+    h += '<div class="timer-unit"><span class="timer-num">' + pad(v[i]) + '</span><span class="timer-label">' + units[i] + '</span></div>'
+    if (i < v.length - 1) h += '<span class="timer-colon">:</span>'
+  }
+  timerHtml.value = h
+}
+
+// ---- 生命周期 ----
+onMounted(() => {
   const canvas = canvasRef.value
-  const time = timestamp
+  if (!canvas) return
+  ctx = canvas.getContext('2d')
+  resize()
+  initStars()
 
-  // 清空 + 绘制底色渐变（每帧重绘背景）
-  const gradient = ctx.createRadialGradient(
-    canvas.width / 2, canvas.height / 2, 0,
-    canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) / 1.2
-  )
-  gradient.addColorStop(0, '#1b1f3a')
-  gradient.addColorStop(0.5, '#0f1530')
-  gradient.addColorStop(1, '#0a0d1f')
-  ctx.fillStyle = gradient
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  const sd = new Date(START_DATE + 'T00:00:00')
+  startNote.value = '自 ' + sd.getFullYear() + ' 年 ' + pad(sd.getMonth() + 1) + ' 月 ' + pad(sd.getDate()) + ' 日起'
 
-  // 按层绘制笔触
-  strokes
-    .slice()
-    .sort((a, b) => a.layer - b.layer)
-    .forEach(stroke => drawStroke(stroke, time))
+  renderTimer()
+  timerId = setInterval(renderTimer, 1000)
+  animate()
 
-  animationId = requestAnimationFrame(animate)
-}
-
-// 调整 Canvas 尺寸
-const resizeCanvas = () => {
-  if (!canvasRef.value) return
-  const canvas = canvasRef.value
-  canvas.width = window.innerWidth
-  canvas.height = window.innerHeight
-  generateStrokes(canvas.width, canvas.height)
-}
-
-// 鼠标交互
-const onMouseMove = (e: MouseEvent) => {
-  mouseX = e.clientX
-  mouseY = e.clientY
-}
-
-const onMouseLeave = () => {
-  mouseX = -1000
-  mouseY = -1000
-}
-
-// 可见性检测（页面隐藏时暂停）
-const onVisibilityChange = () => {
-  if (document.hidden) {
-    if (animationId) {
-      cancelAnimationFrame(animationId)
-      animationId = null
-    }
-  } else {
-    if (!animationId && ctx) {
-      lastFrameTime = 0
-      animationId = requestAnimationFrame(animate)
-    }
-  }
-}
-
-// 时间更新
-let timeTimer: number | null = null
-
-onMounted(async () => {
-  // 低端设备检测
-  const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const lowEnd = (navigator.hardwareConcurrency && navigator.hardwareConcurrency < 4) ||
-    ((navigator as any).deviceMemory && (navigator as any).deviceMemory <= 4) ||
-    prefersReducedMotion
-  isLowEnd.value = !!lowEnd
-
-  // 生成星光
-  generateStars()
-
-  // 时间更新
-  timeTimer = window.setInterval(() => {
-    currentTime.value = new Date()
-  }, 1000)
-
-  await nextTick()
-
-  // 低端设备不启动 Canvas
-  if (isLowEnd.value) return
-
-  if (canvasRef.value) {
-    ctx = canvasRef.value.getContext('2d')
-    if (ctx) {
-      resizeCanvas()
-      window.addEventListener('resize', resizeCanvas)
-      window.addEventListener('mousemove', onMouseMove)
-      window.addEventListener('mouseleave', onMouseLeave)
-      document.addEventListener('visibilitychange', onVisibilityChange)
-      animationId = requestAnimationFrame(animate)
-    }
-  }
+  window.addEventListener('resize', onResize)
 })
 
-onBeforeUnmount(() => {
-  if (animationId) cancelAnimationFrame(animationId)
-  if (timeTimer) clearInterval(timeTimer)
-  window.removeEventListener('resize', resizeCanvas)
-  window.removeEventListener('mousemove', onMouseMove)
-  window.removeEventListener('mouseleave', onMouseLeave)
-  document.removeEventListener('visibilitychange', onVisibilityChange)
+onUnmounted(() => {
+  if (animId) cancelAnimationFrame(animId)
+  if (timerId) clearInterval(timerId)
+  window.removeEventListener('resize', onResize)
+  ctx = null
 })
+
+function onResize() {
+  resize()
+  initStars()
+}
 </script>
 
-<style scoped>
-.starry-night-page {
-  position: relative;
-  min-height: 100vh;
+<style>
+/* 全局样式 —— 不可 scoped，因为需要覆盖 body/html */
+.uptime-page {
+  position: fixed;
+  inset: 0;
+  background: #060618;
+  font-family: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
   overflow: hidden;
-  background: #0a0d1f;
 }
 
-.oil-canvas {
+.starry-canvas {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
   z-index: 0;
-  pointer-events: none;
+  display: block;
 }
 
-/* 低端设备降级背景 */
-.fallback-bg {
+.content {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 0;
-  background: radial-gradient(ellipse at center, #1b1f3a 0%, #0f1530 50%, #0a0d1f 100%);
-}
-
-/* 星光层 */
-.stars-layer {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.star-dot {
-  position: absolute;
-  background: #f5e6b8;
-  border-radius: 50%;
-  box-shadow: 0 0 4px #f4c430, 0 0 8px rgba(244, 196, 48, 0.4);
-  animation: star-twinkle ease-in-out infinite;
-}
-
-@keyframes star-twinkle {
-  0%, 100% {
-    opacity: 0.2;
-    transform: scale(0.8);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.3);
-  }
-}
-
-/* 导航栏半透明融合（保证油画背景上可读） */
-.starry-nav {
-  position: relative;
-  z-index: 10;
-}
-
-.starry-nav :deep(nav) {
-  background: rgba(10, 13, 31, 0.45) !important;
-  backdrop-filter: blur(8px) !important;
-  border-bottom: 1px solid rgba(244, 196, 48, 0.15) !important;
-}
-
-.starry-nav :deep(a),
-.starry-nav :deep(button) {
-  color: #f5e6b8 !important;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(10, 13, 31, 0.8) !important;
-}
-
-.starry-nav :deep(a:hover),
-.starry-nav :deep(button:hover) {
-  color: #f4c430 !important;
-}
-
-.starry-nav :deep(.text-gradient) {
-  background: linear-gradient(135deg, #f4c430, #f5e6b8) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  background-clip: text !important;
-}
-
-.starry-nav :deep(.bg-white),
-.starry-nav :deep(.dark\:bg-gray-800) {
-  background: rgba(10, 13, 31, 0.92) !important;
-}
-
-/* 主内容层 */
-.content-layer {
-  position: relative;
-  z-index: 5;
-  min-height: 100vh;
+  inset: 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 6rem 1.5rem 3rem;
   text-align: center;
+  pointer-events: none;
 }
 
-/* 标题区 */
-.title-block {
-  margin-bottom: 4rem;
+.timer-title {
+  font-size: clamp(1.6rem, 4.5vw, 3rem);
+  font-weight: bold;
+  color: #E8C97A;
+  letter-spacing: 0.18em;
+  text-shadow: 0 0 40px rgba(232, 201, 122, 0.2), 0 2px 8px rgba(0, 0, 0, 0.7);
+  margin-bottom: 0.5rem;
 }
 
-.main-title {
-  font-family: 'Georgia', 'Songti SC', 'STSong', serif;
-  font-size: clamp(2rem, 5vw, 3.5rem);
+.timer-subtitle {
+  font-size: clamp(0.8rem, 1.8vw, 1.15rem);
+  color: #B8A88A;
   font-weight: 300;
-  color: #f4c430;
-  letter-spacing: 0.15em;
-  margin: 0 0 1rem;
-  text-shadow: 0 0 20px rgba(244, 196, 48, 0.4), 0 0 40px rgba(244, 196, 48, 0.2);
-  animation: title-glow 4s ease-in-out infinite;
-}
-
-@keyframes title-glow {
-  0%, 100% {
-    text-shadow: 0 0 20px rgba(244, 196, 48, 0.4), 0 0 40px rgba(244, 196, 48, 0.2);
-  }
-  50% {
-    text-shadow: 0 0 30px rgba(244, 196, 48, 0.6), 0 0 60px rgba(244, 196, 48, 0.3);
-  }
-}
-
-.subtitle {
-  font-family: 'Georgia', 'Songti SC', serif;
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
-  color: rgba(245, 230, 184, 0.6);
-  letter-spacing: 0.3em;
-  margin: 0;
-  font-weight: 300;
-}
-
-/* 计时器 */
-.timer-block {
-  margin-bottom: 4rem;
+  letter-spacing: 0.14em;
+  margin-bottom: 2.8rem;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .timer-row {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: clamp(1px, 0.8vw, 6px);
+  margin-bottom: 0.2rem;
 }
 
-.time-unit {
+.timer-unit {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 3.5rem;
+  min-width: clamp(2.8rem, 8vw, 5.5rem);
 }
 
-.time-value {
-  font-family: 'Georgia', serif;
-  font-size: clamp(2rem, 6vw, 4.5rem);
-  font-weight: 400;
-  color: #f4c430;
-  font-variant-numeric: tabular-nums;
-  text-shadow: 0 0 15px rgba(244, 196, 48, 0.6), 0 0 30px rgba(244, 196, 48, 0.3);
-  line-height: 1;
-  transition: text-shadow 0.3s ease;
+.timer-num {
+  font-family: 'Courier New', 'Consolas', 'Menlo', 'Source Code Pro', monospace;
+  font-size: clamp(2.2rem, 7vw, 5.5rem);
+  font-weight: bold;
+  color: #FFD54F;
+  line-height: 1.1;
+  text-shadow: 0 0 20px rgba(255, 213, 79, 0.35), 0 2px 6px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.04em;
 }
 
-.time-label {
-  font-family: 'Georgia', 'Songti SC', serif;
+.timer-colon {
+  font-family: 'Courier New', 'Consolas', 'Menlo', monospace;
+  font-size: clamp(1.8rem, 6vw, 4.5rem);
+  color: #E8C97A;
+  padding-bottom: clamp(1rem, 2.5vw, 1.8rem);
+  text-shadow: 0 0 10px rgba(232, 201, 122, 0.2);
+  user-select: none;
+}
+
+.timer-label {
+  font-size: clamp(0.65rem, 1.5vw, 0.95rem);
+  color: #9B8E7A;
+  margin-top: 0.15rem;
+  letter-spacing: 0.1em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.start-note {
   font-size: clamp(0.7rem, 1.5vw, 0.9rem);
-  color: rgba(245, 230, 184, 0.5);
-  margin-top: 0.5rem;
-  letter-spacing: 0.2em;
-  font-weight: 300;
+  color: #8B7D6B;
+  margin-top: 2.8rem;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-.separator {
-  font-family: 'Georgia', serif;
-  font-size: clamp(2rem, 6vw, 4.5rem);
-  color: #5d3f9e;
-  font-weight: 200;
-  line-height: 1;
-  animation: separator-pulse 2s ease-in-out infinite;
-  text-shadow: 0 0 10px rgba(93, 63, 158, 0.6);
-  align-self: flex-start;
-}
-
-@keyframes separator-pulse {
-  0%, 100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 0.9;
-  }
-}
-
-.start-time {
-  font-family: 'Georgia', 'Songti SC', serif;
-  font-size: clamp(0.75rem, 1.5vw, 0.9rem);
-  color: rgba(245, 230, 184, 0.4);
-  margin-top: 2.5rem;
-  letter-spacing: 0.25em;
-  font-weight: 300;
-}
-
-/* 底部收尾 */
-.footer-text {
-  font-family: 'Georgia', 'Songti SC', 'STSong', serif;
-  font-size: clamp(0.85rem, 2vw, 1.05rem);
-  color: rgba(93, 63, 158, 0.85);
-  letter-spacing: 0.2em;
-  font-weight: 300;
+.footer-quote {
+  font-size: clamp(0.7rem, 1.5vw, 0.85rem);
+  color: #7A6E5A;
+  position: fixed;
+  bottom: clamp(1.5rem, 3vh, 2.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  letter-spacing: 0.1em;
   font-style: italic;
-  text-shadow: 0 0 12px rgba(93, 63, 158, 0.4);
-  animation: footer-breathe 5s ease-in-out infinite;
-  max-width: 90%;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
 }
 
-@keyframes footer-breathe {
-  0%, 100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-/* 移动端适配 */
-@media (max-width: 640px) {
-  .content-layer {
-    padding: 5rem 1rem 2rem;
-  }
-
-  .timer-row {
-    gap: 0.25rem;
-  }
-
-  .time-unit {
-    min-width: 2.5rem;
-  }
-
-  .separator {
-    margin: 0 0.1rem;
-  }
-
-  .title-block {
-    margin-bottom: 2.5rem;
-  }
-
-  .timer-block {
-    margin-bottom: 2.5rem;
-  }
+@media (max-width: 480px) {
+  .timer-unit { min-width: 2.4rem; }
+  .timer-row { gap: 0; }
+  .timer-colon { font-size: clamp(1.4rem, 5vw, 2.5rem); }
 }
 </style>
