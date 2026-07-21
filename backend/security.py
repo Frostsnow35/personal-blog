@@ -9,9 +9,9 @@ from functools import wraps
 class SecurityMiddleware:
     def __init__(self, app=None):
         self.app = app
-        self.ip_blacklist = {}
+        self.ip_blacklist = {}       # 已禁用 IP 自动封锁
         self.login_attempts = {}
-        self.honeypot_captures = []
+        self.honeypot_captures = []  # 已禁用蜜罐捕获
         self.attack_log = []
         
         self.SQL_INJECTION_PATTERNS = [
@@ -50,13 +50,14 @@ class SecurityMiddleware:
             r"(?i)<embed[^>]*>",
         ]
         
-        self.HONEYPOT_ROUTES = [
-            '/wp-admin/', '/wp-login.php', '/admin/', '/login.php', '/phpmyadmin/',
-            '/mysqladmin/', '/adminer/', '/manager/html', '/.env', '/config.php',
-            '/api/v1/auth', '/api/login', '/oauth/token', '/token', '/auth/token',
-            '/api/secret', '/.git/config', '/server-status', '/cgi-bin/',
-            '/shell.php', '/cmd.php', '/backdoor.php', '/webshell.php',
-        ]
+        # 蜜罐路由列表已禁用 —— 包含 /admin/ 等正常路由会误伤用户
+        # self.HONEYPOT_ROUTES = [
+        #     '/wp-admin/', '/wp-login.php', '/admin/', '/login.php', '/phpmyadmin/',
+        #     '/mysqladmin/', '/adminer/', '/manager/html', '/.env', '/config.php',
+        #     '/api/v1/auth', '/api/login', '/oauth/token', '/token', '/auth/token',
+        #     '/api/secret', '/.git/config', '/server-status', '/cgi-bin/',
+        #     '/shell.php', '/cmd.php', '/backdoor.php', '/webshell.php',
+        # ]
         
         self.RATE_LIMITS = {
             'login': {'max_attempts': 5, 'window_seconds': 300, 'lockout_seconds': 1800},
@@ -205,21 +206,23 @@ class SecurityMiddleware:
     def _security_check(self):
         ip = self._get_client_ip()
         
-        if self._is_ip_blacklisted(ip):
-            return jsonify({
-                'success': False,
-                'message': '您的IP地址已被暂时封禁',
-            }), 403
+        # IP 黑名单检查已禁用 —— 过于激进会误伤正常用户
+        # if self._is_ip_blacklisted(ip):
+        #     return jsonify({
+        #         'success': False,
+        #         'message': '您的IP地址已被暂时封禁',
+        #     }), 403
         
-        triggered, capture = self._check_honeypot()
-        if triggered:
-            if request.path.startswith('/api/'):
-                return jsonify({
-                    'success': True,
-                    'message': '欢迎访问管理接口',
-                    'data': {'status': 'connected', 'version': '1.0.0'},
-                }), 200
-            return make_response("404 Not Found", 404)
+        # 蜜罐路由检查已禁用 —— /admin/ 等路由属于正常前端路由
+        # triggered, capture = self._check_honeypot()
+        # if triggered:
+        #     if request.path.startswith('/api/'):
+        #         return jsonify({
+        #             'success': True,
+        #             'message': '欢迎访问管理接口',
+        #             'data': {'status': 'connected', 'version': '1.0.0'},
+        #         }), 200
+        #     return make_response("404 Not Found", 404)
         
         data = ''
         try:

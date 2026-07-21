@@ -2977,7 +2977,8 @@ def fake_auth_endpoint():
         'password': '[REDACTED]' if data.get('password') else '',
         'grant_type': data.get('grant_type', ''),
     })
-    security._blacklist_ip(ip, duration_seconds=7200)
+    # IP 封锁已禁用 —— 避免误伤正常用户
+    # security._blacklist_ip(ip, duration_seconds=7200)
     return jsonify({
         'success': False,
         'error': 'invalid_grant',
@@ -2989,7 +2990,8 @@ def fake_auth_endpoint():
 def fake_secret_endpoint():
     ip = _get_client_ip()
     security._log_attack('HONEYPOT_SECRET', {'ip': ip})
-    security._blacklist_ip(ip, duration_seconds=7200)
+    # IP 封锁已禁用 —— 避免误伤正常用户
+    # security._blacklist_ip(ip, duration_seconds=7200)
     return jsonify({'error': '404 Not Found'}), 404
 
 
