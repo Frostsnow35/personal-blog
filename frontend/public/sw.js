@@ -1,4 +1,4 @@
-const CACHE_NAME = 'blog-cache-v2'
+const CACHE_NAME = 'blog-cache-v3'
 const ASSETS = [
   '/',
   '/index.html',
@@ -10,17 +10,22 @@ const ASSETS = [
 // 不走 SW 缓存的路径 —— 独立页面或 Vercel 直接托管的资源
 const BYPASS_PATHS = ['/uptime']
 
+// 安装后立即激活，无需等待旧 SW 释放
 self.addEventListener('install', (event) => {
+  self.skipWaiting()
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   )
 })
 
+// 激活后立即接管所有页面
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))))
-    )
+    (async () => {
+      await clients.claim()
+      const keys = await caches.keys()
+      await Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))))
+    })()
   )
 })
 

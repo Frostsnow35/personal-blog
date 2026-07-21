@@ -49,7 +49,7 @@
       "dest": "/uptime/index.html"
     },
     {
-      "src": "/(.*)",
+      "src": "/((?!frontend/dist/|uptime/).*)",
       "dest": "/frontend/dist/index.html"
     }
   ]
