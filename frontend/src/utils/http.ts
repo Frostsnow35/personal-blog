@@ -18,14 +18,6 @@ const defaultCacheConfig: RequestCacheConfig = {
   maxAge: 30 * 60 * 1000
 }
 
-const XSS_PATTERNS = [
-  /<script[^>]*>.*?<\/script>/gi,
-  /<iframe[^>]*>/gi,
-  /javascript\s*:/gi,
-  /on\w+\s*=\s*["']?[^"']*["']?/gi,
-  /<img[^>]*src\s*=\s*["']?javascript:/gi,
-]
-
 function buildCacheKey(path: string): string {
   const url = new URL(path, BASE_URL)
   const params = Array.from(url.searchParams.entries())
@@ -45,48 +37,6 @@ function generateCsrfToken(): string {
   ).join('')
   localStorage.setItem('csrf_token', newToken)
   return newToken
-}
-
-function sanitizeInput(value: any): any {
-  if (typeof value === 'string') {
-    for (const pattern of XSS_PATTERNS) {
-      if (pattern.test(value)) {
-        value = value.replace(pattern, '')
-      }
-    }
-    return value
-  }
-  if (typeof value === 'object' && value !== null) {
-    for (const key in value) {
-      if (Object.prototype.hasOwnProperty.call(value, key)) {
-        value[key] = sanitizeInput(value[key])
-      }
-    }
-  }
-  return value
-}
-
-function validateRequestData(data: any): { valid: boolean; message?: string } {
-  if (!data) return { valid: true }
-  
-  const strData = JSON.stringify(data)
-  const suspiciousPatterns = [
-    { pattern: /('|")\s*(OR|AND)\s*1\s*=\s*1/i, message: '请求包含可疑内容' },
-    { pattern: /SELECT\s+.*FROM/i, message: '请求包含非法查询' },
-    { pattern: /UNION\s+SELECT/i, message: '请求包含非法查询' },
-    { pattern: /DROP\s+TABLE/i, message: '请求包含危险操作' },
-    { pattern: /INSERT\s+INTO/i, message: '请求包含非法插入' },
-    { pattern: /<script/i, message: '请求包含脚本内容' },
-    { pattern: /javascript:/i, message: '请求包含脚本协议' },
-  ]
-  
-  for (const { pattern, message } of suspiciousPatterns) {
-    if (pattern.test(strData)) {
-      return { valid: false, message }
-    }
-  }
-  
-  return { valid: true }
 }
 
 import { setCache, getCache } from './cache'
@@ -138,19 +88,13 @@ async function request<T>(path: string, method: HttpMethod, body?: any, signal?:
     }
   }
 
-  const validation = validateRequestData(body)
-  if (!validation.valid) {
-    throw new Error(validation.message || '请求数据验证失败')
-  }
-
   _bumpLoading(1)
   try {
     const isForm = body instanceof FormData
-    const sanitizedBody = isForm ? body : sanitizeInput(body)
     const res = await fetch(`${BASE_URL}${path}`, {
       method,
       headers: withAuth(isForm ? {} : { 'Content-Type': 'application/json' }),
-      body: isForm ? sanitizedBody : sanitizedBody ? JSON.stringify(sanitizedBody) : undefined,
+      body: isForm ? body : body ? JSON.stringify(body) : undefined,
       signal,
       cache: method === 'GET' ? 'default' : 'no-cache'
     })
@@ -164,9 +108,6 @@ async function request<T>(path: string, method: HttpMethod, body?: any, signal?:
         localStorage.removeItem('access_token')
         localStorage.removeItem('auth_user')
       } catch {}
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin-login')) {
-        window.location.href = '/admin-login'
-      }
       throw new Error(data?.message || `HTTP ${res.status}`)
     }
 
