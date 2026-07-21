@@ -244,8 +244,11 @@ var START_DATE = '2024-01-01';
       ctx.lineWidth = ss.w * (W / 1200);
       ctx.lineCap = 'round';
       for (var i = 0; i < ss.count; i++) {
-        var bx = ss.x + (Math.random() - 0.5) * 100 * (W / 1200);
-        var by = ss.y + (Math.random() - 0.5) * 60 * (W / 1200);
+        // 用伪随机代替 Math.random，保证每帧位置稳定
+        var pr1 = ((Math.sin(i * 127.1 + s * 311.7) + 1) * 0.5);
+        var pr2 = ((Math.sin(i * 269.5 + s * 183.3) + 1) * 0.5);
+        var bx = ss.x + (pr1 - 0.5) * 100 * (W / 1200);
+        var by = ss.y + (pr2 - 0.5) * 60 * (W / 1200);
         var ang = ss.angle + Math.sin(i * 0.5 + t * 0.002) * 0.5;
         ctx.beginPath();
         ctx.moveTo(bx, by);
@@ -471,7 +474,7 @@ var START_DATE = '2024-01-01';
       if (typeof h.x === 'number' && h.x < 1) {
         // already percentage
       }
-      ctx.fillRect(px, vY + 10, h.w * (W / 1200), h.h * (W / 1200));
+      ctx.fillRect(h.x, vY + 10, h.w * (W / 1200), h.h * (W / 1200));
     }
 
     // 村庄灯火（暖黄色小点）
