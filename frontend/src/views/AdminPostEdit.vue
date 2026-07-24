@@ -19,16 +19,23 @@
           
           <div>
             <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">分类</label>
-            <select v-model="form.category" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-              <option value="">选择分类</option>
-              <option value="技术">技术</option>
-              <option value="随记">随记</option>
-              <option value="分享">分享</option>
-              <option value="经历">经历</option>
-            </select>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="cat in CATEGORIES"
+                :key="cat"
+                type="button"
+                @click="form.category = cat"
+                :class="[
+                  'px-4 py-1.5 text-sm rounded-full border transition-all',
+                  form.category === cat
+                    ? 'bg-ocean-500 text-white border-ocean-500 shadow-md'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-ocean-400 hover:text-ocean-500'
+                ]"
+              >{{ cat }}</button>
+            </div>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">标签（最多10个，按回车添加）</label>
+            <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">标签（输入后按回车添加，最多10个）</label>
             <div class="tag-bubbles-container flex flex-wrap gap-2 p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 min-h-[42px] focus-within:ring-2 focus-within:ring-ocean-400/50 transition-shadow">
               <span v-for="(tag, i) in tagBubbles" :key="i" class="inline-flex items-center gap-1 px-3 py-1 text-sm rounded-full bg-ocean-100 dark:bg-ocean-900/50 text-ocean-700 dark:text-ocean-300 border border-ocean-200 dark:border-ocean-800">
                 {{ tag }}
@@ -113,6 +120,7 @@ const tagBubbles = ref<string[]>([])
 const tagInputText = ref('')
 const tagInputRef = ref<HTMLInputElement | null>(null)
 const MAX_TAGS = 10
+const CATEGORIES = ['技术', '随记', '分享', '经历']
 
 function addTag() {
   const t = tagInputText.value.trim()
