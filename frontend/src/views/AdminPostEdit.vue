@@ -22,8 +22,14 @@
             <input v-model="form.category" type="text" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"/>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">标签（逗号分隔）</label>
-            <input v-model="tagsInput" type="text" placeholder="Vue, Flask, Notes" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"/>
+            <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">标签（最多10个，按回车添加）</label>
+            <div class="tag-bubbles-container flex flex-wrap gap-2 p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 min-h-[42px] focus-within:ring-2 focus-within:ring-ocean-400/50 transition-shadow">
+              <span v-for="(tag, i) in tagBubbles" :key="i" class="inline-flex items-center gap-1 px-3 py-1 text-sm rounded-full bg-ocean-100 dark:bg-ocean-900/50 text-ocean-700 dark:text-ocean-300 border border-ocean-200 dark:border-ocean-800">
+                {{ tag }}
+                <button type="button" @click="removeTag(i)" class="tag-remove hover:text-red-500 dark:hover:text-red-400 transition-colors leading-none text-base">&times;</button>
+              </span>
+              <input v-if="tagBubbles.length < 10" ref="tagInputRef" v-model="tagInputText" @keydown.enter.prevent="addTag" @keydown.,.prevent="addTag" @blur="addTagOnBlur" type="text" placeholder="输入标签..." class="tag-input flex-1 min-w-[100px] border-none bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 p-1"/>
+            </div>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">封面图</label>
@@ -82,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { http } from '../utils/http'
 import { toast } from '../composables/useToast'
@@ -97,7 +103,33 @@ const isEdit = !!route.params.id
 const form = ref<any>({
   title: '', content: '', excerpt: '', status: 'draft', cover_url: '', category: '', tags: [] as string[]
 })
-const tagsInput = ref('')
+const tagBubbles = ref<string[]>([])
+const tagInputText = ref('')
+const tagInputRef = ref<HTMLInputElement | null>(null)
+const MAX_TAGS = 10
+
+function addTag() {
+  const t = tagInputText.value.trim()
+  if (!t) return
+  if (tagBubbles.value.length >= MAX_TAGS) return
+  if (tagBubbles.value.includes(t)) {
+    tagInputText.value = ''
+    return
+  }
+  tagBubbles.value.push(t)
+  tagInputText.value = ''
+  nextTick(() => tagInputRef.value?.focus())
+}
+
+function addTagOnBlur() {
+  // 只在输入框有内容时添加；空输入框不处理
+  if (tagInputText.value.trim()) addTag()
+}
+
+function removeTag(index: number) {
+  tagBubbles.value.splice(index, 1)
+  nextTick(() => tagInputRef.value?.focus())
+}
 const saving = ref(false)
 const showDrafts = ref(false)
 const drafts = ref<any[]>([])
@@ -116,7 +148,7 @@ const restoreDraft = (draft: any) => {
     form.value.content = data.content
     form.value.excerpt = data.excerpt
     form.value.category = data.category
-    tagsInput.value = data.tagsInput
+    tagBubbles.value = data.tagBubbles || []
     showDrafts.value = false
     toast.success('已恢复', '草稿已成功恢复')
   } catch {
@@ -163,7 +195,7 @@ const load = async () => {
   const res = await http.get<{ success:boolean; data:any }>(`/admin/posts/${id}`)
   const d = res.data
   form.value = { ...form.value, ...d }
-  tagsInput.value = (d.tags || []).join(', ')
+  tagBubbles.value = d.tags || []
   checkAutoSave()
 }
 
@@ -181,7 +213,7 @@ const save = async (status: 'draft'|'published') => {
   saving.value = true
   try {
     form.value.status = status
-    form.value.tags = tagsInput.value.split(',').map(s => s.trim()).filter(Boolean)
+    form.value.tags = [...tagBubbles.value]
     if (isEdit) {
       await http.put<{ success:boolean; data:any }>(`/admin/posts/${route.params.id}`, form.value)
     } else {
@@ -220,7 +252,7 @@ const saveToLocalStorage = () => {
     content: form.value.content,
     excerpt: form.value.excerpt,
     category: form.value.category,
-    tagsInput: tagsInput.value,
+    tagBubbles: tagBubbles.value,
     timestamp: Date.now()
   }
   localStorage.setItem(getAutoSaveKey(), JSON.stringify(data))
@@ -239,7 +271,7 @@ const checkAutoSave = () => {
         form.value.content = data.content
         form.value.excerpt = data.excerpt
         form.value.category = data.category
-        tagsInput.value = data.tagsInput
+        tagBubbles.value = data.tagBubbles || []
       }
     }
   } catch {
