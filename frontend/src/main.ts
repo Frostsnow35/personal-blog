@@ -21,12 +21,10 @@ app.directive('lazy-img', lazyImg)
 
 app.mount('#app')
 
-// 注册 Service Worker（仅在生产环境且支持时）
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // 忽略注册失败
-    })
+// 注销所有旧版 Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    registrations.forEach(reg => reg.unregister())
   })
 }
 
