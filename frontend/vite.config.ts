@@ -14,7 +14,7 @@ export default defineConfig({
           '<head>',
           `<head>
   <script>
-    (function(){if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister()})})}})()
+    (function(){if('serviceWorker' in navigator&&!sessionStorage.getItem('__sw_ok')){navigator.serviceWorker.getRegistrations().then(function(r){if(r.length>0){return Promise.all(r.map(function(s){return s.unregister()}))}}).then(function(){sessionStorage.setItem('__sw_ok','1');location.reload()}).catch(function(){sessionStorage.setItem('__sw_ok','1')})}else{sessionStorage.setItem('__sw_ok','1')}})()
   </script>`
         )
       }

@@ -5,20 +5,20 @@
   "installCommand": "pip install -r backend/requirements.txt",
   "routes": [
     {
-      "src": "/api/(.*)",
+      "src": "/api/:path*",
       "dest": "/api/index.py"
     },
     {
-      "src": "/js/(.*)",
-      "dest": "/frontend/dist/js/$1"
+      "src": "/js/:path*",
+      "dest": "/frontend/dist/js/:path*"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "/frontend/dist/assets/$1"
+      "src": "/assets/:path*",
+      "dest": "/frontend/dist/assets/:path*"
     },
     {
-      "src": "/audio/(.*)",
-      "dest": "/frontend/dist/audio/$1"
+      "src": "/audio/:path*",
+      "dest": "/frontend/dist/audio/:path*"
     },
     {
       "src": "/favicon\\.svg",
@@ -51,19 +51,19 @@
   ],
   "headers": [
     {
-      "source": "/js/(.*)",
+      "source": "/js/:path*",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "source": "/assets/(.*)",
+      "source": "/assets/:path*",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "source": "/audio/(.*)",
+      "source": "/audio/:path*",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000" }
       ]
