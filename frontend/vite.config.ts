@@ -1,9 +1,29 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
+import { readFileSync, writeFileSync } from 'fs'
+import { createHash } from 'crypto'
+
+// 每次构建生成唯一哈希，注入 sw.js 保证浏览器检测到 SW 内容变更
+function swVersionInjector(): import('vite').Plugin {
+  return {
+    name: 'sw-version-injector',
+    closeBundle() {
+      const swPath = resolve(__dirname, 'dist/sw.js')
+      try {
+        let content = readFileSync(swPath, 'utf-8')
+        const hash = createHash('md5').update(String(Date.now())).digest('hex').slice(0, 12)
+        content = content.replace(/__BUILD_HASH__/g, hash)
+        writeFileSync(swPath, content, 'utf-8')
+      } catch {
+        // sw.js 不存在则静默忽略（开发模式）
+      }
+    }
+  }
+}
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), swVersionInjector()],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src')
