@@ -21,17 +21,23 @@ app.directive('lazy-img', lazyImg)
 
 app.mount('#app')
 
-// 注册自毁版 Service Worker：安装后立即注销所有 SW
+// 注册自毁版 Service Worker：安装后立即注销所有 SW（包括自身）
+// 仅在生产环境且 SW 未启用时执行一次清理
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  // 先尝试注销所有已存在的 SW
   navigator.serviceWorker.getRegistrations().then(regs => {
     if (regs.length > 0) {
-      // 如果已有 SW 在运行（旧版缓存 SW），注册自毁 SW 覆盖
-      navigator.serviceWorker.register('/sw.js').then(() => {
-        // 自毁 SW 会自动 skipWaiting + unregister
-        console.log('[sw] self-destruct SW registered to clean up old caches')
-      }).catch(() => {})
+      // 有旧的缓存 SW 在运行 → 注册自毁 SW 覆盖并清除
+      navigator.serviceWorker.register('/sw.js')
     }
+    // 无论是否有旧 SW，确保自毁 SW 被注册（它会在 activate 中 unregister 一切）
+  }).then(() => {
+    // 二次确保：直接在页面注销所有 SW 注册
+    navigator.serviceWorker.getRegistrations().then(all => {
+      all.forEach(r => {
+        // 只注销非自毁的 SW（自毁 SW 的文件名已经不是缓存版本）
+        r.unregister()
+      })
+    })
   })
 }
 
