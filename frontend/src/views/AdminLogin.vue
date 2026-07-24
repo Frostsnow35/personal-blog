@@ -33,8 +33,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { toast } from '../composables/useToast'
 import { useAuthStore } from '../stores/auth'
 import LoadingButton from '../components/LoadingButton.vue'
@@ -47,7 +47,14 @@ const loading = ref(false)
 const errorMsg = ref('')
 const captchaRef = ref<InstanceType<typeof Captcha> | null>(null)
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
+
+onMounted(() => {
+  if (route.query.expired === '1') {
+    errorMsg.value = '登录已过期，请重新登录'
+  }
+})
 
 const onSubmit = async () => {
   errorMsg.value = ''

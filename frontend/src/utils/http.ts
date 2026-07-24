@@ -108,7 +108,11 @@ async function request<T>(path: string, method: HttpMethod, body?: any, signal?:
         localStorage.removeItem('access_token')
         localStorage.removeItem('auth_user')
       } catch {}
-      throw new Error(data?.message || `HTTP ${res.status}`)
+      // Token 过期或无效，跳转登录页
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin-login')) {
+        window.location.href = '/admin-login?expired=1'
+      }
+      throw new Error(data?.message || '登录已过期，请重新登录')
     }
 
     if (!res.ok || (data && data.success === false)) {
