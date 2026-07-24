@@ -21,10 +21,6 @@
       "dest": "/frontend/dist/audio/$1"
     },
     {
-      "src": "/sw\\.js",
-      "dest": "/frontend/dist/sw.js"
-    },
-    {
       "src": "/favicon\\.svg",
       "dest": "/frontend/dist/favicon.svg"
     },

@@ -225,18 +225,12 @@ router.beforeEach((to, _from, next) => {
   next()
 })
 
-// 路由错误处理：懒加载模块失败时自动刷新页面（通常因 SW 版本更新导致 chunk 文件名变化）
+// 懒加载模块失败：静默处理，不再自动刷新
+// SW 已彻底移除，此错误正常情况下不应再出现
 router.onError((error) => {
   const msg = String(error)
   if (/Failed to fetch dynamically imported module|Loading chunk|Failed to resolve import/i.test(msg)) {
-    // 避免无限刷新循环：如果 5 秒内已刷新过则不再重试
-    const lastReload = sessionStorage.getItem('__lazy_reload_ts')
-    if (lastReload && Date.now() - Number(lastReload) < 5000) {
-      console.error('[router] 模块加载失败且刚刚已刷新，不再重试', error)
-      return
-    }
-    sessionStorage.setItem('__lazy_reload_ts', String(Date.now()))
-    window.location.reload()
+    console.error('[router] 模块加载失败，请检查网络连接', error)
     return
   }
 })

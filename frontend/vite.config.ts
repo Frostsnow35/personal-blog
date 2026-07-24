@@ -3,7 +3,23 @@ import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    // 在 index.html 中注入 SW 清除脚本，运行在所有模块之前
+    // 浏览器加载 HTML 后立即注销所有旧 Service Worker
+    {
+      name: 'inject-sw-cleanup',
+      transformIndexHtml(html) {
+        return html.replace(
+          '<head>',
+          `<head>
+  <script>
+    (function(){if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister()})})}})()
+  </script>`
+        )
+      }
+    }
+  ],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src')
