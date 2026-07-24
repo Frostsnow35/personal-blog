@@ -21,10 +21,17 @@ app.directive('lazy-img', lazyImg)
 
 app.mount('#app')
 
-// 注销所有旧版 Service Worker
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(registrations => {
-    registrations.forEach(reg => reg.unregister())
+// 注册自毁版 Service Worker：安装后立即注销所有 SW
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  // 先尝试注销所有已存在的 SW
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    if (regs.length > 0) {
+      // 如果已有 SW 在运行（旧版缓存 SW），注册自毁 SW 覆盖
+      navigator.serviceWorker.register('/sw.js').then(() => {
+        // 自毁 SW 会自动 skipWaiting + unregister
+        console.log('[sw] self-destruct SW registered to clean up old caches')
+      }).catch(() => {})
+    }
   })
 }
 
