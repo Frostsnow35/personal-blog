@@ -19,7 +19,14 @@
           
           <div>
             <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">分类</label>
-            <input v-model="form.category" type="text" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"/>
+            <select v-model="form.category" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+              <option value="">选择分类</option>
+              <option value="技术分享">技术分享</option>
+              <option value="个人感悟">个人感悟</option>
+              <option value="哲学思考">哲学思考</option>
+              <option value="前端开发">前端开发</option>
+              <option value="后端技术">后端技术</option>
+            </select>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">标签（最多10个，按回车添加）</label>
