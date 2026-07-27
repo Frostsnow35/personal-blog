@@ -40,10 +40,9 @@ if database_url:
         database_url = f"postgresql://{database_url[len('postgres://'):]}"
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
-    # 本地开发使用相对路径，生产环境使用绝对路径
     db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
-    # Vercel serverless 环境中部署目录只读，使用 /tmp 作为数据库路径
-    if not os.path.exists(os.path.dirname(db_path)) or not os.access(os.path.dirname(db_path), os.W_OK):
+    # Vercel serverless 部署目录只读，使用 /tmp 作为数据库路径
+    if os.getenv('VERCEL') == '1':
         db_path = '/tmp/personal_blog.db'
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}?check_same_thread=False'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
