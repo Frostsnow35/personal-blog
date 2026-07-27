@@ -586,8 +586,10 @@ def admin_create_post():
         return jsonify({'success': False, 'message': '摘要过长(<=500)'}), 400
 
     try:
+        slug = _slugify(title)
         p = Post(
             title=title,
+            slug=slug,
             content=data.get('content') or '',
             excerpt=data.get('excerpt') or '',
             status=data.get('status') or 'draft',
@@ -627,6 +629,7 @@ def admin_update_post(post_id):
             if len(title) > 200:
                 return jsonify({'success': False, 'message': '标题过长(<=200)'}), 400
             p.title = title
+            p.slug = _slugify(title)
         for f in ['content', 'excerpt', 'cover_url', 'category']:
             if f in data:
                 if f == 'excerpt' and data.get('excerpt') and len(data.get('excerpt')) > 500:
