@@ -42,6 +42,9 @@ if database_url:
 else:
     # 本地开发使用相对路径，生产环境使用绝对路径
     db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
+    # Vercel serverless 环境中部署目录只读，使用 /tmp 作为数据库路径
+    if not os.path.exists(os.path.dirname(db_path)) or not os.access(os.path.dirname(db_path), os.W_OK):
+        db_path = '/tmp/personal_blog.db'
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}?check_same_thread=False'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -83,8 +86,17 @@ JWT_SECRET = os.getenv('JWT_SECRET', 'change-this-in-env')
 JWT_ALG = 'HS256'
 
 # 初始化扩展
+
+def ensure_db():
+    """确保数据库表存在（每次冷启动时自动创建）"""
+    with app.app_context():
+        db.create_all()
+
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+# 确保数据库表存在
+ensure_db()
 
 # 初始化安全中间件
 try:
