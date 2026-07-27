@@ -14,7 +14,7 @@ export default defineConfig({
           '<head>',
           `<head>
   <script>
-    (function(){if('serviceWorker' in navigator&&!sessionStorage.getItem('__sw_ok')){navigator.serviceWorker.getRegistrations().then(function(r){if(r.length>0){return Promise.all(r.map(function(s){return s.unregister()}))}}).then(function(){sessionStorage.setItem('__sw_ok','1');setTimeout(function(){location.reload()},100)}).catch(function(){sessionStorage.setItem('__sw_ok','1');setTimeout(function(){location.reload()},100)})}else{sessionStorage.setItem('__sw_ok','1')}})()
+    (function(){if('serviceWorker' in navigator&&!sessionStorage.getItem('__sw_ok')){console.log('[SW Cleanup] 发现 sessionStorage 中无 __sw_ok 标记，开始清理 Service Worker');navigator.serviceWorker.getRegistrations().then(function(r){console.log('[SW Cleanup] 找到 '+r.length+' 个 Service Worker 注册');if(r.length>0){return Promise.all(r.map(function(s){return s.unregister().then(function(){console.log('[SW Cleanup] 已注销 SW: '+s.scope)})}))}}).then(function(){sessionStorage.setItem('__sw_ok','1');console.log('[SW Cleanup] 清理完成，100ms 后重载页面');setTimeout(function(){location.reload()},100)}).catch(function(e){sessionStorage.setItem('__sw_ok','1');console.warn('[SW Cleanup] 清理异常: '+e+', 100ms 后重载页面');setTimeout(function(){location.reload()},100)})}else{sessionStorage.setItem('__sw_ok','1');console.log('[SW Cleanup] __sw_ok 已标记或 SW 不可用，跳过清理')}})()
   </script>`
         )
       }

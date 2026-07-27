@@ -585,23 +585,33 @@ def admin_create_post():
     if len(data.get('excerpt') or '') > 500:
         return jsonify({'success': False, 'message': '摘要过长(<=500)'}), 400
 
-    p = Post(
-        title=title,
-        content=data.get('content') or '',
-        excerpt=data.get('excerpt') or '',
-        status=data.get('status') or 'draft',
-        cover_url=data.get('cover_url'),
-        category=data.get('category'),
-        tags=data.get('tags') or [],
-    )
-    # 简单计算阅读时长：按每分钟 300 字
-    words = len((p.content or '').replace('\n', ''))
-    p.read_time = max(1, words // 300)
-    if p.status == 'published' and not p.published_at:
-        p.published_at = datetime.now(timezone.utc)
-    db.session.add(p)
-    db.session.commit()
-    return jsonify({'success': True, 'data': {'id': p.id}, 'message': '创建成功'})
+    try:
+        p = Post(
+            title=title,
+            content=data.get('content') or '',
+            excerpt=data.get('excerpt') or '',
+            status=data.get('status') or 'draft',
+            cover_url=data.get('cover_url'),
+            category=data.get('category'),
+            tags=data.get('tags') or [],
+        )
+        # 简单计算阅读时长：按每分钟 300 字
+        words = len((p.content or '').replace('\n', ''))
+        p.read_time = max(1, words // 300)
+        if p.status == 'published' and not p.published_at:
+            p.published_at = datetime.now(timezone.utc)
+        db.session.add(p)
+        db.session.commit()
+        return jsonify({'success': True, 'data': {'id': p.id}, 'message': '创建成功'})
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        return jsonify({
+            'success': False,
+            'error_type': type(e).__name__,
+            'message': str(e),
+            'detail': traceback.format_exc()
+        }), 500
 
 
 @app.route('/api/admin/posts/<int:post_id>', methods=['PUT'])
@@ -3014,6 +3024,37 @@ def json_response(data, status_code=200, cache_control=None):
     if cache_control:
         response.headers['Cache-Control'] = cache_control
     return response, status_code
+
+@app.route('/api/debug/db', methods=['GET'])
+def debug_db():
+    """DB 诊断端点：返回数据库路径、表列表、/tmp 可写性"""
+    import os
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    db_path = None
+    if '///' in db_uri:
+        db_path = db_uri.split('///', 1)[1].split('?', 1)[0]
+    
+    # 使用 SQLAlchemy inspector 获取表列表
+    tables = []
+    try:
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+    except Exception as e:
+        tables = [f'Error: {e}']
+    
+    tmp_exists = os.path.exists('/tmp')
+    tmp_writable = os.access('/tmp', os.W_OK) if tmp_exists else False
+    
+    return jsonify({
+        'db_uri': db_uri,
+        'db_path': db_path,
+        'tables': tables,
+        'tmp_exists': tmp_exists,
+        'tmp_writable': tmp_writable,
+        'vercel_env': os.getenv('VERCEL', 'not set'),
+        'timestamp': datetime.now(timezone.utc).isoformat()
+    })
 
 if __name__ == '__main__':
     try:
