@@ -1379,10 +1379,13 @@ def admin_create_movie():
     if not title:
         return jsonify({'success': False, 'message': '标题必填'}), 400
     year = int(data['year']) if data.get('year') else None
-    # 重复检测：按 title + year
-    existing = MovieFavorite.query.filter_by(title=title[:200], year=year).first()
+    # 重复检测：按标题去重（忽略大小写，仅标题匹配即可避免同名电影重复添加）
+    from sqlalchemy import func
+    existing = MovieFavorite.query.filter(
+        func.lower(MovieFavorite.title) == title[:200].strip().lower()
+    ).first()
     if existing:
-        return jsonify({'success': False, 'message': '该电影已在收藏列表中'}), 409
+        return jsonify({'success': False, 'message': f'"{existing.title}" 已在收藏列表中'}), 409
     try:
         m = MovieFavorite(
             title=title[:200],
