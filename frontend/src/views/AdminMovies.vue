@@ -173,7 +173,7 @@ const searchInput = ref<HTMLInputElement | null>(null)
 const load = async () => {
   loading.value = true
   try {
-    const r = await http.get<any>('/admin/movie-favorites')
+    const r = await http.get<any>('/admin/movie-favorites', { enabled: false })
     if (r?.success) items.value = r.data || []
   } catch (e) {
     console.error(e)
