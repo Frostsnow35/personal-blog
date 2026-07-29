@@ -50,7 +50,6 @@
               <span v-if="item.director">导演：{{ item.director }}</span>
               <span v-if="item.year"> · {{ item.year }}年</span>
             </p>
-            <p v-if="item.description" class="text-gray-600 dark:text-gray-300 mt-3 text-sm">{{ item.description }}</p>
           </div>
         </div>
       </div>
