@@ -1353,21 +1353,37 @@ def list_movie_favorites():
 @jwt_required_admin
 def admin_list_movie_favorites():
     rows = MovieFavorite.query.order_by(MovieFavorite.sort_order.asc(), MovieFavorite.id.desc()).all()
-    return jsonify({'success': True, 'data': [_movie_to_dict(m) for m in rows]})
+    # 去重：标题忽略大小写，保留最先出现的记录
+    seen = set()
+    deduped = []
+    for m in rows:
+        key = (m.title or '').strip().lower()
+        if key not in seen:
+            seen.add(key)
+            deduped.append(m)
+    return jsonify({'success': True, 'data': [_movie_to_dict(m) for m in deduped]})
 
 
 @app.route('/api/movie-favorites/daily', methods=['GET'])
 def daily_movie_favorite():
     rows = MovieFavorite.query.all()
-    if not rows:
+    # 去重：标题忽略大小写，保留最先出现的记录
+    seen = set()
+    deduped = []
+    for m in rows:
+        key = (m.title or '').strip().lower()
+        if key not in seen:
+            seen.add(key)
+            deduped.append(m)
+    if not deduped:
         return json_response({'success': True, 'data': None})
     force_random = request.args.get('refresh', '0') == '1'
     if force_random:
-        selected = random.choice(rows)
+        selected = random.choice(deduped)
     else:
         today = datetime.now(timezone.utc).date().isoformat()
         random.seed(today)
-        selected = random.choice(rows)
+        selected = random.choice(deduped)
     return json_response({'success': True, 'data': _movie_to_dict(selected)})
 
 

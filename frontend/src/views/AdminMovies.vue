@@ -170,6 +170,12 @@ const recommendResults = ref<SearchResult[]>([])
 const recommendLoading = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
 
+// 检查电影是否已在收藏列表中（忽略大小写）
+const isCollected = (title: string): boolean => {
+  const lower = title.toLowerCase().trim()
+  return items.value.some(m => (m.title || '').toLowerCase().trim() === lower)
+}
+
 const load = async () => {
   loading.value = true
   try {
@@ -192,7 +198,7 @@ const fetchRecommend = async () => {
         year: movie.release_date ? movie.release_date.substring(0, 4) : '',
         cover: movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : '',
         description: movie.overview?.substring(0, 100) || ''
-      })).filter((m: any) => m.cover)
+      })).filter((m: any) => m.cover && !isCollected(m.title))
     }
   } catch (error) {
     console.error('推荐加载失败:', error)
@@ -229,7 +235,7 @@ const searchMovie = async () => {
         year: movie.release_date ? movie.release_date.substring(0, 4) : '',
         cover: movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : '',
         description: movie.overview?.substring(0, 100) || ''
-      })).filter((m: any) => m.cover)
+      })).filter((m: any) => m.cover && !isCollected(m.title))
     }
   } catch (error) {
     console.error('搜索失败:', error)
@@ -245,9 +251,7 @@ const resetSearch = () => {
   hasSearched.value = false
 }
 
-const isFavorited = (item: SearchResult) => {
-  return items.value.some(m => m.title === item.title && (m.year?.toString() || '') === item.year)
-}
+const isFavorited = (item: SearchResult) => isCollected(item.title)
 
 const addFromSearch = async (item: SearchResult) => {
   const payload: any = {
