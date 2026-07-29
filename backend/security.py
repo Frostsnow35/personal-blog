@@ -224,31 +224,36 @@ class SecurityMiddleware:
         #         }), 200
         #     return make_response("404 Not Found", 404)
         
-        data = ''
-        try:
-            if request.method in ('POST', 'PUT', 'DELETE'):
-                if request.is_json:
-                    data = json.dumps(request.get_json(silent=True) or {})
-                else:
-                    data = request.get_data(as_text=True) or ''
-            else:
-                data = request.query_string.decode('utf-8', errors='ignore')
-        except:
-            pass
+        # 管理员 API 已通过 JWT 认证保护，跳过内容安全检查，
+        # 避免误判 markdown 文章中的 SQL/HTML 代码示例
+        is_admin_api = request.path.startswith('/api/admin/')
         
-        if self._detect_sql_injection(data):
-            self._log_attack('SQL_INJECTION_DETECTED', {'data': data[:200]})
-            return jsonify({
-                'success': False,
-                'message': '请求参数包含非法内容',
-            }), 400
+        if not is_admin_api:
+            data = ''
+            try:
+                if request.method in ('POST', 'PUT', 'DELETE'):
+                    if request.is_json:
+                        data = json.dumps(request.get_json(silent=True) or {})
+                    else:
+                        data = request.get_data(as_text=True) or ''
+                else:
+                    data = request.query_string.decode('utf-8', errors='ignore')
+            except:
+                pass
+            
+            if self._detect_sql_injection(data):
+                self._log_attack('SQL_INJECTION_DETECTED', {'data': data[:200]})
+                return jsonify({
+                    'success': False,
+                    'message': '请求参数包含非法内容',
+                }), 400
 
-        if self._detect_xss(data):
-            self._log_attack('XSS_ATTACK_DETECTED', {'data': data[:200]})
-            return jsonify({
-                'success': False,
-                'message': '请求参数包含非法内容',
-            }), 400
+            if self._detect_xss(data):
+                self._log_attack('XSS_ATTACK_DETECTED', {'data': data[:200]})
+                return jsonify({
+                    'success': False,
+                    'message': '请求参数包含非法内容',
+                }), 400
         
         if request.path.startswith('/api/') and request.method != 'GET':
             api_key = f"api_{ip}"
