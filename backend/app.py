@@ -1349,6 +1349,13 @@ def list_movie_favorites():
     return json_response({'success': True, 'data': [_movie_to_dict(m) for m in rows]})
 
 
+@app.route('/api/admin/movie-favorites', methods=['GET'])
+@jwt_required_admin
+def admin_list_movie_favorites():
+    rows = MovieFavorite.query.order_by(MovieFavorite.sort_order.asc(), MovieFavorite.id.desc()).all()
+    return jsonify({'success': True, 'data': [_movie_to_dict(m) for m in rows]})
+
+
 @app.route('/api/movie-favorites/daily', methods=['GET'])
 def daily_movie_favorite():
     rows = MovieFavorite.query.all()
@@ -1376,20 +1383,25 @@ def admin_create_movie():
     existing = MovieFavorite.query.filter_by(title=title[:200], year=year).first()
     if existing:
         return jsonify({'success': False, 'message': '该电影已在收藏列表中'}), 409
-    m = MovieFavorite(
-        title=title[:200],
-        director=(data.get('director') or '').strip() or None,
-        year=int(data['year']) if data.get('year') else None,
-        cover_url=(data.get('cover_url') or '').strip() or None,
-        source_url=(data.get('source_url') or '').strip() or None,
-        description=(data.get('description') or '').strip() or None,
-        rating=int(data['rating']) if data.get('rating') else None,
-        tags=data.get('tags') or [],
-        sort_order=int(data.get('sort_order') or 0),
-    )
-    db.session.add(m)
-    db.session.commit()
-    return jsonify({'success': True, 'data': _movie_to_dict(m)})
+    try:
+        m = MovieFavorite(
+            title=title[:200],
+            director=(data.get('director') or '').strip() or None,
+            year=int(data['year']) if data.get('year') else None,
+            cover_url=(data.get('cover_url') or '').strip() or None,
+            source_url=(data.get('source_url') or '').strip() or None,
+            description=(data.get('description') or '').strip() or None,
+            rating=int(data['rating']) if data.get('rating') else None,
+            tags=data.get('tags') or [],
+            sort_order=int(data.get('sort_order') or 0),
+        )
+        db.session.add(m)
+        db.session.commit()
+        return jsonify({'success': True, 'data': _movie_to_dict(m)})
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        return jsonify({'success': False, 'error_type': type(e).__name__, 'message': str(e), 'detail': traceback.format_exc()}), 500
 
 
 @app.route('/api/admin/movie-favorites/<int:mid>', methods=['PUT'])
@@ -1416,8 +1428,13 @@ def admin_update_movie(mid):
     if 'sort_order' in data:
         try: m.sort_order = int(data.get('sort_order') or 0)
         except (TypeError, ValueError): pass
-    db.session.commit()
-    return jsonify({'success': True, 'data': _movie_to_dict(m)})
+    try:
+        db.session.commit()
+        return jsonify({'success': True, 'data': _movie_to_dict(m)})
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        return jsonify({'success': False, 'error_type': type(e).__name__, 'message': str(e), 'detail': traceback.format_exc()}), 500
 
 
 @app.route('/api/admin/movie-favorites/<int:mid>', methods=['DELETE'])
