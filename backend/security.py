@@ -22,8 +22,8 @@ class SecurityMiddleware:
             r"(?i)(DELETE\s+FROM\s+.*\s+WHERE\s+)",
             r"(?i)(DROP\s+(?:TABLE|DATABASE|INDEX)\s+)",
             r"(?i)(EXEC(?:UTE)?\s*\(|XP_\w+)",
-            r"(?i)(0x[0-9a-f]{8,})",
-            r"(?i)(/\*!?\d*\*/|\*/)",
+            r"(?i)\b0x[0-9a-f]{12,}",                   # 仅匹配 >=12 位 hex 注入载荷，避免误判短 hex 值
+            r"(?i)/\*!?\d+\*/",                          # 仅匹配 MySQL 条件注释，不再误匹配任意 */
             r"(?i)(OR\s+1\s*=\s*1|AND\s+1\s*=\s*1|OR\s+'?1'?\s*=\s*'?1|AND\s+'?1'?\s*=\s*'?1)",
             r"(?i)(BENCHMARK\s*\(|SLEEP\s*\(|WAITFOR\s+DELAY\s+|PG_SLEEP\s*\()",
             r"(?i)(information_schema\.)",
