@@ -14,6 +14,10 @@ class SecurityMiddleware:
         self.honeypot_captures = []  # 已禁用蜜罐捕获
         self.attack_log = []
         
+        # SQL 注入检测：仅保留经典注入特征（不会出现在自然语言中）
+        # 移除 EXEC/CONCAT/SUBSTRING/SLEEP/BENCHMARK 等编程术语（误判率极高）
+        # 移除 '-- 和 '; 等引号组合（在引用文本中常见）
+        # ORM 参数化查询已提供主要防护
         self.SQL_INJECTION_PATTERNS = [
             r"(?i)(UNION\s+(?:ALL\s+)?SELECT\s+)",
             r"(?i)(SELECT\s+.*\s+FROM\s+.*\s+WHERE\s+)",
@@ -21,31 +25,24 @@ class SecurityMiddleware:
             r"(?i)(UPDATE\s+.*\s+SET\s+.*\s+WHERE\s+)",
             r"(?i)(DELETE\s+FROM\s+.*\s+WHERE\s+)",
             r"(?i)(DROP\s+(?:TABLE|DATABASE|INDEX)\s+)",
-            r"(?i)(EXEC(?:UTE)?\s*\(|XP_\w+)",
-            r"(?i)\b0x[0-9a-f]{12,}",                   # 仅匹配 >=12 位 hex 注入载荷，避免误判短 hex 值
-            r"(?i)/\*!?\d+\*/",                          # 仅匹配 MySQL 条件注释，不再误匹配任意 */
+            r"(?i)\b0x[0-9a-f]{12,}",
+            r"(?i)/\*!?\d+\*/",
             r"(?i)(OR\s+1\s*=\s*1|AND\s+1\s*=\s*1|OR\s+'?1'?\s*=\s*'?1|AND\s+'?1'?\s*=\s*'?1)",
-            r"(?i)(BENCHMARK\s*\(|SLEEP\s*\(|WAITFOR\s+DELAY\s+|PG_SLEEP\s*\()",
             r"(?i)(information_schema\.)",
-            r"(?i)(CONCAT\s*\(|SUBSTRING\s*\(|UNHEX\s*\(|CHAR\s*\(\s*\d+\s*\))",
-            r"(?i)('\s*OR\s*'?\d|'\s*AND\s*'?\d|'\s*--|'\s*;)",
-            r"(?i)(\(\s*SELECT\s+.*\s+FROM\s+)",
-            r"(?i)(LOAD_FILE\s*\(|INTO\s+OUTFILE\s+|INTO\s+DUMPFILE\s+)",
+            r"(?i)(INTO\s+OUTFILE\s+|INTO\s+DUMPFILE\s+)",
         ]
 
+        # XSS 检测：仅保留 HTML 标签注入特征（不会出现在正常对话中）
+        # 移除独立 javascript:/vbscript:/expression( 等模式（在技术讨论中常见）
+        # Vue 模板 {{ }} 转义已提供主要防护
         self.XSS_PATTERNS = [
-            r"(?i)<script[^>]*>.*?</script>",
             r"(?i)<script[^>]*>",
             r"(?i)</script>",
             r"(?i)<iframe[^>]*>",
             r"(?i)<img[^>]*src\s*=\s*[\"']?\s*javascript:",
-            r"(?i)javascript\s*:",
-            r"(?i)vbscript\s*:",
-            r"(?i)data\s*:\s*text/html",
             r"(?i)<svg[^>]*on\w+\s*=",
-            r"(?i)<body[^>]*onload\s*=",
+            r"(?i)<body[^>]*on\w+\s*=",
             r"(?i)<link[^>]*href\s*=\s*[\"']?\s*javascript:",
-            r"(?i)expression\s*\(",
             r"(?i)<object[^>]*>",
             r"(?i)<embed[^>]*>",
         ]
