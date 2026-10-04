@@ -15,7 +15,7 @@ import time
 from dotenv import load_dotenv
 import jwt
 from sqlalchemy.pool import NullPool
-from sqlalchemy import text
+from sqlalchemy import text, cast, Text, inspect as sa_inspect
 from werkzeug.security import generate_password_hash, check_password_hash
 from concurrent.futures import ThreadPoolExecutor
 
@@ -2158,7 +2158,33 @@ def ensure_profile_schema():
                 db.session.rollback()
             return
 
+        # PostgreSQL / 其他非 MySQL、非 SQLite 的方言
+        #
+        # 此前这里直接 return，导致线上（Supabase PostgreSQL）永远补不上列——
+        # 后果是 profiles 表缺 site_title / site_subtitle，
+        # 而 ORM 每次 SELECT 都带上这两列，于是 /api/profile 直接 500。
+        # 该问题已在线上实测确认。
         if not uses_direct_sqlite_queries():
+            try:
+                insp = sa_inspect(db.engine)
+                if 'profiles' not in insp.get_table_names():
+                    return
+                existing = {c['name'] for c in insp.get_columns('profiles')}
+                added = []
+                for col, col_type in required_columns.items():
+                    if col in existing:
+                        continue
+                    # PostgreSQL 用 VARCHAR 限制长度，无需反引号
+                    db.session.execute(
+                        text(f'ALTER TABLE profiles ADD COLUMN {col} {col_type}')
+                    )
+                    added.append(col)
+                if added:
+                    db.session.commit()
+                    app.logger.info('已为 profiles 表新增列: %s', ', '.join(added))
+            except Exception:
+                db.session.rollback()
+                app.logger.exception('ensure_profile_schema 失败')
             return
 
         import sqlite3
@@ -2190,19 +2216,56 @@ def create_access_token(username: str, role: str = 'admin', expires_minutes: int
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
 
+def _jsonb_array_contains(column, value: str):
+    """判断 JSON 数组列是否包含指定元素（方言无关）。
+
+    背景：`tags` 列在 PostgreSQL 上是 **jsonb** 类型。此前用
+    `Post.tags.contains([tag])` 过滤有两个问题：
+      1. 传列表而 jsonb 的 contains 语义是对标量判断，条件恒不成立
+      2. 直接对 jsonb 列 LIKE 会报 `operator does not exist: jsonb ~~ unknown`，
+         线上表现为**所有带 tag 参数的接口 500**（已实测确认）
+
+    正确做法：把列转成文本再LIKE，并给元素加上引号做边界。
+    JSON 数组序列化后形如 ["xv6","os"]，元素两侧必有引号，
+    故 '%"xv6"%' 不会误命中「xv6x」。
+
+    用 `cast(..., Text)` 而非 `::text`——前者 SQLAlchemy 会按方言生成
+    正确语法（SQLite 不认 `::`）。
+    """
+    pattern = f'%"{_escape_like(value)}"%'
+    return cast(column, Text).like(pattern, escape='\\')
+
+
+def _escape_like(term: str) -> str:
+    """转义 LIKE 模式中的通配符。
+
+    LIKE 的通配符只有两个：`%`（任意多字符）与 `_`（单字符）。
+    标签里的 `+`（如 "C++"）、`.`（如 "Node.js"）都不是通配符，无需转义。
+    各方言默认 LIKE 转义符不同，统一用 \\ 并显式声明。
+    """
+    return (term or '').replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+
 def _build_post_query(category=None, tag=None, search=None):
-    """构建文章查询条件（共用函数）"""
+    """构建文章查询条件（共用函数）
+
+    tags 走 `_jsonb_array_contains`（见其 docstring）。
+    search 只匹配 title / category / excerpt / content —— 此前用
+    `tags.contains([search])` 同样恒不成立，且让「标签筛选」与「关键词搜索」
+    语义混淆：搜「xv6」时命中标签其实应走 tag 参数。
+    """
     query = Post.query.filter_by(status='published')
     if category:
         query = query.filter(Post.category == category)
     if tag:
-        query = query.filter(Post.tags.contains([tag]))
+        query = query.filter(_jsonb_array_contains(Post.tags, tag))
     if search:
-        like = f'%{search}%'
+        like = f'%{_escape_like(search)}%'
         query = query.filter(db.or_(
-            Post.title.ilike(like),
-            Post.category.ilike(like),
-            Post.tags.contains([search])
+            Post.title.ilike(like, escape='\\'),
+            Post.category.ilike(like, escape='\\'),
+            Post.excerpt.ilike(like, escape='\\'),
+            Post.content.ilike(like, escape='\\')
         ))
     return query
 
