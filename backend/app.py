@@ -2906,9 +2906,102 @@ def health_check():
 def health_check_api():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now(timezone.utc).isoformat()})
 
+# ============== 诊断端点（仅管理员） ==============
+#
+# 安全说明：这些端点曾以公开形式暴露，其中 /api/debug/db 会把完整的
+# DATABASE_URL（含数据库明文密码）返回给任何访问者。任何人只要访问
+# 一次该端点，就能拿到生产数据库的完整访问权限。
+#
+# 现在做两层防护：
+#   1. 必须携带管理员 JWT（复用 jwt_required_admin）
+#   2. 即便鉴权通过，连接串也做脱敏，只显示主机与库名
+
+def _mask_db_uri(uri: str) -> str:
+    """脱敏数据库连接串，只保留足够排障的信息。
+
+    保留：驱动、主机、端口、库名
+    去掉：用户名、密码、以及其余全部原文
+
+    实现要点：**白名单式提取，不做「解析后重新拼接」**。
+    早先用 `urlunsplit(parts)` 重建字符串，但 `urlsplit` 对畸形输入
+    （如 'not a url SecretPwd'）不会报错——它把整串当成 path，
+    于是 urlunsplit 原样返回，密码等敏感内容直接透出。
+    脱敏宁可少给信息，也不能给错信息。
+
+    判定「像不像连接串」用必须含 `://`，避免把任意文本当 URI 处理。
+    """
+    if not uri:
+        return ''
+
+    # 没有 scheme 就不是 URI 形态，直接全部隐藏。
+    # 不能把原文返回，那正是要防的泄露。
+    if '://' not in uri:
+        return '***'
+
+    try:
+        from urllib.parse import urlsplit
+        parts = urlsplit(uri)
+        scheme = parts.scheme or ''
+        if not scheme:
+            return '***'
+
+        # 无主机对 sqlite 是正常形态（sqlite:///./x.db），单独处理：
+        # 只回显文件名，不回显完整路径（路径里可能含部署目录等内部信息）
+        if not parts.hostname:
+            if scheme != 'sqlite':
+                return '***'
+            db_name = _uri_db_name(parts.path)
+            if not db_name:
+                return '***'
+            return f'{scheme}:///{db_name}'
+
+        host = parts.hostname
+        try:
+            port = parts.port
+        except ValueError:
+            # 端口不是合法整数，属畸形
+            return '***'
+        if port:
+            host = f'{host}:{port}'
+
+        db_name = _uri_db_name(parts.path)
+        out = f'{scheme}://***:***@{host}'
+        return f'{out}/{db_name}' if db_name else out
+    except Exception:
+        return '***'
+
+
+def _uri_db_name(path: str) -> str:
+    """从连接串路径里取出库名，并校验其「无害」。
+
+    只保留字母数字与 `_ - . 空格`——库名本该只由这些字符构成，
+    这个白名单同时起到过滤作用：万一路径里混进奇怪内容，
+    宁可返回空（不显示）也不显示可疑内容。
+
+    需同时处理 `/` 与 `\\` 两种分隔符：SQLite 在 Windows 上是
+    `sqlite:///C:\\Users\\...\\x.db`，只按 `/` 分割会取不到文件名。
+    """
+    if not path:
+        return ''
+    raw = path.rstrip('/\\')
+    if not raw:
+        return ''
+    candidate = re.split(r'[/\\]', raw)[-1]
+    if not candidate:
+        return ''
+    if all(ch.isalnum() or ch in '_-. ' for ch in candidate):
+        return candidate
+    return ''
+
+
 @app.route('/api/init-db', methods=['POST'])
+@jwt_required_admin
 def init_db():
-    """初始化数据库表结构，仅在首次部署时调用一次"""
+    """初始化数据库表结构，仅在首次部署时由管理员调用一次。
+
+    此前无鉴权，任何人 POST 都能触发 bootstrap()——在serverless 上
+    等于允许外部反复触发建表流程。
+    """
     try:
         bootstrap()
         return jsonify({'status': 'success', 'message': '数据库初始化完成'})
@@ -2917,20 +3010,19 @@ def init_db():
 
 
 @app.route('/api/debug')
+@jwt_required_admin
 def debug_info():
-    import os
-    info = {
-        'request_path': request.path,
-        'request_url': request.url,
-        'request_method': request.method,
-        'all_routes': sorted([str(r) for r in app.url_map.iter_rules() if '/api/admin' in str(r) or '/api/auth' in str(r) or '/api/posts' in str(r)][:20]),
-        'cwd': os.getcwd(),
-        'frontend_dist': _frontend_dist,
-        'frontend_dist_exists': os.path.isdir(_frontend_dist),
+    """部署诊断信息，仅管理员可见。
+
+    不再返回 cwd 与路由清单：这两项对排障帮助有限，但会暴露
+    目录结构与内部路由拓扑。
+    """
+    return jsonify({
         'database_url_set': bool(app.config.get('SQLALCHEMY_DATABASE_URI', '').strip()),
         'db_initialized': _db_initialized,
-    }
-    return jsonify(info)
+        'frontend_dist_exists': os.path.isdir(_frontend_dist),
+        'vercel_env': bool(os.getenv('VERCEL')),
+    })
 
 # 前端静态文件服务
 @app.route('/assets/<path:filename>')
@@ -3128,14 +3220,20 @@ def json_response(data, status_code=200, cache_control=None):
     return response, status_code
 
 @app.route('/api/debug/db', methods=['GET'])
+@jwt_required_admin
 def debug_db():
-    """DB 诊断端点：返回数据库路径、表列表、/tmp 可写性"""
+    """DB 诊断端点：返回表列表、/tmp 可写性。**仅管理员可见**。
+
+    安全修复：此前该端点公开且直接返回 `db_uri`（含明文密码），
+    任何人访问一次即可获得生产数据库的完整访问权限。
+    现在需要管理员 JWT，且连接串一律脱敏。
+    """
     import os
     db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
     db_path = None
     if '///' in db_uri:
         db_path = db_uri.split('///', 1)[1].split('?', 1)[0]
-    
+
     # 使用 SQLAlchemy inspector 获取表列表
     tables = []
     try:
@@ -3144,17 +3242,17 @@ def debug_db():
         tables = inspector.get_table_names()
     except Exception as e:
         tables = [f'Error: {e}']
-    
+
     tmp_exists = os.path.exists('/tmp')
     tmp_writable = os.access('/tmp', os.W_OK) if tmp_exists else False
-    
+
     return jsonify({
-        'db_uri': db_uri,
+        'db_uri': _mask_db_uri(db_uri),   # 脱敏，不含用户名与密码
         'db_path': db_path,
         'tables': tables,
         'tmp_exists': tmp_exists,
         'tmp_writable': tmp_writable,
-        'vercel_env': os.getenv('VERCEL', 'not set'),
+        'vercel_env': bool(os.getenv('VERCEL')),
         'timestamp': datetime.now(timezone.utc).isoformat()
     })
 
