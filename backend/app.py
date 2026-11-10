@@ -86,10 +86,53 @@ JWT_ALG = 'HS256'
 
 # 初始化扩展
 
+def ensure_postgres_rls():
+    """Supabase/PostgreSQL：为 public 模式下所有表启用 RLS（幂等）。
+
+    修复 Supabase Security Advisor 告警 "Table publicly accessible"：
+    未启用 RLS 时，任何持有项目 URL + anon key 的人都能通过 PostgREST
+    读写删全部数据。本应用所有读写均以表属主身份直连数据库，表属主
+    默认绕过 RLS（此处刻意不加 FORCE ROW LEVEL SECURITY），线上服务
+    零影响；anon/authenticated 侧因无任何策略被完全拒绝。
+
+    每次冷启动执行，db.create_all() 新建的表也会被自动补上 RLS。
+    仅在 Supabase（DATABASE_URL 含 supabase）时启用，其他部署不受影响；
+    也可手动执行 sql/enable_rls.sql 立即生效。
+    """
+    try:
+        uri = (app.config.get('SQLALCHEMY_DATABASE_URI') or '').lower()
+        if not uri.startswith('postgresql') or 'supabase' not in uri:
+            return
+        db.session.execute(text("""
+            DO $$
+            DECLARE
+                r RECORD;
+            BEGIN
+                FOR r IN
+                    SELECT c.relname AS tbl
+                    FROM pg_class c
+                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                    WHERE n.nspname = 'public'
+                      AND c.relkind = 'r'
+                      AND NOT c.relrowsecurity
+                LOOP
+                    EXECUTE 'ALTER TABLE public.' || quote_ident(r.tbl) || ' ENABLE ROW LEVEL SECURITY';
+                END LOOP;
+            END $$;
+        """))
+        db.session.commit()
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
 def ensure_db():
     """确保数据库表存在（每次冷启动时自动创建）"""
     with app.app_context():
         db.create_all()
+        ensure_postgres_rls()
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -3120,6 +3163,7 @@ def bootstrap():
             db.create_all()
             ensure_mysql_utf8mb4()
             ensure_profile_schema()
+            ensure_postgres_rls()
             ensure_default_admin()
     except Exception as e:
         try:

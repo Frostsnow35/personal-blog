@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- 修复 Supabase Security Advisor 告警 "Table publicly accessible"（public 表未启用 RLS，任何人可凭项目 URL + anon key 经 PostgREST 读写删数据）：新增幂等脚本 `sql/enable_rls.sql` 可在 SQL Editor 立即执行；后端启动时 `ensure_postgres_rls()` 自动为 public 全部表补开 RLS（含后续新建表），仅对含 supabase 的 DATABASE_URL 生效。应用以表属主直连、不受 RLS 影响（未启用 FORCE），PostgREST 侧默认拒绝、零策略。
+
 ### Added
 
 - 新增独立搜索页 `/search`，支持关键词 分类 标签与分页，并以 URL query 作为可分享状态源。
