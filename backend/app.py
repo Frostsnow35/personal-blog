@@ -38,6 +38,14 @@ if database_url:
         database_url = f"mysql+pymysql://{database_url[len('mysql://'):]}"
     elif database_url.startswith('postgres://'):
         database_url = f"postgresql://{database_url[len('postgres://'):]}"
+    # PostgreSQL：显式钉死 psycopg2 驱动。requirements 只安装 psycopg2-binary，
+    # 而 SQLAlchemy 2.1+ 的 postgresql:// 默认走 psycopg3（import psycopg），
+    # 未装 psycopg 会在 SQLAlchemy(app) 导入期直接抛 ModuleNotFoundError，
+    # 导致整个后端降级为兜底 app、线上全站 404（2026-11-11 事故）。
+    for _pg_prefix in ('postgresql+psycopg2://', 'postgresql+psycopg://', 'postgresql://'):
+        if database_url.startswith(_pg_prefix):
+            database_url = 'postgresql+psycopg2://' + database_url[len(_pg_prefix):]
+            break
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
     db_path = os.path.join(os.path.dirname(__file__), 'personal_blog.db')
@@ -65,7 +73,7 @@ def build_engine_options(uri: str) -> dict:
                 'timeout': 20
             }
         }
-    if uri.startswith('postgresql:'):
+    if uri.startswith('postgresql'):
         return {'poolclass': NullPool}
     return {}
 
@@ -129,10 +137,20 @@ def ensure_postgres_rls():
 
 
 def ensure_db():
-    """确保数据库表存在（每次冷启动时自动创建）"""
-    with app.app_context():
-        db.create_all()
-        ensure_postgres_rls()
+    """确保数据库表存在（每次冷启动时自动创建）。
+
+    失败绝不抛出：冷启动时数据库不可达若让模块导入崩溃，
+    Vercel 会降级到兜底 app，导致全站 404（宁可 API 暂时报错）。
+    """
+    try:
+        with app.app_context():
+            db.create_all()
+            ensure_postgres_rls()
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
